@@ -35,6 +35,10 @@ if(!widget){
  const inGroup=Object.fromEntries(objects.PBXGroup[groupKey].children.map(c=>[unquote(refs[c.value].path),c.value]));
  for(const [k,bf] of Object.entries(bfs)){if(k.endsWith('_comment'))continue;const ref=refs[bf.fileRef];const p=ref&&unquote(ref.path);
   if(p&&p.startsWith('SidebetWidget/')&&inGroup[p.slice(14)]){delete refs[bf.fileRef];delete refs[bf.fileRef+'_comment'];bf.fileRef=inGroup[p.slice(14)];}}
+ // The widget's Info.plist is referenced by INFOPLIST_FILE only; drop any shared sidebar entry so a file never sits in two groups.
+ const appGroup=Object.entries(objects.PBXGroup).find(([k,g])=>!k.endsWith('_comment')&&unquote(g.name||g.path)==='App'&&g.children?.some(c=>unquote(refs[c.value]?.path)==='Info.plist'));
+ const shared=new Set(appGroup?appGroup[1].children.map(c=>c.value):[]);
+ objects.PBXGroup[groupKey].children=objects.PBXGroup[groupKey].children.filter(c=>!shared.has(c.value));
  const used=new Set();for(const type of ['PBXSourcesBuildPhase','PBXResourcesBuildPhase','PBXFrameworksBuildPhase','PBXCopyFilesBuildPhase'])for(const [k,ph] of Object.entries(objects[type]||{}))if(!k.endsWith('_comment'))for(const f of ph.files||[])used.add(f.value);
  for(const k of Object.keys(bfs))if(!k.endsWith('_comment')&&!used.has(k)){delete bfs[k];delete bfs[k+'_comment'];}
 }

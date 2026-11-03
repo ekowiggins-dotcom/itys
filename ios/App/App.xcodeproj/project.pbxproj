@@ -103,7 +103,6 @@
 			isa = PBXGroup;
 			children = (
 				64FFCB300F0A4BBF88639FD1 /* SidebetWidget.swift */,
-				504EC3131FED79650016851F /* Info.plist */,
 				A53A50FAF1CD4513BB4217E4 /* SidebetWidget.entitlements */,
 			);
 			name = SidebetWidget;
