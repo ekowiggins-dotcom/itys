@@ -8,10 +8,11 @@ import {maintainSeasons} from './seasons';
 import {emitNotification,lockReminders} from './notifications';
 import {ensureRounds,snapshot,finalizeRounds} from './rounds';
 export {scoreTenths} from './rules';
+import {disputeCutoff} from './rules';
 const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
-type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;settled_at:Date|null};
+type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;settled_at:Date|null};
 export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null){return q.event_at?new Date(q.event_at).getTime()+7*DAY:new Date(opens!).getTime()+14*DAY-60000}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
@@ -64,8 +65,9 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  }
  await snapshot(tx,q,now);
  const cutoff=deadline(q,group.opens_at);
- const readyAt=q.proposed_at?new Date(q.proposed_at).getTime()+DAY:Infinity;
- if(q.moderation_state!=='pending'&&q.state==='proposed'&&readyAt<cutoff&&now.getTime()>=readyAt)await settle(tx,q,q.proposed_answer,new Date(readyAt),now);
+ // The dispute window closes at proposal+24h or the resolution deadline, whichever is first (rules.disputeCutoff).
+ const settleAt=q.proposed_at?disputeCutoff(new Date(q.proposed_at).getTime(),cutoff):Infinity;
+ if(q.moderation_state!=='pending'&&q.state==='proposed'&&now.getTime()>=settleAt)await settle(tx,q,q.proposed_answer,new Date(settleAt),now);
  else if(now.getTime()>=cutoff)await settle(tx,q,null,new Date(cutoff),now);
  }
  await lockReminders(tx,group.id,now);
@@ -135,17 +137,17 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+2*DAY)),'Only the creator or authorized takeover admin can propose.');
  check(q.state==='open','A proposal already exists.');
  if(userId!==q.creator)await audit(tx,g.id,q.id,userId,'admin takeover',now,{creator:q.creator});
- await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2 WHERE id=$3",[z.enum(['yes','no']).parse(data.answer),now,q.id]);await alert(tx,q,'proposed',userId,now);
+ await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[z.enum(['yes','no']).parse(data.answer),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
  }else if(data.action==='dispute'){
  check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+DAY,deadline(q,g.opens_at)),'The dispute window has closed.');
  check(!(await tx.query('SELECT 1 FROM disputes WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows.length,'You already disputed this bet.');
  await tx.query('INSERT INTO disputes VALUES($1,$2,$3)',[q.id,userId,now]);await tx.query("UPDATE questions SET state='disputed' WHERE id=$1",[q.id]);await alert(tx,q,'disputed',userId,now);
- const judge=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ($3::text IS NULL OR m.user_id<>$3) AND NOT EXISTS(SELECT 1 FROM disputes di WHERE di.question_id=$4 AND di.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id LIMIT 1`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id])).rows[0];
+ const judge=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ($3::text IS NULL OR m.user_id<>$3) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes di WHERE di.question_id=$4 AND di.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id LIMIT 1`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows[0];
  if(!judge)await settle(tx,q,null,now);
  else{const inserted=await tx.query('INSERT INTO alerts VALUES($1,$2,$3,$4,$5,true,$6,$7) ON CONFLICT(question_id,user_id,stage) DO NOTHING RETURNING id',[randomUUID(),g.id,q.id,judge.user_id,'judgment requested',userId,now]);if(inserted.rows.length)await emitNotification(tx,{groupId:g.id,userId:judge.user_id,key:'bet:'+q.id+':judgment',kind:'judgment_request',questionId:q.id,roundId:q.round_id||undefined,text:'Your judgment is needed: '+q.text},now);}
  }else if(data.action==='judge'){
  check(q.state==='disputed','No open dispute.');
- const judges=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ( $3::text IS NULL OR m.user_id<>$3 ) AND NOT EXISTS(SELECT 1 FROM disputes d WHERE d.question_id=$4 AND d.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id])).rows;
+ const judges=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ( $3::text IS NULL OR m.user_id<>$3 ) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes d WHERE d.question_id=$4 AND d.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows;
  if(!judges.length)await settle(tx,q,null,now);else{check(judges[0].user_id===userId,'Only the eligible judge can decide.');await settle(tx,q,z.enum(['yes','no']).parse(data.answer),now);}
  }
  }
