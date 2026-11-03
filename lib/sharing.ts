@@ -8,11 +8,11 @@ export function winnerCard(groupName:string,round:{state:string;opens_at:string|
 }
 export function shareLink(origin:string,invite:string,target?:{questionId?:string;roundId?:string;winner?:boolean},demo=false){
  const parsed=new URL(origin);if(!['http:','https:'].includes(parsed.protocol))throw Error('A web URL is required.');
- const path=demo||!target?'/':target.winner?'/share/winner':'/share/bet';const url=new URL(path,parsed.origin);url.searchParams.set('invite',invite);
+ const path=demo||!target?'/':target.winner?'/share/winner':'/share/call';const url=new URL(path,parsed.origin);url.searchParams.set('invite',invite);
  if(target?.questionId)url.searchParams.set('question',target.questionId);
  if(target?.roundId)url.searchParams.set('round',target.roundId);
  if(target?.winner)url.searchParams.set('view','winner');
  return url.toString();
 }
-export function shareText(card:ShareCard,url:string){return card.kind==='bet'?`${card.title}\n${card.detail}\nJoin ${card.groupName} and back your prediction.\n${url}\nFree points. No real money.`:`${card.title} ${card.subtitle==='SHARED WEEKLY WIN'?'share the weekly win':'wins this week'} in ${card.groupName}!\n${card.detail}\n${card.footer}\n${url}`}
+export function shareText(card:ShareCard,url:string){return card.kind==='bet'?`${card.title}\n${card.detail}\nJoin ${card.groupName} and make your call.\n${url}\nFree points. No real money.`:`${card.title} ${card.subtitle==='SHARED WEEKLY WIN'?'share the weekly win':'wins this week'} in ${card.groupName}!\n${card.detail}\n${card.footer}\n${url}`}
 export function whatsappLink(text:string){return 'https://wa.me/?text='+encodeURIComponent(text)}

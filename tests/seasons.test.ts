@@ -39,7 +39,7 @@ test('long-term stakes are separate, limit is atomic and per group; create alone
  for(let i=0;i<2;i++)await execute({action:'predictLongterm',invite:f.invite,questionId:qs[i],answer:'yes'},f.tokens[1],mon);
  const last=await Promise.allSettled(qs.slice(2).map(questionId=>execute({action:'predictLongterm',invite:f.invite,questionId,answer:'yes'},f.tokens[1],mon)));assert.equal(last.filter(r=>r.status==='fulfilled').length,1);let data=await view(f.invite,f.tokens[1],undefined,mon);assert.equal(data.longTermCount,3);assert.equal(data.used,0);
  await execute({action:'predictLongterm',invite:f.invite,questionId:qs[0],answer:'no'},f.tokens[1],mon);assert.equal((await view(f.invite,f.tokens[1],undefined,mon)).longTermCount,3);
- await assert.rejects(execute({action:'longterm',invite:f.invite,text:'Too short?',locksAt:at(1).toISOString(),eventAt:at(2).toISOString()},f.tokens[0],mon),/weekly bet/);
+ await assert.rejects(execute({action:'longterm',invite:f.invite,text:'Too short?',locksAt:at(1).toISOString(),eventAt:at(2).toISOString()},f.tokens[0],mon),/weekly call/);
  const other=await fixture();await execute({action:'join',invite:other.invite},f.tokens[1],mon);const q=(await execute({action:'longterm',invite:other.invite,text:'Another group?',locksAt:at(1).toISOString(),eventAt:at(30).toISOString()},other.tokens[0],mon)).questionId!;await execute({action:'predictLongterm',invite:other.invite,questionId:q,answer:'yes'},f.tokens[1],mon);
 });
 test('open long-term bets do not prevent freezing and add points only to the settlement season',async()=>{
@@ -51,7 +51,7 @@ test('open long-term bets do not prevent freezing and add points only to the set
  await execute({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.tokens[0],at(14));await runScheduler(at(15));const state=await view(f.invite,f.tokens[1],undefined,at(15));assert.equal(state.seasons!.find(x=>x.id===s)!.myStanding!.longTermTenths,0);assert.equal(state.seasons!.find(x=>x.name==='Next')!.myStanding!.longTermTenths,200);
 });
 test('long-term tagged subjects cannot participate and deadline void returns ten season points',async()=>{
- const f=await fixture();const tagged=(await execute({action:'longterm',invite:f.invite,text:'Will Maya finish the challenge?',locksAt:at(1).toISOString(),eventAt:at(14).toISOString(),subjectId:f.ids[1]},f.tokens[0],mon)).questionId!;await assert.rejects(execute({action:'predictLongterm',invite:f.invite,questionId:tagged,answer:'yes'},f.tokens[1],mon),/tagged subject/);
+ const f=await fixture();const tagged=(await execute({action:'longterm',invite:f.invite,text:'Will Maya finish the challenge?',locksAt:at(1).toISOString(),eventAt:at(14).toISOString(),subjectId:f.ids[1]},f.tokens[0],mon)).questionId!;await assert.rejects(execute({action:'predictLongterm',invite:f.invite,questionId:tagged,answer:'yes'},f.tokens[1],mon),/tagged person/);
  await execute({action:'predictLongterm',invite:f.invite,questionId:tagged,answer:'yes'},f.tokens[0],mon);const d=await db();assert.equal((await d.query<{stake:number}>('SELECT stake FROM predictions WHERE question_id=$1',[tagged])).rows[0].stake,10);await runScheduler(at(21));const data=await view(f.invite,f.tokens[0],undefined,at(21));assert.equal(data.longTermCount,0);assert.equal(data.seasons![0].myStanding!.longTermTenths,100);assert.equal((await d.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[tagged])).rows[0].state,'void');
 });
 test('activation respects a season published before the third member joins',async()=>{

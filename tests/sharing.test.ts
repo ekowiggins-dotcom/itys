@@ -1,6 +1,6 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {betCard,winnerCard,shareLink,shareText,whatsappLink} from '../lib/sharing';
 test('WhatsApp messages preserve punctuation and link to the specific bet without other state',()=>{
- const url=shareLink('https://sidebet.example/?old=1','secret invite',{questionId:'q&1',roundId:'r1'});const u=new URL(url);assert.equal(u.pathname,'/share/bet');assert.equal(u.searchParams.get('question'),'q&1');assert.equal(u.searchParams.get('invite'),'secret invite');assert.equal(u.searchParams.has('old'),false);
+ const url=shareLink('https://sidebet.example/?old=1','secret invite',{questionId:'q&1',roundId:'r1'});const u=new URL(url);assert.equal(u.pathname,'/share/call');assert.equal(u.searchParams.get('question'),'q&1');assert.equal(u.searchParams.get('invite'),'secret invite');assert.equal(u.searchParams.has('old'),false);
  const card=betCard('Friends & family','Will “Mert & Alex” make it? ✅',3);const text=shareText(card,url);assert.equal(new URL(whatsappLink(text)).searchParams.get('text'),text);assert.ok(text.includes(card.title));assert.ok(!text.includes('stake'));assert.equal(shareLink('https://sidebet.example/?round=old','i'),'https://sidebet.example/?invite=i');
 });
 test('only final winners receive a card; shared winners retain one-decimal scores',()=>{
