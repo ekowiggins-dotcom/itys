@@ -4,7 +4,7 @@
 import xcode from 'xcode';
 import {writeFileSync} from 'node:fs';
 const file='ios/App/App.xcodeproj/project.pbxproj';
-const bundle=process.env.IOS_BUNDLE_ID||'app.sidebet.ios';
+const bundle=process.env.IOS_BUNDLE_ID||'app.calld.ios';
 const domain=process.env.SIDEBET_LINK_DOMAIN||'your-app.up.railway.app';
 const proj=xcode.project(file);proj.parseSync();
 const objects=proj.hash.project.objects;
