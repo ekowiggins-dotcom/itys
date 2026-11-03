@@ -19,12 +19,13 @@ export async function maintainSeasons(tx:Transaction,g:string,now:Date){
  await tx.query(`UPDATE scores s SET allocation='credited',season_id=(SELECT se.id FROM seasons se JOIN questions q ON q.group_id=se.group_id WHERE q.id=s.question_id AND se.frozen_at IS NULL AND se.starts_at>=s.settled_at AND se.starts_at<=s.expires_at AND se.starts_at<=$2 ORDER BY se.starts_at LIMIT 1) WHERE s.allocation='pending' AND s.question_id IN (SELECT id FROM questions WHERE group_id=$1) AND EXISTS(SELECT 1 FROM seasons se JOIN questions q ON q.group_id=se.group_id WHERE q.id=s.question_id AND se.frozen_at IS NULL AND se.starts_at>=s.settled_at AND se.starts_at<=s.expires_at AND se.starts_at<=$2)`,[g,now]);
  await tx.query("UPDATE scores SET allocation='expired' WHERE allocation='pending' AND expires_at<$2 AND question_id IN(SELECT id FROM questions WHERE group_id=$1)",[g,now]);
  const seasons=(await tx.query<Season>('SELECT * FROM seasons WHERE group_id=$1 AND frozen_at IS NULL ORDER BY starts_at',[g])).rows;
+ const zone=(await tx.query<{timezone:string}>('SELECT timezone FROM groups WHERE id=$1',[g])).rows[0]?.timezone||'UTC';
  for(const s of seasons){
  await tx.query('INSERT INTO season_members SELECT $1,p.user_id,GREATEST(min(p.joined_at),$3::timestamptz) FROM membership_periods p WHERE p.group_id=$2 AND p.joined_at<$4 AND p.joined_at<=$5 AND (p.left_at IS NULL OR p.left_at>$3) GROUP BY p.user_id ON CONFLICT DO NOTHING',[s.id,g,s.starts_at,s.ends_at,now]);
  await tx.query('INSERT INTO season_members SELECT $1,user_id,min(settled_at) FROM scores WHERE season_id=$1 GROUP BY user_id ON CONFLICT DO NOTHING',[s.id]);
  const projection=await project(tx,s,now);
  for(const row of projection.standings){if(!row.dropCount)continue;
- const dropped=row.rounds.filter(r=>r.dropped);const text=`Your ${row.dropCount===1?'lowest completed round is':'two lowest completed rounds are'} now dropped: `+dropped.map(r=>new Date(r.opens_at).toLocaleDateString('en-GB',{timeZone:'UTC',day:'numeric',month:'short'})+' ('+(r.points_tenths/10).toFixed(1)+' pts)').join(', ')+'.';
+ const dropped=row.rounds.filter(r=>r.dropped);const text=`Your ${row.dropCount===1?'lowest completed round is':'two lowest completed rounds are'} now dropped: `+dropped.map(r=>new Date(r.opens_at).toLocaleDateString('en-GB',{timeZone:zone,day:'numeric',month:'short'})+' ('+(r.points_tenths/10).toFixed(1)+' pts)').join(', ')+'.';
  await tx.query('INSERT INTO season_drop_notices(id,season_id,user_id,drop_count,text,created_at) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(season_id,user_id,drop_count) DO NOTHING',[randomUUID(),s.id,row.user_id,row.dropCount,text,now]);}
  if(now>=new Date(s.ends_at)&&projection.pendingRounds===0){projection.state='frozen';projection.frozen_at=now.toISOString();await tx.query('UPDATE seasons SET frozen_at=$2,snapshot=$3 WHERE id=$1',[s.id,now,JSON.stringify(projection)]);}
  }

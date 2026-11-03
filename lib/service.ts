@@ -6,6 +6,7 @@ import {db} from './db';
 import {seasonViews} from './seasons';
 import {notificationView} from './notifications';
 import {z} from 'zod';
+import {groupDefaults,validTimezone} from './locale';
 import {lifecycle,maintain} from './lifecycle';
 import {nextMonday,weeklyViews,type Round,DAY} from './rounds';
 const name=z.string().trim().min(1).max(60);
@@ -26,7 +27,7 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
  let user=existing,session:string|undefined;
  if(!user){check(data.action==='create'||data.action==='join','Join the group first.');user={id:randomUUID(),name:name.parse(data.name)};session=randomBytes(32).toString('hex');await tx.query('INSERT INTO users VALUES($1,$2)',[user.id,user.name]);await tx.query('INSERT INTO sessions VALUES($1,$2)',[session,user.id]);}
  if(data.action==='create'){
- const id=randomUUID(),invite=randomBytes(18).toString('hex'),type=data.groupType||'Friends',zone=data.timezone||(type==='Friends'?'UTC':'Europe/Istanbul');try{new Intl.DateTimeFormat('en',{timeZone:zone}).format(now)}catch{throw new RuleError('Choose a valid time zone.')}await tx.query('INSERT INTO groups(id,name,invite,admin,group_type,timezone,country,leagues) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,name.parse(data.groupName),invite,user.id,type,zone,data.country||'TR',JSON.stringify([203])]);await tx.query('INSERT INTO members(group_id,user_id,joined_at,last_active_at) VALUES($1,$2,$3,$3)',[id,user.id,now]);await tx.query('INSERT INTO membership_periods VALUES($1,$2,$3,$4,NULL)',[randomUUID(),id,user.id,now]);await tx.query('INSERT INTO round_eligibility VALUES($1,$2) ON CONFLICT DO NOTHING',[id,user.id]);return {invite,session};
+ const id=randomUUID(),invite=randomBytes(18).toString('hex'),type=data.groupType||'Friends';check(!data.timezone||validTimezone(data.timezone),'Choose a valid time zone.');const locale=groupDefaults({timezone:data.timezone,country:data.country}),zone=locale.timezone;await tx.query('INSERT INTO groups(id,name,invite,admin,group_type,timezone,country,leagues) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,name.parse(data.groupName),invite,user.id,type,zone,locale.country,JSON.stringify(locale.leagues)]);await tx.query('INSERT INTO members(group_id,user_id,joined_at,last_active_at) VALUES($1,$2,$3,$3)',[id,user.id,now]);await tx.query('INSERT INTO membership_periods VALUES($1,$2,$3,$4,NULL)',[randomUUID(),id,user.id,now]);await tx.query('INSERT INTO round_eligibility VALUES($1,$2) ON CONFLICT DO NOTHING',[id,user.id]);return {invite,session};
  }
  const g=(await tx.query<{id:string;opens_at:Date|null;group_type:GroupType;timezone:string}>('SELECT * FROM groups WHERE invite=$1 FOR UPDATE',[data.invite])).rows[0];check(g,'This invite link was not found.');
  const member=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,user.id])).rows.length>0;
