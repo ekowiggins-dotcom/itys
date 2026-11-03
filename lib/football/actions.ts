@@ -13,10 +13,10 @@ export async function footballAction(input:unknown,userId:string,now=new Date())
  }
  await d.transaction(async tx=>{await tx.query('SELECT id FROM groups WHERE id=$1 FOR UPDATE',[g.id]);await maintain(tx,g,now)});
  return d.transaction(async tx=>{
- Object.assign(g,(await tx.query('SELECT id,admin,opens_at FROM groups WHERE id=$1 FOR UPDATE',[g.id])).rows[0]);check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,userId])).rows.length,'Join this group first.');
+ Object.assign(g,(await tx.query('SELECT id,admin,opens_at,timezone,leagues,country FROM groups WHERE id=$1 FOR UPDATE',[g.id])).rows[0]);const current=g as unknown as {timezone:string;leagues:number[];country:string};check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,userId])).rows.length,'Join this group first.');
  if(data.action==='footballSettings'){
- check(g.admin===userId,'Only the admin can change group settings.');const groupType=data.groupType||'Mixed',zone=data.timezone||'Europe/Istanbul',leagues=data.leagues||[203];try{new Intl.DateTimeFormat('en',{timeZone:zone}).format(now)}catch{throw new LifecycleError('Choose a valid time zone.')}
- const settings={groupType,timezone:zone,leagues,country:data.country||'TR'};const next=nextStart(now,groupType,zone);
+ check(g.admin===userId,'Only the admin can change group settings.');const groupType=data.groupType||'Mixed',zone=data.timezone||current.timezone,leagues=data.leagues||current.leagues;try{new Intl.DateTimeFormat('en',{timeZone:zone}).format(now)}catch{throw new LifecycleError('Choose a valid time zone.')}
+ const settings={groupType,timezone:zone,leagues,country:data.country||current.country};const next=nextStart(now,groupType,zone);
  await tx.query('DELETE FROM round_members WHERE round_id IN(SELECT id FROM rounds WHERE group_id=$1 AND state=\'planned\')',[g.id]);await tx.query("DELETE FROM rounds WHERE group_id=$1 AND state='planned'",[g.id]);
  const opened=(await tx.query("SELECT 1 FROM rounds WHERE group_id=$1 AND state<>'planned'",[g.id])).rows.length;
  if(!g.opens_at)await tx.query('UPDATE groups SET group_type=$2,timezone=$3,leagues=$4,country=$5 WHERE id=$1',[g.id,groupType,zone,JSON.stringify(leagues),settings.country]);
