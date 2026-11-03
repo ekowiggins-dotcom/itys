@@ -90,3 +90,96 @@ main.app .answers.grid button{width:100%}
 .winner-card .share-actions a,.winner-card .share-actions>button{min-height:38px!important;border-radius:99px!important;font-size:12px!important}
 .stake{gap:4px}.stake button{min-width:0;flex:1 1 0;padding:0 4px}.stake-row .stake{flex:1;max-width:260px}
 .bet-foot .share-panel{margin-left:auto}
+
+/* ---------- Polish: hierarchy, life, phone inputs ---------- */
+:root{--coral:#ff6a3d;--coral-soft:#fff0ea;--lime-soft:#f2fbd0;--sky:#e7f1ff}
+header.app-top{background:linear-gradient(135deg,#1d2620 0%,#24322a 60%,#2c3d2c 100%)}
+.top-kicker{font-size:12px;color:#b9c4b1;font-weight:600}
+/* Calm the labels: sentence case, no letter-spacing */
+.bet-meta,main.app .bet-meta{text-transform:none;letter-spacing:0!important;font-size:12px!important;font-weight:600;color:#6c756b}
+.section-head,.page-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:20px 2px 10px}
+.page-head{margin-top:6px}.section-head h2,.page-head h2{margin:0!important;font-size:20px!important}
+.count-pill{font-size:12px;font-weight:700;border-radius:99px;padding:5px 10px;background:#e8ebe1;color:var(--ink)}.count-pill.hot{background:var(--coral);color:#fff}
+.all-set{display:flex;gap:12px;align-items:center;background:var(--lime-soft);border:1px solid #d6ec8a;border-radius:var(--radius);padding:14px 16px;margin:16px 0 4px}.all-set span{font-size:26px}.all-set p{margin:2px 0 0!important}
+.note{color:var(--muted);font-size:13px!important}.meta-line{color:var(--muted);font-size:13px!important;margin:4px 0 0!important}
+.emoji{font-size:34px;display:block;margin-bottom:6px}
+.tag{font-size:11px;font-weight:700;border-radius:99px;padding:3px 9px;background:#e8ebe1;text-transform:capitalize}.tag.hot{background:var(--coral-soft);color:#b23c17}
+/* Next-up bet stands out; picked bets shrink */
+main.app .bet.next{border:2px solid var(--ink);box-shadow:0 6px 0 var(--green);padding:18px}
+main.app .bet.next h3{font-size:22px}
+.lock.soon{color:#c4421b}
+main.app .bet.compact{padding:12px 14px;background:#fbfcf6}
+.compact-row{display:flex;justify-content:space-between;gap:12px;align-items:center}
+main.app .bet.compact h3{font-size:15px!important;margin:0!important;line-height:1.35}
+.my-pick{text-align:right;flex:0 0 auto}.pick-chip{display:inline-block;background:var(--green);border-radius:99px;padding:6px 12px;font-weight:700;font-size:14px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.my-pick small{display:block;margin-top:3px}
+.compact-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.text-button{background:none!important;border:0!important;color:var(--ink)!important;text-decoration:underline;text-underline-offset:3px;padding:6px 2px!important;min-height:0!important;font-weight:600}
+@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.03)}100%{transform:scale(1)}}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(217,243,91,.9)}100%{box-shadow:0 0 0 14px rgba(217,243,91,0)}}
+main.app .bet.saved{animation:pop .35s ease,glow .9s ease}
+/* Motion on taps */
+main.app button,.tabbar button,.chips button{transition:transform .12s ease,background .15s,color .15s}
+main.app button:active:not(:disabled),.chips button:active{transform:scale(.96)}
+main.app .answers .selected{animation:pop .25s ease}
+.tabbar button.on svg{transition:background .2s}
+/* Winner celebration */
+.winner-card{position:relative;overflow:hidden;background:linear-gradient(140deg,#e3fb6b 0%,#c8f04a 55%,#a8e04a 100%);border-radius:var(--radius);padding:20px 18px;margin:0 0 14px;text-align:center}
+.winner-card .trophy{font-size:44px;display:block;animation:bounce 1.6s ease-in-out infinite}
+.winner-card .kicker{display:block;font-size:13px;font-weight:700;color:#3e4a2a;margin-top:4px}
+.winner-card h3{font-family:'Space Grotesk',sans-serif;font-size:34px!important;margin:2px 0!important;letter-spacing:-1px}
+.winner-card p{margin:0 0 6px!important;color:var(--ink)!important;font-size:15px!important}.winner-card p strong{font-size:22px}
+.winner-card .share-panel{position:relative;z-index:1}.winner-card .share-actions{justify-content:center;display:flex;gap:6px}
+@keyframes bounce{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg)}}
+.confetti{position:absolute;inset:0;pointer-events:none}
+.confetti i{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;opacity:.9;animation:fall 3.2s linear infinite}
+.confetti i:nth-child(4n){background:var(--coral)}.confetti i:nth-child(4n+1){background:#1d2620}.confetti i:nth-child(4n+2){background:#fff}.confetti i:nth-child(4n+3){background:#4fb3ff}
+.confetti i:nth-child(1){left:5%;animation-delay:0s}.confetti i:nth-child(2){left:12%;animation-delay:1.1s}.confetti i:nth-child(3){left:20%;animation-delay:.4s}.confetti i:nth-child(4){left:28%;animation-delay:2s}.confetti i:nth-child(5){left:35%;animation-delay:.8s}.confetti i:nth-child(6){left:43%;animation-delay:2.6s}.confetti i:nth-child(7){left:51%;animation-delay:.2s}.confetti i:nth-child(8){left:59%;animation-delay:1.6s}.confetti i:nth-child(9){left:66%;animation-delay:.6s}.confetti i:nth-child(10){left:73%;animation-delay:2.3s}.confetti i:nth-child(11){left:80%;animation-delay:1.3s}.confetti i:nth-child(12){left:87%;animation-delay:.1s}.confetti i:nth-child(13){left:93%;animation-delay:1.9s}.confetti i:nth-child(14){left:97%;animation-delay:.9s}
+@keyframes fall{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(260px) rotate(540deg);opacity:.2}}
+@media (prefers-reduced-motion:reduce){.confetti,.winner-card .trophy{animation:none!important}.confetti{display:none}main.app .bet.saved,main.app .answers .selected{animation:none}}
+/* Leaderboard medals */
+.medal{font-size:20px;width:30px;display:inline-block;text-align:center;margin-right:6px}
+main.app .leaderboard-row span>b{display:inline-block;width:30px;text-align:center;margin-right:6px;color:#8a9584}
+main.app .leaderboard-row.winner-row{background:var(--lime-soft)}
+.my-season{display:flex;gap:8px;margin:0 0 12px}.my-season>div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}.my-season span{display:block;font-size:12px;color:var(--muted);font-weight:600}.my-season strong{font-size:22px}
+main.app .seasons-panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:0 0 12px}
+main.app .season-history summary,main.app details summary{cursor:pointer;font-weight:700}
+/* Chips (weeks, seasons, times) */
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px;margin:0 0 10px}.chips::-webkit-scrollbar{display:none}
+.chips button{flex:0 0 auto;min-height:38px!important;padding:0 14px!important;border-radius:99px!important;background:#fff!important;color:var(--ink)!important;border:1px solid #cbd0c4!important;font-size:13px!important;font-weight:600}
+.chips button.on{background:var(--ink)!important;color:#fff!important;border-color:var(--ink)!important}
+.time-chips{display:grid;gap:8px}.field-label{font-size:12px;font-weight:600}.time-chips .chips{flex-wrap:wrap;overflow:visible;margin:0}.time-chips small{margin-top:-2px}
+fieldset.options legend small{font-weight:500}
+/* Rules + misc */
+.how summary{font-size:15px}.how ul{margin:12px 0 0;padding-left:18px;display:grid;gap:8px}.how li{font-size:14px;line-height:1.5;color:var(--ink-2)}
+.score-line{font-size:14px!important}.score-line.won strong{color:#3f7a12}
+.create-long summary{font-size:15px}
+main.app .notification-item{background:var(--card);border:1px solid var(--line);border-left:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 8px}main.app .notification-item.unread{border-color:#b8cf62;background:#fbfdf2}
+main.app .notification-item h3{font-size:15px;margin:6px 0 2px}main.app .notification-item p{font-size:13px;margin:0 0 6px}
+main.app .round-status{font-size:13px;margin:0 0 10px}
+main.app .share-panel{border:0!important;padding:0!important;margin:0!important}
+main.app .bet-foot{border-top:0;padding-top:0;margin-top:4px}
+main.app .share-actions{display:flex;gap:6px;margin:0}
+main.app .share-actions>a,main.app .share-actions>button{min-height:34px!important;padding:0 12px!important;font-size:12px!important;border-radius:99px!important;display:inline-flex;align-items:center;justify-content:center;width:auto}
+.chips button{display:inline-flex!important;align-items:center;justify-content:center;line-height:1}
+main.app .lifecycle .mini-card .bet-meta{align-items:center}
+main.app .football-intro{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:4px 16px;margin:0 0 12px}
+main.app .football-intro .football-settings summary{padding:12px 0}
+main.app .member-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px;border-bottom:1px solid #eceee4}
+.member-name{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}
+.initial{font-style:normal;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--green);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.member-actions{position:relative}.member-actions summary{list-style:none;font-size:22px;line-height:1;padding:4px 10px;border-radius:10px;cursor:pointer}.member-actions summary::-webkit-details-marker{display:none}
+.member-actions[open] summary{background:#e8ebe1}
+.member-actions>div{position:absolute;right:0;top:36px;z-index:5;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.12);padding:6px;display:grid;gap:4px;min-width:190px}
+.member-actions>div button{background:#fff!important;color:var(--ink)!important;border:0!important;text-align:left;justify-content:flex-start;min-height:40px!important}
+main.app .leave-box{margin-top:16px}
+main.app details{padding:0;background:transparent;margin:0}
+main.app details.card{padding:14px 16px;margin:0 0 12px}
+main.app details.card[open] summary{margin-bottom:6px}
+main.app .football-intro details{padding:0}main.app .football-intro{padding:14px 16px}
+main.app details.snapshot{margin-top:10px}main.app details.snapshot summary{font-size:13px}
+main.app details.season-history{margin-top:12px;border-top:1px solid #eceee4;padding-top:10px}
+main.app details.season-schedule{margin-top:10px}
+main.app .notification-settings{margin:0 0 12px}
+main.app .member-row{padding:10px 2px}
+main.app .member-actions summary{background:none;padding:4px 10px;font-size:20px;color:var(--ink)}
+main.app .leave-box{border:0;padding:8px 2px}

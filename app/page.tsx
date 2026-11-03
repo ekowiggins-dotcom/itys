@@ -7,6 +7,8 @@ import FootballPanel,{FootballPick,marketLabel,type FootballQuestion,type Footba
 import {slotLimits,period} from '../lib/football/rules';
 import {betCard,shareLink,winnerCard} from '../lib/sharing';
 import {when,countdown,answerLabel} from './format';
+import TimeChips,{weeklyPresets} from './TimeChips';
+import HowItWorks from './HowItWorks';
 type Question=FootballQuestion;
 type Preview={id:string;text:string;options:string[]|null;locks_at:string;scope:string;state:string;picked:number};
 type GroupView=LifecycleData & FootballData & {group:{name:string;opens_at?:string};members:number;joined:boolean;user?:{name:string};questions:Question[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound;currentRoundId?:string;suggestions?:unknown[];preview?:Preview|null};
@@ -40,6 +42,8 @@ export default function Home(){
  const unread=data?.notifications?.filter(n=>!n.read_at).length||0;
  const openQs=(data?.questions||[]).filter(q=>(q.market||'custom')!=='custom'||clock<Date.parse(q.locks_at));
  const nextLock=openQs.map(q=>Date.parse(q.locks_at)).filter(t=>t>clock).sort((a,b)=>a-b)[0];
+ const byLock=(a:Question,b:Question)=>Date.parse(a.locks_at)-Date.parse(b.locks_at);
+ const todo=openQs.filter(q=>!q.answer).sort(byLock),picked=openQs.filter(q=>q.answer).sort(byLock);
  const lastFinal=(data?.rounds||[]).find(r=>r.state==='final'&&r.winners.length>0);
  const liveEmpty=!!data?.selectedRound&&data.selectedRound.state!=='final'&&data.selectedRound.standings.every(x=>x.points_tenths===0);
  const board=(data?.rounds||[]).find(r=>r.id===boardRound)||(liveEmpty&&lastFinal?lastFinal:data?.selectedRound);
@@ -65,24 +69,25 @@ export default function Home(){
  const status=data.members<3?'Waiting for '+(3-data.members)+' more':!active?(start&&clock<start.getTime()?'Opens '+when(start,clock,zone):'Round closed'):nextLock?'Next lock in '+countdown(nextLock,clock):'All picks locked';
 
  return <div className="app-shell">
-  <header className="app-top"><div className="top-row"><div><span className="eyebrow">{roundType.toUpperCase()} · {data.members} FRIENDS</span><h1 className="group-name">{data.group.name}</h1></div><div className="points" aria-label="Confidence points left"><strong>{100-data.used}</strong><span>of 100 pts</span></div></div>
+  <header className="app-top"><div className="top-row"><div><span className="top-kicker">{roundType} · {data.members} friends</span><h1 className="group-name">{data.group.name}</h1></div><div className="points" aria-label="Confidence points left"><strong>{100-data.used}</strong><span>of 100 pts</span></div></div>
    <div className="meter" aria-hidden="true"><div style={{width:(100-data.used)+'%'}}/></div><p className="status-line"><span className={'dot '+(active?'live':'')}/>{status}</p></header>
 
   <main className="app">
   {tab==='round'&&<>
    {data.members<3&&<section className="card invite-card"><h2>Good calls need good company.</h2><p>Invite {3-data.members} more {data.members===2?'friend':'friends'} to start your first round.</p><button onClick={copy}>Copy invite link ↗</button></section>}
    {limits.custom>0&&data.members>=3&&<button className="add-bet" disabled={createClosed} onClick={()=>setCreate(!create)}>{customUsed>=limits.custom?'All '+limits.custom+' group bets used':create?'Close':'+ Add a group bet'}<small>{limits.custom-customUsed} of {limits.custom} left</small></button>}
-   {create&&<section className="card creation"><h2>New group bet</h2><form onSubmit={e=>submitForm(e,'question')}><label>Question<input name="text" defaultValue={template} minLength={3} maxLength={240} required placeholder="Will Alex be late on Saturday?"/></label><fieldset className="options"><legend>Options</legend><small>Leave empty for Yes / No, or name 2–4 choices.</small>{[1,2,3,4].map(n=><input key={n} name="option" maxLength={40} placeholder={'Option '+n}/>)}</fieldset><label>Locks at<input name="locksAt" type="datetime-local" required/></label><label>Who is it about? (they can’t bet on it)<select name="subjectId"><option value="">Nobody</option>{data.groupMembers?.filter(m=>m.active).map(m=><option key={m.user_id} value={m.user_id}>{m.name}</option>)}</select></label><small>Must lock and happen by Sunday 23:59.</small><button disabled={busy}>Create and share ↗</button></form></section>}
+   {create&&<section className="card creation"><h2>New group bet</h2><form onSubmit={e=>submitForm(e,'question')}><label>Question<input name="text" defaultValue={template} minLength={3} maxLength={240} required placeholder="Will Alex be late on Saturday?"/></label><fieldset className="options"><legend>Answers <small>· empty = Yes / No</small></legend>{[1,2,3,4].map(n=><input key={n} name="option" maxLength={40} placeholder={'Option '+n}/>)}</fieldset><TimeChips name="locksAt" label="Picks close" now={clock} max={data.selectedRound?Date.parse(data.selectedRound.deadline_at):undefined} presets={weeklyPresets(clock,data.selectedRound?Date.parse(data.selectedRound.deadline_at):clock+3*86400000)}/><label>About someone? <small>(they can’t pick)</small><select name="subjectId"><option value="">Nobody</option>{data.groupMembers?.filter(m=>m.active).map(m=><option key={m.user_id} value={m.user_id}>{m.name}</option>)}</select></label><button disabled={busy}>Create and share ↗</button></form></section>}
    {createdQuestion&&origin&&data.questions.some(q=>q.id===createdQuestion)&&<section className="card created-share"><span className="eyebrow">BET CREATED</span><h2>Put it in the group chat.</h2><SharePanel autoOpen card={betCard(data.group.name,data.questions.find(q=>q.id===createdQuestion)!.text,data.questions.find(q=>q.id===createdQuestion)!.picked)} url={shareLink(origin,invite,{questionId:createdQuestion,roundId:data.selectedRound?.id},!!data.demoNow)}/></section>}
    {football&&<FootballPanel data={data} act={act} busy={busy}/>}
-   {openQs.length>0&&<h2 className="section-title">Make your calls</h2>}
-   <div className="questions">{openQs.map(q=>{const sharing=origin?<SharePanel card={betCard(data.group.name,q.text,q.picked,marketLabel(q.market))} url={shareLink(origin,invite,{questionId:q.id,roundId:data.selectedRound?.id},!!data.demoNow)}/>:null;return(q.market||'custom')==='custom'?<Prediction key={q.id} q={q} members={data.members} now={clock} active={active} busy={busy} share={sharing} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake})}/>:<FootballPick key={q.id} q={q} now={clock} active={canPickFootball} busy={busy} share={sharing} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake})}/>})}</div>
-   {!data.questions.length&&data.members>=3&&<div className="empty"><h2>{football?'Your matchday is on its way.':'The next “told you so” starts here.'}</h2><p>{football?'Matches appear when the round opens.':'Add the first bet. Everyone gets 100 points to spread around.'}</p>{!football&&!!data.suggestions?.length&&<button className="secondary" disabled={createClosed} onClick={()=>{setTemplate('Will everyone arrive on time this weekend?');setCreate(true)}}>Try: “Will everyone arrive on time?”</button>}</div>}
+   {todo.length>0&&<div className="section-head"><h2>Your calls</h2><span className="count-pill hot">{todo.length} to go</span></div>}
+   {todo.length===0&&openQs.length>0&&<div className="all-set"><span>✅</span><div><strong>You’re all set</strong><p>Change any pick until it locks.</p></div></div>}
+   <div className="questions">{[...todo,...picked].map((q,i)=>{const header=i===todo.length&&picked.length>0?<div className="section-head" key={'h'+q.id}><h2>Picked</h2><span className="count-pill">{picked.length}</span></div>:null;const sharing=origin?<SharePanel card={betCard(data.group.name,q.text,q.picked,marketLabel(q.market))} url={shareLink(origin,invite,{questionId:q.id,roundId:data.selectedRound?.id},!!data.demoNow)}/>:null;return <div key={q.id} className="q-wrap">{header}{(q.market||'custom')==='custom'?<Prediction q={q} next={i===0&&todo.length>0} members={data.members} now={clock} active={active} busy={busy} share={sharing} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake},true)}/>:<FootballPick q={q} now={clock} active={canPickFootball} busy={busy} share={sharing} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake})}/>}</div>})}</div>
+   {!data.questions.length&&data.members>=3&&<div className="empty"><span className="emoji">{football?'⚽️':'🗣️'}</span><h2>{football?'Matchday is on its way':'Start the first “told you so”'}</h2><p>{football?'Matches appear when the round opens.':'Add a bet. Everyone gets 100 points to play with.'}</p>{!football&&!!data.suggestions?.length&&<button className="secondary" disabled={createClosed} onClick={()=>{setTemplate('Will everyone arrive on time this weekend?');setCreate(true)}}>Try: “Will everyone arrive on time?”</button>}</div>}
    <LifecyclePanel view="results" data={data} act={act} busy={busy} focusQuestion={focusQuestion} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
   </>}
 
   {tab==='ranking'&&<>
-   {lastFinal&&board?.id!==lastFinal.id&&<section className="winner-card"><span className="eyebrow">{lastFinal.winners.length>1?'SHARED WIN':'WINNER'} · WEEK OF {when(lastFinal.opens_at,clock,lastFinal.timezone).replace(/ \d\d:\d\d$/,'').toUpperCase()}</span><h2>{lastFinal.winners.map(w=>w.name).join(' & ')}</h2><p><strong>{(lastFinal.winners[0].points_tenths/10).toFixed(1)}</strong> points · bragging rights, officially earned</p>{origin&&<SharePanel card={winnerCard(data.group.name,lastFinal)} url={shareLink(origin,invite,{roundId:lastFinal.id,winner:true},!!data.demoNow)}/>}</section>}
+   {lastFinal&&board?.id!==lastFinal.id&&<section className="winner-card"><div className="confetti" aria-hidden="true">{Array.from({length:14},(_,i)=><i key={i}/>)}</div><span className="trophy" aria-hidden="true">🏆</span><span className="kicker">{lastFinal.winners.length>1?'Shared win':'Last week’s winner'}</span><h3>{lastFinal.winners.map(w=>w.name).join(' & ')}</h3><p><strong>{(lastFinal.winners[0].points_tenths/10).toFixed(1)}</strong> pts</p>{origin&&<SharePanel card={winnerCard(data.group.name,lastFinal)} url={shareLink(origin,invite,{roundId:lastFinal.id,winner:true},!!data.demoNow)}/>}</section>}
    <WeeklyBoard groupName={data.group.name} invite={invite} origin={origin} demo={!!data.demoNow} rounds={data.rounds||[]} selected={board} suggestions={undefined} onSelect={id=>setBoardRound(id)} onTemplate={()=>{}}/>
    <LifecyclePanel view="seasons" data={data} act={act} busy={busy}/>
   </>}
@@ -92,12 +97,13 @@ export default function Home(){
   {tab==='group'&&<>
    <section className="card group-card"><span className="eyebrow">INVITE</span><h2>{data.group.name}</h2><p>{data.members}/30 friends · {roundType} group · {zone}</p><div className="actions"><button onClick={copy}>Copy invite link</button><a className="button whatsapp" target="_blank" rel="noreferrer" href={'https://wa.me/?text='+encodeURIComponent('Join '+data.group.name+' on Sidebet: '+(origin?shareLink(origin,invite):''))}>WhatsApp ↗</a></div></section>
    {!football&&<FootballPanel data={data} act={act} busy={busy}/>}
+   <HowItWorks/>
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={act} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
   </>}
   </main>
 
   {error&&<p className="toast error" role="alert" onClick={()=>setError('')}>{error}</p>}{notice&&<p className="toast" role="status">{notice}</p>}
-  <nav className="tabbar" aria-label="Sections">{TABS.map(t=><button key={t.id} className={tab===t.id?'on':''} aria-current={tab===t.id?'page':undefined} onClick={()=>{go(t.id);if(t.id==='group'&&unread)setNotificationFocus(v=>v+1)}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon}/></svg><span>{t.label}</span>{t.id==='group'&&unread>0&&<i className="badge">{unread}</i>}</button>)}</nav>
+  <nav className="tabbar" aria-label="Sections">{TABS.map(t=><button key={t.id} className={tab===t.id?'on':''} aria-current={tab===t.id?'page':undefined} onClick={()=>go(t.id)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={t.icon}/></svg><span>{t.label}</span>{t.id==='group'&&unread>0&&<i className="badge">{unread}</i>}</button>)}</nav>
  </div>;
 }
 
@@ -105,16 +111,21 @@ function Stake({value,onChange,disabled}:{value:number;onChange:(v:number)=>void
  return <div className="stake" role="radiogroup" aria-label="Confidence points">{[5,10,15,20,25,30].map(v=><button key={v} type="button" role="radio" aria-checked={value===v} disabled={disabled} className={value===v?'on':''} onClick={()=>onChange(v)}>{v}</button>)}</div>;
 }
 
-function Prediction({q,members,active,busy,onSave,now,share}:{q:Question;members:number;share?:React.ReactNode;now:number;active:boolean;busy:boolean;onSave:(answer:string,stake:number)=>Promise<boolean>}){
- const [answer,setAnswer]=useState(q.answer||''),[stake,setStake]=useState(q.stake||10);const locked=now>=new Date(q.locks_at).getTime();const hidden=q.moderation_state&&q.moderation_state!=='visible';
+function Prediction({q,next,members,active,busy,onSave,now,share}:{q:Question;next?:boolean;members:number;share?:React.ReactNode;now:number;active:boolean;busy:boolean;onSave:(answer:string,stake:number)=>Promise<boolean>}){
+ const [answer,setAnswer]=useState(q.answer||''),[stake,setStake]=useState(q.stake||10),[editing,setEditing]=useState(false),[saved,setSaved]=useState(false);const locked=now>=new Date(q.locks_at).getTime();const hidden=q.moderation_state&&q.moderation_state!=='visible';
  useEffect(()=>{setAnswer(q.answer||'');setStake(q.stake||10)},[q.answer,q.stake]);
- if(hidden)return <section className="bet"><span className="eyebrow">{q.moderation_state==='pending'?'AWAITING ADMIN REVIEW':'REMOVED · VOID'}</span><h3>Bet hidden by moderation</h3><p>See Group → Safety for details.</p></section>;
- const options=q.options?.length?q.options:['yes','no'];const dirty=answer!==(q.answer||'')||stake!==(q.stake||10);
- return <section className={'bet'+(q.answer?' picked':'')} id={'bet-'+q.id} tabIndex={-1}><div className="bet-meta"><span>{q.answer?'YOUR PICK: '+answerLabel(q.answer).toUpperCase()+' · '+q.stake+' PTS':'GROUP BET'}</span><span>{locked?'Locked':'Locks '+when(q.locks_at,now)}</span></div><h3>{q.text}</h3>
+ useEffect(()=>{if(!saved)return;const t=setTimeout(()=>setSaved(false),1400);return ()=>clearTimeout(t)},[saved]);
+ if(hidden)return <section className="bet"><h3>Bet hidden by moderation</h3><p className="note">See Group → Safety.</p></section>;
+ const options=q.options?.length?q.options:['yes','no'];const dirty=answer!==(q.answer||'')||stake!==(q.stake||10);const soon=Date.parse(q.locks_at)-now<6*3600000;
+ async function save(){if(await onSave(answer,stake)){setSaved(true);setEditing(false)}}
+ if(q.answer&&!editing)return <section className={'bet compact'+(saved?' saved':'')} id={'bet-'+q.id} tabIndex={-1}><div className="compact-row"><div><h3>{q.text}</h3><p className="meta-line">{locked?'Locked':'Locks '+when(q.locks_at,now)} · {q.picked}/{members} picked</p></div><div className="my-pick"><span className="pick-chip">{saved?'✓ ':''}{answerLabel(q.answer)}</span><small>{q.stake} pts</small></div></div>{!locked&&active&&<div className="compact-actions"><button className="text-button" onClick={()=>setEditing(true)}>Change</button>{share}</div>}</section>;
+ return <section className={'bet'+(next?' next':'')} id={'bet-'+q.id} tabIndex={-1}><div className="bet-meta"><span className={'lock'+(soon&&!locked?' soon':'')}>{locked?'Locked':soon?'⏰ Locks in '+countdown(q.locks_at,now):'Locks '+when(q.locks_at,now)}</span><span>{q.picked}/{members} picked</span></div><h3>{q.text}</h3>
   <div className={'answers'+(options.length>2?' grid':'')}>{options.map(a=><button key={a} disabled={locked||!active} className={answer===a?'selected':'secondary'} onClick={()=>setAnswer(a)}>{answerLabel(a)}</button>)}</div>
-  <div className="stake-row"><span>Confidence</span><Stake value={stake} onChange={setStake} disabled={locked||!active}/></div>
-  {(dirty||!q.answer)&&<button className="save" disabled={!answer||locked||!active||busy} onClick={()=>onSave(answer,stake)}>{!active?'Opens with the round':!answer?'Pick an answer':q.answer?'Update pick':'Lock in '+stake+' pts'}</button>}
-  <div className="bet-foot"><small>{q.picked} of {members} picked · picks stay hidden until lock</small>{share}</div></section>;
+  {answer&&<div className="stake-row"><span>How sure?</span><Stake value={stake} onChange={setStake} disabled={locked||!active}/></div>}
+  {answer&&(dirty||!q.answer)&&<button className="save" disabled={locked||!active||busy} onClick={save}>{!active?'Opens with the round':q.answer?'Update pick':'Lock in '+stake+' pts'}</button>}
+  {!active&&!answer&&<p className="note">Opens with the round.</p>}
+  {editing&&<button className="text-button" onClick={()=>{setEditing(false);setAnswer(q.answer||'');setStake(q.stake||10)}}>Cancel</button>}
+  {!answer&&<div className="bet-foot">{share}</div>}</section>;
 }
 
 function JoinWithPick({preview,busy,clock,onJoin}:{preview:Preview;busy:boolean;clock:number;onJoin:(name:string,answer:string,stake:number,questionId:string,scope:string)=>void}){
