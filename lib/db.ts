@@ -18,7 +18,7 @@ export function db() {
       CREATE TABLE IF NOT EXISTS predictions (question_id TEXT REFERENCES questions(id), user_id TEXT REFERENCES users(id), answer TEXT NOT NULL CHECK(answer IN ('yes','no')), stake INTEGER NOT NULL CHECK(stake BETWEEN 5 AND 30 AND stake % 5 = 0), PRIMARY KEY(question_id,user_id));
     `);
     await database.exec('CREATE TABLE IF NOT EXISTS migrations (id TEXT PRIMARY KEY)');
-    for (const file of ['002-lifecycle.sql','003-judge-and-retries.sql','004-weekly-loop.sql','005-resolution-history.sql','006-notifications.sql','007-season-freezing.sql','008-football.sql','009-football-rankings.sql','010-moderation.sql','011-proposer.sql','012-bet-options.sql']) {
+    for (const file of ['002-lifecycle.sql','003-judge-and-retries.sql','004-weekly-loop.sql','005-resolution-history.sql','006-notifications.sql','007-season-freezing.sql','008-football.sql','009-football-rankings.sql','010-moderation.sql','011-proposer.sql','012-bet-options.sql','013-devices.sql']) {
       const id=file.slice(0,3);
       if (!(await database.query('SELECT 1 FROM migrations WHERE id=$1',[id])).rows.length) {
         await database.transaction(async tx => {

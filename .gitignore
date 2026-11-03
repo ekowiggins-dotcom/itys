@@ -50,3 +50,7 @@ pgdata/
 Thumbs.db
 .idea/
 .vscode/
+
+# iOS app build output
+.native-build/
+native-www/
