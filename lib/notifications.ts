@@ -9,7 +9,7 @@ export async function emitNotification(tx:Transaction,input:{groupId:string;user
  const week=weekStartUTC(now);await tx.query('INSERT INTO notification_counters(group_id,user_id,week_start) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[input.groupId,input.userId,week]);
  const count=(await tx.query<{routine_count:number}>('SELECT routine_count FROM notification_counters WHERE group_id=$1 AND user_id=$2 AND week_start=$3 FOR UPDATE',[input.groupId,input.userId,week])).rows[0].routine_count;
  const policy=notificationPolicy(input.kind,prefs,count);
- await tx.query('INSERT INTO notifications(id,group_id,user_id,source_key,kind,category,question_id,round_id,text,event_at,created_at,in_app,push_eligible,suppressed_reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',[randomUUID(),input.groupId,input.userId,input.key,input.kind,policy.category,input.questionId||null,input.roundId||null,input.text,input.eventAt||now,now,policy.inApp,policy.pushEligible,policy.reason]);
+ await tx.query('INSERT INTO notifications(id,group_id,user_id,source_key,kind,category,question_id,round_id,text,event_at,created_at,in_app,push_eligible,suppressed_reason,push_status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)',[randomUUID(),input.groupId,input.userId,input.key,input.kind,policy.category,input.questionId||null,input.roundId||null,input.text,input.eventAt||now,now,policy.inApp,policy.pushEligible,policy.reason,policy.pushEligible?'queued':'not_eligible']);
  if(policy.category==='routine'&&policy.inApp)await tx.query('UPDATE notification_counters SET routine_count=routine_count+1 WHERE group_id=$1 AND user_id=$2 AND week_start=$3',[input.groupId,input.userId,week]);
 }
 export async function lockReminders(tx:Transaction,g:string,now:Date){
@@ -24,5 +24,5 @@ export async function notificationView(tx:Transaction,g:string,u:string,now:Date
  const inbox=(await tx.query('SELECT id,kind,category,text,question_id,round_id,created_at,read_at,push_eligible,push_status FROM notifications WHERE group_id=$1 AND user_id=$2 AND in_app ORDER BY created_at DESC,id DESC LIMIT 100',[g,u])).rows;
  const count=(await tx.query<{routine_count:number}>('SELECT routine_count FROM notification_counters WHERE group_id=$1 AND user_id=$2 AND week_start=$3',[g,u,weekStartUTC(now)])).rows[0]?.routine_count||0;
  const suppressed=(await tx.query<{count:string}>('SELECT count(*) FROM notifications WHERE group_id=$1 AND user_id=$2 AND NOT in_app AND created_at >= $3::date',[g,u,weekStartUTC(now)])).rows[0].count;
- return{notificationPreferences:preferences,notifications:inbox,notificationUsage:{routineCount:count,cap:4,weekStart:weekStartUTC(now),suppressed:Number(suppressed),pushConnected:false}};
+ return{notificationPreferences:preferences,notifications:inbox,notificationUsage:{routineCount:count,cap:4,weekStart:weekStartUTC(now),suppressed:Number(suppressed),pushConnected:(await tx.query('SELECT 1 FROM devices WHERE user_id=$1 AND disabled_at IS NULL LIMIT 1',[u])).rows.length>0}};
 }

@@ -19,6 +19,7 @@ export async function reconcile(invite:string,now=new Date()){
 export async function execute(input:unknown,token?:string,now=new Date()):Promise<{invite?:string;session?:string;questionId?:string}>{
  const action=(input as {action?:string})?.action;
  if(action?.startsWith('football')){const user=await identity(token);check(user,'Join the group first.');return footballAction(input,user.id,now)}
+ if(action==='registerDevice'||action==='unregisterDevice'){const user=await identity(token);check(user,'Join a group first.');return deviceAction(input,user.id,now)}
  if(action&&!['create','join','question','predict'].includes(action)){const user=await identity(token);check(user,'Join the group first.');return lifecycle(input,user.id,now)}
  const data=z.object({action:z.enum(['create','join','question','predict']),groupType:z.enum(['Friends','Football','Mixed']).optional(),timezone:z.string().optional(),country:z.string().optional(),requestId:z.uuid().optional(),name:name.optional(),groupName:name.optional(),invite:z.string().max(100).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),questionId:z.uuid().optional(),subjectId:z.uuid().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),stake:z.number().int().min(5).max(30).multipleOf(5).optional()}).parse(input);
  const d=await db(),existing=await identity(token);
@@ -97,4 +98,14 @@ export async function betPreview(invite:string,questionId:string){
  const d=await db();
  const q=(await d.query<{id:string;text:string;options:string[]|null;locks_at:Date;scope:string;state:string;picked:number}>(`SELECT q.id,q.text,q.options,q.locks_at,q.scope,q.state,(SELECT count(*)::int FROM predictions p WHERE p.question_id=q.id) picked FROM questions q JOIN groups g ON g.id=q.group_id WHERE g.invite=$1 AND q.id=$2 AND q.moderation_state='visible' AND NOT q.superseded AND COALESCE(q.market,'custom')='custom'`,[invite,questionId])).rows[0];
  return q||null;
+}
+
+/** Register or remove this phone for push notifications. Tokens are hex strings from Apple (64+ chars). */
+async function deviceAction(input:unknown,userId:string,now:Date){
+ const data=z.object({action:z.enum(['registerDevice','unregisterDevice']),token:z.string().regex(/^[0-9a-f]{64,200}$/i),platform:z.literal('ios').default('ios'),environment:z.enum(['sandbox','production']).default('production')}).parse(input);
+ const d=await db(),token=data.token.toLowerCase();
+ if(data.action==='unregisterDevice'){await d.query("UPDATE devices SET disabled_at=$3,disabled_reason='unregistered' WHERE token=$1 AND user_id=$2 AND disabled_at IS NULL",[token,userId,now]);return {};}
+ // A token belongs to one install; if the phone switches accounts, the newest account wins.
+ await d.query('INSERT INTO devices(token,user_id,platform,environment,created_at,last_seen) VALUES($1,$2,$3,$4,$5,$5) ON CONFLICT(token) DO UPDATE SET user_id=EXCLUDED.user_id,environment=EXCLUDED.environment,last_seen=EXCLUDED.last_seen,disabled_at=NULL,disabled_reason=NULL',[token,userId,data.platform,data.environment,now]);
+ return {};
 }
