@@ -38,14 +38,14 @@ if(!widget){
  const used=new Set();for(const type of ['PBXSourcesBuildPhase','PBXResourcesBuildPhase','PBXFrameworksBuildPhase','PBXCopyFilesBuildPhase'])for(const [k,ph] of Object.entries(objects[type]||{}))if(!k.endsWith('_comment'))for(const f of ph.files||[])used.add(f.value);
  for(const k of Object.keys(bfs))if(!k.endsWith('_comment')&&!used.has(k)){delete bfs[k];delete bfs[k+'_comment'];}
 }
-// 3. Build settings for both targets.
+// 3. Build settings for both targets. The widget needs iOS 16 (lock-screen family); the app keeps its own minimum.
 const configs=key=>{const list=objects.XCConfigurationList[objects.PBXNativeTarget[key].buildConfigurationList];return list.buildConfigurations.map(c=>objects.XCBuildConfiguration[c.value])};
 for(const c of configs(appTarget[0])){Object.assign(c.buildSettings,{CODE_SIGN_ENTITLEMENTS:'App/App.entitlements',SIDEBET_APP_GROUP:`"group.${bundle}"`,SIDEBET_LINK_DOMAIN:`"${domain}"`,PRODUCT_BUNDLE_IDENTIFIER:bundle});}
 const appSettings=configs(appTarget[0])[0].buildSettings;
 for(const c of configs(widget[0])){Object.assign(c.buildSettings,{
  INFOPLIST_FILE:'SidebetWidget/Info.plist',PRODUCT_BUNDLE_IDENTIFIER:`${bundle}.widget`,PRODUCT_NAME:'"$(TARGET_NAME)"',
  CODE_SIGN_ENTITLEMENTS:'SidebetWidget/SidebetWidget.entitlements',SIDEBET_APP_GROUP:`"group.${bundle}"`,
- SWIFT_VERSION:'5.0',IPHONEOS_DEPLOYMENT_TARGET:appSettings.IPHONEOS_DEPLOYMENT_TARGET||'15.0',TARGETED_DEVICE_FAMILY:'"1,2"',
+ SWIFT_VERSION:'5.0',IPHONEOS_DEPLOYMENT_TARGET:'16.0',TARGETED_DEVICE_FAMILY:'"1,2"',
  SKIP_INSTALL:'YES',APPLICATION_EXTENSION_API_ONLY:'YES',GENERATE_INFOPLIST_FILE:'NO',
  MARKETING_VERSION:appSettings.MARKETING_VERSION||'1.0',CURRENT_PROJECT_VERSION:appSettings.CURRENT_PROJECT_VERSION||'1',
  LD_RUNPATH_SEARCH_PATHS:'"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
