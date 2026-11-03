@@ -90,3 +90,11 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  return {group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets,alerts,seasons,groupMembers,moderation,audit,snapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
+/** Public preview of one shared bet for people opening an invite link before they join.
+ * Shows only what the share card already shows: the question, its options and how many have picked. */
+export async function betPreview(invite:string,questionId:string){
+ if(!/^[0-9a-f-]{36}$/i.test(questionId))return null;
+ const d=await db();
+ const q=(await d.query<{id:string;text:string;options:string[]|null;locks_at:Date;scope:string;state:string;picked:number}>(`SELECT q.id,q.text,q.options,q.locks_at,q.scope,q.state,(SELECT count(*)::int FROM predictions p WHERE p.question_id=q.id) picked FROM questions q JOIN groups g ON g.id=q.group_id WHERE g.invite=$1 AND q.id=$2 AND q.moderation_state='visible' AND NOT q.superseded AND COALESCE(q.market,'custom')='custom'`,[invite,questionId])).rows[0];
+ return q||null;
+}

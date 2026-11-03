@@ -1,11 +1,16 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { execute, view, RuleError } from '../../lib/service';
+import { execute, view, betPreview, RuleError } from '../../lib/service';
 import { ZodError } from 'zod';
 import { LifecycleError } from '../../lib/lifecycle';
 export const runtime='nodejs';
 export async function GET(req:NextRequest) {
-  try { return NextResponse.json(await view(req.nextUrl.searchParams.get('invite')||'',(await cookies()).get('prediction_session')?.value,req.nextUrl.searchParams.get('round')||undefined),{headers:{'Cache-Control':'no-store'}}); }
+  try {
+    const invite=req.nextUrl.searchParams.get('invite')||'',question=req.nextUrl.searchParams.get('question');
+    const result=await view(invite,(await cookies()).get('prediction_session')?.value,req.nextUrl.searchParams.get('round')||undefined);
+    const preview=question&&!result.joined?await betPreview(invite,question):null;
+    return NextResponse.json({...result,preview},{headers:{'Cache-Control':'no-store'}});
+  }
   catch(e){ return NextResponse.json({error:(e instanceof RuleError || e instanceof LifecycleError)?e.message:'Unable to load group.'},{status:400}); }
 }
 export async function POST(req:NextRequest) {
