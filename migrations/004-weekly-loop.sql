@@ -1,0 +1,15 @@
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS next_round_at TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS membership_periods (id TEXT PRIMARY KEY, group_id TEXT REFERENCES groups(id), user_id TEXT REFERENCES users(id), joined_at TIMESTAMPTZ NOT NULL, left_at TIMESTAMPTZ);
+INSERT INTO membership_periods SELECT gen_random_uuid()::text,group_id,user_id,joined_at,NULL FROM members WHERE active;
+CREATE TABLE IF NOT EXISTS rounds (id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES groups(id), opens_at TIMESTAMPTZ NOT NULL, deadline_at TIMESTAMPTZ NOT NULL, publish_at TIMESTAMPTZ NOT NULL, state TEXT NOT NULL DEFAULT 'planned', provisional_published BOOLEAN NOT NULL DEFAULT false, finalized_at TIMESTAMPTZ, UNIQUE(group_id,opens_at));
+CREATE TABLE IF NOT EXISTS round_members (round_id TEXT REFERENCES rounds(id), user_id TEXT REFERENCES users(id), PRIMARY KEY(round_id,user_id));
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS round_id TEXT REFERENCES rounds(id);
+CREATE TABLE IF NOT EXISTS lock_snapshots (question_id TEXT PRIMARY KEY REFERENCES questions(id), locked_at TIMESTAMPTZ NOT NULL, total INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS locked_predictions (question_id TEXT REFERENCES lock_snapshots(question_id), user_id TEXT REFERENCES users(id), answer TEXT NOT NULL, stake INTEGER NOT NULL, PRIMARY KEY(question_id,user_id));
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS points_value NUMERIC(28,12);
+UPDATE scores SET points_value=points_tenths::numeric/10 WHERE points_value IS NULL;
+ALTER TABLE scores ADD COLUMN IF NOT EXISTS exact_correct INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS round_events (round_id TEXT REFERENCES rounds(id), user_id TEXT REFERENCES users(id), kind TEXT NOT NULL, text TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(round_id,user_id,kind));
+CREATE OR REPLACE FUNCTION immutable_snapshot() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Lock snapshots are immutable'; END; $$;
+CREATE TRIGGER lock_snapshot_immutable BEFORE UPDATE OR DELETE ON lock_snapshots FOR EACH ROW EXECUTE FUNCTION immutable_snapshot();
+CREATE TRIGGER locked_prediction_immutable BEFORE UPDATE OR DELETE ON locked_predictions FOR EACH ROW EXECUTE FUNCTION immutable_snapshot();

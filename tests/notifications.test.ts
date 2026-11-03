@@ -1,0 +1,40 @@
+import {test,after} from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
+import {db} from '../lib/db';import {execute,identity,view} from '../lib/service';import {runScheduler} from '../lib/scheduler';import {emitNotification} from '../lib/notifications';import {defaultPreferences,notificationPolicy,weekStartUTC} from '../lib/notification-rules';
+const folder=await mkdtemp(join(tmpdir(),'notifications-'));process.env.PREDICTION_DATA_DIR=folder;after(async()=>{await(await db()).close();await rm(folder,{recursive:true,force:true})});
+const monday=new Date('2030-04-08T00:00:00Z'),base=new Date('2030-04-07T12:00:00Z'),DAY=86400000;const at=(h:number)=>new Date(monday.getTime()+h*3600000);
+async function fixture(){const a=await execute({action:'create',name:'Alex',groupName:'Notification crew'},undefined,base),invite=a.invite!;const b=await execute({action:'join',invite,name:'Maya'},undefined,base),c=await execute({action:'join',invite,name:'Sam'},undefined,base);const tokens=[a.session!,b.session!,c.session!],ids=await Promise.all(tokens.map(async token=>(await identity(token))!.id));const g=(await(await db()).query<{id:string}>('SELECT id FROM groups WHERE invite=$1',[invite])).rows[0].id;return{invite,tokens,ids,g};}
+async function rows(g:string,userId:string){return(await(await db()).query<{id:string;kind:string;category:string;in_app:boolean;push_eligible:boolean;suppressed_reason:string|null;read_at:Date|null;source_key:string}>('SELECT * FROM notifications WHERE group_id=$1 AND user_id=$2 ORDER BY created_at',[g,userId])).rows}
+test('routine cap is shared across kinds, concurrent emitters and deduplicated retries, resets Monday UTC',async()=>{
+ const f=await fixture(),d=await db();await runScheduler(monday); // One round-open notification.
+ await Promise.all(Array.from({length:6},(_,i)=>d.transaction(tx=>emitNotification(tx,{groupId:f.g,userId:f.ids[1],key:'cap-'+i,kind:i%2?'weekly_final':'lock_reminder',text:'Routine fixture'},at(1)))));
+ const all=await rows(f.g,f.ids[1]);assert.equal(all.filter(n=>n.in_app).length,4);assert.equal(all.filter(n=>n.suppressed_reason==='weekly_cap').length,3);
+ await d.transaction(tx=>emitNotification(tx,{groupId:f.g,userId:f.ids[1],key:'cap-0',kind:'lock_reminder',text:'Retry'},at(1)));assert.equal((await rows(f.g,f.ids[1])).length,7);
+ await d.transaction(tx=>emitNotification(tx,{groupId:f.g,userId:f.ids[1],key:'uncapped-result',kind:'proposal',text:'Essential result despite full cap'},at(2)));assert.ok((await rows(f.g,f.ids[1])).some(n=>n.source_key==='uncapped-result'&&n.in_app));
+ await d.transaction(tx=>emitNotification(tx,{groupId:f.g,userId:f.ids[1],key:'new-week',kind:'round_open',text:'Next week'},at(168)));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.in_app&&n.category==='routine').length,5);assert.equal(weekStartUTC(at(167.99)),'2030-04-08');assert.equal(weekStartUTC(at(168)),'2030-04-15');
+});
+test('first-lock reminder is one hour before lock, targets only unanswered eligible members and never sends late',async()=>{
+ const f=await fixture();await runScheduler(monday);const q=(await execute({action:'question',invite:f.invite,text:'Will it happen?',locksAt:at(2).toISOString(),subjectId:f.ids[2]},f.tokens[0],monday)).questionId!;
+ await execute({action:'predict',invite:f.invite,questionId:q,answer:'yes',stake:20},f.tokens[0],monday);await runScheduler(at(.99));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.kind==='lock_reminder').length,0);
+ await runScheduler(at(1));await runScheduler(at(1.5));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.kind==='lock_reminder'&&n.in_app).length,1);assert.equal((await rows(f.g,f.ids[0])).filter(n=>n.kind==='lock_reminder').length,0);assert.equal((await rows(f.g,f.ids[2])).filter(n=>n.kind==='lock_reminder').length,0);
+ const f2=await fixture();await runScheduler(monday);await execute({action:'question',invite:f2.invite,text:'Another lock?',locksAt:at(2).toISOString()},f2.tokens[0],monday);await runScheduler(at(3));assert.equal((await rows(f2.g,f2.ids[1])).filter(n=>n.kind==='lock_reminder').length,0);
+});
+test('mute suppresses routine alerts but preserves blocked-creator resolution alerts and judge requests bypass mute policy',async()=>{
+ const f=await fixture();await execute({action:'notificationPreferences',invite:f.invite,muted:true},f.tokens[1],base);await execute({action:'notificationPreferences',invite:f.invite,muted:true},f.tokens[2],base);await runScheduler(monday);
+ const q=(await execute({action:'question',invite:f.invite,text:'Will our plan work?',locksAt:at(2).toISOString()},f.tokens[0],monday)).questionId!;await execute({action:'predict',invite:f.invite,questionId:q,answer:'yes',stake:20},f.tokens[1],monday);await execute({action:'block',invite:f.invite,targetId:f.ids[0]},f.tokens[1],monday);
+ await execute({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.tokens[0],at(3));await execute({action:'dispute',invite:f.invite,questionId:q},f.tokens[1],at(4));
+ const player=await rows(f.g,f.ids[1]);assert.ok(player.some(n=>n.kind==='round_open'&&!n.in_app&&n.suppressed_reason==='muted'));assert.ok(player.some(n=>n.kind==='proposal'&&n.in_app&&!n.push_eligible));assert.ok(player.some(n=>n.kind==='dispute'&&n.in_app));
+ const judge=await rows(f.g,f.ids[2]);assert.ok(judge.some(n=>n.kind==='judgment_request'&&n.in_app&&n.push_eligible));await execute({action:'judge',invite:f.invite,questionId:q,answer:'yes'},f.tokens[2],at(5));assert.ok((await rows(f.g,f.ids[1])).some(n=>n.kind==='settlement'&&n.in_app));
+});
+test('preferences and read state are per member; disabled routine events do not consume cap or replay on unmute',async()=>{
+ const f=await fixture();await execute({action:'notificationPreferences',invite:f.invite,roundOpen:false},f.tokens[1],base);await runScheduler(monday);const before=await rows(f.g,f.ids[1]);assert.ok(before.some(n=>n.kind==='round_open'&&n.suppressed_reason==='disabled'));
+ await execute({action:'notificationPreferences',invite:f.invite,roundOpen:true,muted:false},f.tokens[1],at(1));await runScheduler(at(1));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.kind==='round_open').length,1);
+ const owner=(await rows(f.g,f.ids[0]))[0];await execute({action:'notificationRead',invite:f.invite,notificationId:owner.id},f.tokens[1],at(1));assert.equal((await rows(f.g,f.ids[0]))[0].read_at,null);await execute({action:'notificationRead',invite:f.invite,notificationId:owner.id},f.tokens[0],at(1));assert.ok((await rows(f.g,f.ids[0]))[0].read_at);
+ const data=await view(f.invite,f.tokens[1],undefined,at(1));assert.equal(data.notificationUsage?.routineCount,0);assert.equal(data.notificationPreferences?.round_open,true);
+});
+test('weekly final alert includes winner and score; provisional and suggestion updates do not consume routine cap',async()=>{
+ const f=await fixture();await runScheduler(monday);const q=(await execute({action:'question',invite:f.invite,text:'Will we win?',locksAt:at(2).toISOString()},f.tokens[0],monday)).questionId!;await execute({action:'predict',invite:f.invite,questionId:q,answer:'yes',stake:20},f.tokens[1],monday);await execute({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.tokens[0],at(3));await runScheduler(at(180));await runScheduler(at(180));
+ const rowsNow=await rows(f.g,f.ids[0]);const final=rowsNow.filter(n=>n.kind==='weekly_final');assert.equal(final.length,1);const d=await db();const text=(await d.query<{text:string}>('SELECT text FROM notifications WHERE id=$1',[final[0].id])).rows[0].text;assert.ok(text.includes('Maya'));assert.ok(text.includes('20.0'));assert.ok(!rowsNow.some(n=>['provisional','suggestion'].includes(n.kind)));
+});
+test('all resolution stages bypass a full cap and judge requests alone bypass push mute',()=>{
+ const muted={...defaultPreferences,muted:true};for(const kind of ['proposal','dispute','settlement','judgment_request'] as const){const p=notificationPolicy(kind,muted,4);assert.equal(p.inApp,true);assert.equal(p.pushEligible,kind==='judgment_request')}
+});

@@ -1,0 +1,1 @@
+CREATE TABLE football_rankings (league_id INTEGER PRIMARY KEY,season INTEGER NOT NULL,ranks JSONB NOT NULL,fetched_at TIMESTAMPTZ NOT NULL);

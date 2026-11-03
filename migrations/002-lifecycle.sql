@@ -1,0 +1,17 @@
+ALTER TABLE members ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'weekly';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS event_at TIMESTAMPTZ;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS subject_id TEXT;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'open';
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS proposed_answer TEXT;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS proposed_at TIMESTAMPTZ;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS settled_at TIMESTAMPTZ;
+ALTER TABLE predictions ADD COLUMN IF NOT EXISTS forfeited BOOLEAN NOT NULL DEFAULT false;
+CREATE TABLE IF NOT EXISTS round_eligibility (group_id TEXT REFERENCES groups(id), user_id TEXT REFERENCES users(id), PRIMARY KEY(group_id,user_id));
+CREATE TABLE IF NOT EXISTS disputes (question_id TEXT REFERENCES questions(id), user_id TEXT REFERENCES users(id), created_at TIMESTAMPTZ NOT NULL, PRIMARY KEY(question_id,user_id));
+CREATE TABLE IF NOT EXISTS seasons (id TEXT PRIMARY KEY, group_id TEXT REFERENCES groups(id), name TEXT NOT NULL, starts_at TIMESTAMPTZ NOT NULL, ends_at TIMESTAMPTZ NOT NULL, CHECK(ends_at>starts_at));
+CREATE TABLE IF NOT EXISTS scores (question_id TEXT REFERENCES questions(id), user_id TEXT REFERENCES users(id), points_tenths INTEGER NOT NULL, settled_at TIMESTAMPTZ NOT NULL, season_id TEXT REFERENCES seasons(id), allocation TEXT NOT NULL, expires_at TIMESTAMPTZ, PRIMARY KEY(question_id,user_id));
+CREATE TABLE IF NOT EXISTS blocks (group_id TEXT REFERENCES groups(id), user_id TEXT REFERENCES users(id), blocked_id TEXT REFERENCES users(id), PRIMARY KEY(group_id,user_id,blocked_id));
+CREATE TABLE IF NOT EXISTS alerts (id TEXT PRIMARY KEY, group_id TEXT REFERENCES groups(id), question_id TEXT REFERENCES questions(id), user_id TEXT REFERENCES users(id), stage TEXT NOT NULL, essential BOOLEAN NOT NULL, actor_id TEXT, created_at TIMESTAMPTZ NOT NULL, UNIQUE(question_id,user_id,stage));
+CREATE TABLE IF NOT EXISTS audit (id TEXT PRIMARY KEY, group_id TEXT REFERENCES groups(id), question_id TEXT, actor_id TEXT, action TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL);
+INSERT INTO round_eligibility SELECT group_id,user_id FROM members ON CONFLICT DO NOTHING;
