@@ -1,5 +1,5 @@
 import {moderationAction,moderationActions,touchMember,maintainRecovery} from './moderation';
-import {exactOutcome,marketAnswer,localSunday,type Fixture} from './football/rules';
+import {exactOutcome,marketAnswer,localSunday,customAnswers,cleanOptions,type Fixture} from './football/rules';
 import { randomUUID } from 'node:crypto';
 import { db } from './db';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import {disputeCutoff} from './rules';
 const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
-type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;settled_at:Date|null};
+type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null};
 export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null){return q.event_at?new Date(q.event_at).getTime()+7*DAY:new Date(opens!).getTime()+14*DAY-60000}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
@@ -74,7 +74,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
-const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick']),invite:z.string(),questionId:z.string().optional(),answer:z.enum(['yes','no']).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
+const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
 export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const data=schema.parse(input),d=await db();
  // Commit due settlements independently of an action that may subsequently fail.
@@ -117,16 +117,18 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(event>sunday,'Use a weekly bet for events ending by this Sunday. Long-term bets must resolve later.');
  check(lock>now&&event>=lock,'Lock must be in the future and no later than the event deadline.');
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
- const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at,subject_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[id,g.id,userId,z.string().trim().min(3).max(240).parse(data.text),lock,'longterm',event,data.subjectId||null]);
+ let options:string[]|null;try{options=cleanOptions(data.options)}catch(e){throw new LifecycleError((e as Error).message)}
+ const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at,subject_id,options) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[id,g.id,userId,z.string().trim().min(3).max(240).parse(data.text),lock,'longterm',event,data.subjectId||null,options?JSON.stringify(options):null]);
  await audit(tx,g.id,id,userId,'longterm created',now);return {invite:data.invite,questionId:id};
  }else if(data.action!=='tick'){
- const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1 AND group_id=$2 FOR UPDATE',[data.questionId,g.id])).rows[0];check(q,'Bet not found.');check(q.moderation_state==='visible','This bet is hidden pending moderation.');
+ const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1 AND group_id=$2 FOR UPDATE',[data.questionId,g.id])).rows[0];check(q,'Bet not found.');
+ const option=()=>{const a=data.answer||'';check(customAnswers(q.options).includes(a),'Choose one of this bet’s options.');return a};check(q.moderation_state==='visible','This bet is hidden pending moderation.');
  if(data.action==='predictLongterm'){
  check(q.subject_id!==userId,'The tagged subject cannot predict on this bet.');
  check(q.scope==='longterm'&&now<new Date(q.locks_at)&&q.state==='open','This long-term bet is locked.');
  const existing=(await tx.query<{forfeited:boolean}>('SELECT forfeited FROM predictions WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows[0];check(!existing?.forfeited,'Forfeited predictions cannot be restored.');
  const count=Number((await tx.query<{count:string}>("SELECT count(*) FROM predictions p JOIN questions q ON q.id=p.question_id WHERE p.user_id=$1 AND q.scope='longterm' AND q.state NOT IN ('settled','void') AND NOT p.forfeited AND q.id<>$2 AND q.group_id=$3",[userId,q.id,g.id])).rows[0].count);check(count<3,'You already have three open long-term predictions.');
- await tx.query('INSERT INTO predictions(question_id,user_id,answer,stake) VALUES($1,$2,$3,10) ON CONFLICT(question_id,user_id) DO UPDATE SET answer=EXCLUDED.answer',[q.id,userId,z.enum(['yes','no']).parse(data.answer)]);
+ await tx.query('INSERT INTO predictions(question_id,user_id,answer,stake) VALUES($1,$2,$3,10) ON CONFLICT(question_id,user_id) DO UPDATE SET answer=EXCLUDED.answer',[q.id,userId,option()]);
  }else{
  check(!q.fixture_id,'Football questions resolve automatically from the data feed.');
  check(!['settled','void'].includes(q.state),'This bet has already settled or reached its deadline.');
@@ -137,7 +139,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+2*DAY)),'Only the creator or authorized takeover admin can propose.');
  check(q.state==='open','A proposal already exists.');
  if(userId!==q.creator)await audit(tx,g.id,q.id,userId,'admin takeover',now,{creator:q.creator});
- await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[z.enum(['yes','no']).parse(data.answer),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
+ await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[option(),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
  }else if(data.action==='dispute'){
  check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+DAY,deadline(q,g.opens_at)),'The dispute window has closed.');
  check(!(await tx.query('SELECT 1 FROM disputes WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows.length,'You already disputed this bet.');
@@ -148,7 +150,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  }else if(data.action==='judge'){
  check(q.state==='disputed','No open dispute.');
  const judges=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ( $3::text IS NULL OR m.user_id<>$3 ) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes d WHERE d.question_id=$4 AND d.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows;
- if(!judges.length)await settle(tx,q,null,now);else{check(judges[0].user_id===userId,'Only the eligible judge can decide.');await settle(tx,q,z.enum(['yes','no']).parse(data.answer),now);}
+ if(!judges.length)await settle(tx,q,null,now);else{check(judges[0].user_id===userId,'Only the eligible judge can decide.');await settle(tx,q,option(),now);}
  }
  }
  }
