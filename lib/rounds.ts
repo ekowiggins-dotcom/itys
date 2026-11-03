@@ -61,7 +61,7 @@ export async function finalizeRounds(tx:Transaction,g:string,now:Date){
  const rounds=(await tx.query<Round>("SELECT * FROM rounds WHERE group_id=$1 AND state NOT IN ('final','skipped','planned') ORDER BY opens_at",[g])).rows;
  for(const r of rounds){
  const counts=(await tx.query<{total:string;pending:string}>("SELECT count(*) total,count(*) FILTER(WHERE state NOT IN ('settled','void')) pending FROM questions WHERE round_id=$1 AND NOT superseded",[r.id])).rows[0];
- if(r.group_type==='Friends'&&now.getTime()>=new Date(r.opens_at).getTime()+2*DAY&&Number(counts.total)===0&&now<=new Date(r.deadline_at))await roundEvent(tx,r,'suggestion','No bets yet. Try: Will everyone arrive on time this weekend?',new Date(new Date(r.opens_at).getTime()+2*DAY));
+ if(r.group_type==='Friends'&&now.getTime()>=new Date(r.opens_at).getTime()+2*DAY&&Number(counts.total)===0&&now<=new Date(r.deadline_at))await roundEvent(tx,r,'suggestion','No calls yet. Try: Will everyone arrive on time this weekend?',new Date(new Date(r.opens_at).getTime()+2*DAY));
  if(now<new Date(r.publish_at))continue;
  if(!r.provisional_published){await tx.query('UPDATE rounds SET provisional_published=true WHERE id=$1',[r.id]);await roundEvent(tx,r,'provisional','Provisional standings are published. Pending results can still change the ranking.',new Date(r.publish_at));}
  if(Number(counts.total)===0){await tx.query("UPDATE rounds SET state='skipped',skip_reason=CASE WHEN content_ready THEN skip_reason ELSE 'Fixture feed unavailable' END,finalized_at=$2 WHERE id=$1",[r.id,now]);continue;}

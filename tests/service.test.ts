@@ -23,7 +23,7 @@ test('invite, identity, capacity, privacy, concurrency, edits and lock enforceme
  await d.query('UPDATE seasons SET starts_at=$1,ends_at=$2 WHERE group_id=(SELECT id FROM groups WHERE invite=$3)',[opened,new Date(opened.getTime()+56*86400000),invite]);
  const ids:string[]=[];
  for(let i=0;i<6;i++) {const q=await execute({action:'question',invite,text:'Will plan '+i+' happen?',locksAt:new Date(Date.now()+3600000).toISOString()},owner.session);ids.push(q.questionId!)}
- await assert.rejects(execute({action:'question',invite,text:'Overflow?',locksAt:new Date(Date.now()+3600000).toISOString()},owner.session),/six bet slots/);
+ await assert.rejects(execute({action:'question',invite,text:'Overflow?',locksAt:new Date(Date.now()+3600000).toISOString()},owner.session),/six call slots/);
  await execute({action:'predict',invite,questionId:ids[0],answer:'yes',stake:30},owner.session);
  await execute({action:'predict',invite,questionId:ids[1],answer:'no',stake:30},owner.session);
  const concurrent=await Promise.allSettled([2,3].map(i=>execute({action:'predict',invite,questionId:ids[i],answer:'yes',stake:30},owner.session)));

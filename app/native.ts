@@ -1,4 +1,5 @@
 'use client';
+import {BRAND} from '../lib/brand';
 // iOS-only capabilities. Every function is a no-op on the web, and plugins load lazily
 // so the web bundle never pulls in native code paths.
 import {NATIVE,api} from './api-client';
@@ -37,7 +38,7 @@ export async function shareCard(file:File,text:string,url:string){
  const [{Filesystem,Directory},{Share}]=await Promise.all([import('@capacitor/filesystem'),import('@capacitor/share')]);
  const data=await new Promise<string>((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]);r.onerror=()=>reject(r.error);r.readAsDataURL(file)});
  const saved=await Filesystem.writeFile({path:file.name,data,directory:Directory.Cache});
- await Share.share({title:'Sidebet',text,url,files:[saved.uri]});
+ await Share.share({title:BRAND,text,url,files:[saved.uri]});
  return true;
 }
 

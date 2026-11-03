@@ -84,7 +84,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const member=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,userId])).rows.length;check(member,'Join this group first.');
  await maintain(tx,g,now);
  if(moderationActions.includes(data.action)){
- try{await moderationAction(tx,g,userId,data,now,async id=>{const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1',[id])).rows[0];await settle(tx,q,null,now)});}catch(e){throw new LifecycleError(e instanceof Error?e.message:'Unable to moderate bet.')}
+ try{await moderationAction(tx,g,userId,data,now,async id=>{const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1',[id])).rows[0];await settle(tx,q,null,now)});}catch(e){throw new LifecycleError(e instanceof Error?e.message:'Unable to moderate this call.')}
  }else if(data.action==='notificationPreferences'){
  await tx.query('INSERT INTO notification_preferences(group_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[g.id,userId]);
  await tx.query('UPDATE notification_preferences SET muted=COALESCE($3,muted),round_open=COALESCE($4,round_open),lock_reminder=COALESCE($5,lock_reminder),weekly_final=COALESCE($6,weekly_final) WHERE group_id=$1 AND user_id=$2',[g.id,userId,data.muted??null,data.roundOpen??null,data.lockReminder??null,data.weeklyFinal??null]);
@@ -114,25 +114,25 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  }else if(data.action==='longterm'){
  const lock=new Date(z.iso.datetime().parse(data.locksAt)),event=new Date(z.iso.datetime().parse(data.eventAt));
  const sunday=localSunday(now,g.timezone);
- check(event>sunday,'Use a weekly bet for events ending by this Sunday. Long-term bets must resolve later.');
+ check(event>sunday,'Use a weekly call for events ending by this Sunday. Long-term calls must resolve later.');
  check(lock>now&&event>=lock,'Lock must be in the future and no later than the event deadline.');
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
  let options:string[]|null;try{options=cleanOptions(data.options)}catch(e){throw new LifecycleError((e as Error).message)}
  const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at,subject_id,options) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[id,g.id,userId,z.string().trim().min(3).max(240).parse(data.text),lock,'longterm',event,data.subjectId||null,options?JSON.stringify(options):null]);
  await audit(tx,g.id,id,userId,'longterm created',now);return {invite:data.invite,questionId:id};
  }else if(data.action!=='tick'){
- const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1 AND group_id=$2 FOR UPDATE',[data.questionId,g.id])).rows[0];check(q,'Bet not found.');
- const option=()=>{const a=data.answer||'';check(customAnswers(q.options).includes(a),'Choose one of this bet’s options.');return a};check(q.moderation_state==='visible','This bet is hidden pending moderation.');
+ const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1 AND group_id=$2 FOR UPDATE',[data.questionId,g.id])).rows[0];check(q,'Call not found.');
+ const option=()=>{const a=data.answer||'';check(customAnswers(q.options).includes(a),'Choose one of this call’s options.');return a};check(q.moderation_state==='visible','This call is hidden pending moderation.');
  if(data.action==='predictLongterm'){
- check(q.subject_id!==userId,'The tagged subject cannot predict on this bet.');
- check(q.scope==='longterm'&&now<new Date(q.locks_at)&&q.state==='open','This long-term bet is locked.');
+ check(q.subject_id!==userId,'The tagged person can’t predict on this call.');
+ check(q.scope==='longterm'&&now<new Date(q.locks_at)&&q.state==='open','This long-term call is locked.');
  const existing=(await tx.query<{forfeited:boolean}>('SELECT forfeited FROM predictions WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows[0];check(!existing?.forfeited,'Forfeited predictions cannot be restored.');
  const count=Number((await tx.query<{count:string}>("SELECT count(*) FROM predictions p JOIN questions q ON q.id=p.question_id WHERE p.user_id=$1 AND q.scope='longterm' AND q.state NOT IN ('settled','void') AND NOT p.forfeited AND q.id<>$2 AND q.group_id=$3",[userId,q.id,g.id])).rows[0].count);check(count<3,'You already have three open long-term predictions.');
  await tx.query('INSERT INTO predictions(question_id,user_id,answer,stake) VALUES($1,$2,$3,10) ON CONFLICT(question_id,user_id) DO UPDATE SET answer=EXCLUDED.answer',[q.id,userId,option()]);
  }else{
  check(!q.fixture_id,'Football questions resolve automatically from the data feed.');
- check(!['settled','void'].includes(q.state),'This bet has already settled or reached its deadline.');
- check(now>=new Date(q.locks_at),'Wait until the bet locks.');
+ check(!['settled','void'].includes(q.state),'This call has already settled or reached its deadline.');
+ check(now>=new Date(q.locks_at),'Wait until the call locks.');
  if(data.action==='propose'){
  const creatorActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,q.creator])).rows.length;
  const event=q.event_at?new Date(q.event_at).getTime():new Date(g.opens_at!).getTime()+7*DAY-60000;
@@ -142,7 +142,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[option(),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
  }else if(data.action==='dispute'){
  check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+DAY,deadline(q,g.opens_at)),'The dispute window has closed.');
- check(!(await tx.query('SELECT 1 FROM disputes WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows.length,'You already disputed this bet.');
+ check(!(await tx.query('SELECT 1 FROM disputes WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows.length,'You already disputed this call.');
  await tx.query('INSERT INTO disputes VALUES($1,$2,$3)',[q.id,userId,now]);await tx.query("UPDATE questions SET state='disputed' WHERE id=$1",[q.id]);await alert(tx,q,'disputed',userId,now);
  const judge=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ($3::text IS NULL OR m.user_id<>$3) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes di WHERE di.question_id=$4 AND di.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id LIMIT 1`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows[0];
  if(!judge)await settle(tx,q,null,now);

@@ -1,6 +1,6 @@
 # Sidebet
 
-A private-group prediction app built with Next.js, React and TypeScript, using embedded PostgreSQL (PGlite). Friends stake free confidence points on weekly and long-term bets. It includes result disputes, standings, seasons, football markets, sharing, notifications, and group moderation. No money or prizes are involved.
+A private-group prediction app built with Next.js, React and TypeScript, using embedded PostgreSQL (PGlite). Friends put free confidence points on weekly and long-term calls. It includes result disputes, standings, seasons, football markets, sharing, notifications, and group moderation. No money or prizes are involved.
 
 ## Install and run
 
