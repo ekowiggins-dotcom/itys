@@ -7,7 +7,7 @@ import {sessionToken,isNativeOrigin,corsHeaders} from '../lib/native-client';
 const folder=await mkdtemp(join(tmpdir(),'push-'));process.env.PREDICTION_DATA_DIR=folder;
 after(async()=>{await(await db()).close();await rm(folder,{recursive:true,force:true})});
 const {privateKey,publicKey}=generateKeyPairSync('ec',{namedCurve:'P-256'});
-const cfg={teamId:'TEAM123456',keyId:'KEY1234567',key:privateKey.export({type:'pkcs8',format:'pem'}).toString(),bundleId:'app.sidebet.ios'};
+const cfg={teamId:'TEAM123456',keyId:'KEY1234567',key:privateKey.export({type:'pkcs8',format:'pem'}).toString(),bundleId:'app.calld.ios'};
 const tok=(c:string)=>c.repeat(64);
 
 test('provider token is a valid ES256 JWT for the team and key',()=>{

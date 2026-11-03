@@ -70,3 +70,10 @@ test('confidence points reset every round and cannot exceed 100 per person',()=>
  assert.match(svc,/used\+stake<=100/);
  assert.match(svc,/q\.round_id=\$1 AND p\.user_id=\$2/,'the 100-point budget is per round and per person');
 });
+
+test('the old name never reaches players: the brand comes from lib/brand.ts',()=>{
+ const old=/\bsidebet\b/i;
+ const hits=[...ui,...files('ios/App/SidebetWidget',['.swift','.plist']),'ios/App/App/Info.plist','capacitor.config.ts']
+  .flatMap(f=>{const src=readFileSync(f,'utf8');return (f.endsWith('.ts')||f.endsWith('.tsx')?visibleText(src,f):src.split('\n')).filter(t=>old.test(t)&&!/SidebetAppGroup|SidebetWidget|SIDEBET_|x-sidebet-client/i.test(t)).map(t=>f+': '+t.trim().slice(0,80))});
+ assert.deepEqual(hits,[]);
+});

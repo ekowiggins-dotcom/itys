@@ -9,7 +9,7 @@ import {betCard,shareLink,winnerCard} from '../lib/sharing';
 import {when,countdown,answerLabel} from './format';
 import TimeChips,{weeklyPresets} from './TimeChips';
 import HowItWorks from './HowItWorks';
-import {BRAND} from '../lib/brand';
+import {BRAND,BRAND_NAME} from '../lib/brand';
 import {api,webOrigin,setSession,lastInvite,rememberInvite,NATIVE} from './api-client';
 import {initNative,haptic,updateWidget} from './native';
 type Question=FootballQuestion;
@@ -104,7 +104,7 @@ export default function Home(){
   {tab==='open'&&<LifecyclePanel view="open" data={data} act={act} busy={busy} focusQuestion={focusQuestion} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>}
 
   {tab==='group'&&<>
-   <section className="card group-card"><span className="eyebrow">INVITE</span><h2>{data.group.name}</h2><p>{data.members}/30 friends · {roundType} group · {zone}</p><div className="actions"><button onClick={copy}>Copy invite link</button><a className="button whatsapp" target="_blank" rel="noreferrer" href={'https://wa.me/?text='+encodeURIComponent('Join '+data.group.name+' on Sidebet: '+(origin?shareLink(origin,invite):''))}>WhatsApp ↗</a></div></section>
+   <section className="card group-card"><span className="eyebrow">INVITE</span><h2>{data.group.name}</h2><p>{data.members}/30 friends · {roundType} group · {zone}</p><div className="actions"><button onClick={copy}>Copy invite link</button><a className="button whatsapp" target="_blank" rel="noreferrer" href={'https://wa.me/?text='+encodeURIComponent('Join '+data.group.name+' on '+BRAND_NAME+': '+(origin?shareLink(origin,invite):''))}>WhatsApp ↗</a></div></section>
    {!football&&<FootballPanel data={data} act={act} busy={busy}/>}
    <HowItWorks/>
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={act} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
