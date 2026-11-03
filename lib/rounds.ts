@@ -50,10 +50,10 @@ async function insertRound(tx:Transaction,g:string,at:Date){
  const id=randomUUID();await tx.query('INSERT INTO rounds(id,group_id,opens_at,deadline_at,publish_at,group_type,timezone,leagues,pick_end_at,fixture_end_at,content_ready) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT DO NOTHING',[id,g,at,dates.deadline,dates.publish,type,zone,JSON.stringify(leagues),dates.pickEnd,dates.fixtureEnd,type==='Friends']);
  return (await tx.query<Round>('SELECT * FROM rounds WHERE group_id=$1 AND opens_at=$2',[g,at])).rows[0];
 }
-export async function snapshot(tx:Transaction,q:{id:string;locks_at:Date;subject_id:string|null;scope:string;market?:string},now:Date){
+export async function snapshot(tx:Transaction,q:{id:string;locks_at:Date;subject_id:string|null;scope:string;market?:string;options?:string[]|null},now:Date){
  if(new Date(q.locks_at)>now)return;
  if((await tx.query('SELECT 1 FROM lock_snapshots WHERE question_id=$1',[q.id])).rows.length)return;
- const picks=(await tx.query<{user_id:string;answer:string;stake:number}>(`SELECT p.user_id,p.answer,p.stake FROM predictions p WHERE p.question_id=$1 AND ($2::text IS NULL OR p.user_id<>$2) AND p.stake>=5 AND p.stake<=30 AND p.stake%5=0 AND ($3<>'longterm' OR p.stake=10)`,[q.id,q.subject_id,q.scope])).rows.filter(p=>validAnswer(q.market||'custom',p.answer));
+ const picks=(await tx.query<{user_id:string;answer:string;stake:number}>(`SELECT p.user_id,p.answer,p.stake FROM predictions p WHERE p.question_id=$1 AND ($2::text IS NULL OR p.user_id<>$2) AND p.stake>=5 AND p.stake<=30 AND p.stake%5=0 AND ($3<>'longterm' OR p.stake=10)`,[q.id,q.subject_id,q.scope])).rows.filter(p=>validAnswer(q.market||'custom',p.answer,q.options));
  await tx.query('INSERT INTO lock_snapshots VALUES($1,$2,$3)',[q.id,q.locks_at,picks.length]);
  for(const p of picks)await tx.query('INSERT INTO locked_predictions VALUES($1,$2,$3,$4)',[q.id,p.user_id,p.answer,p.stake]);
 }

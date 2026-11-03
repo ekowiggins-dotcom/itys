@@ -2,7 +2,12 @@ import {leagueProfile} from '../locale';
 export type GroupType='Friends'|'Football'|'Mixed';
 export type Market='custom'|'result'|'exact_score'|'over_under';
 export type Fixture={id:string;provider:string;provider_id:number;league_id:number;league_name:string;home:string;away:string;kickoff:string;status:string;home90:number|null;away90:number|null;home_rank:number|null;away_rank:number|null;revision:string;needs_review?:boolean};
-export function validAnswer(market:string,answer:string){return market==='custom'?['yes','no'].includes(answer):market==='result'?['home','draw','away'].includes(answer):market==='over_under'?['over','under'].includes(answer):market==='exact_score'?/^(0|[1-9]\d?)-(0|[1-9]\d?)$/.test(answer):false}
+export const YES_NO=['yes','no'];
+/** The answers a custom bet accepts: its named options, or yes/no. */
+export function customAnswers(options?:string[]|null){return options&&options.length?options:YES_NO}
+/** Validates and cleans named options for a new custom bet. Returns null for a yes/no bet. */
+export function cleanOptions(raw:unknown):string[]|null{if(raw===undefined||raw===null)return null;if(!Array.isArray(raw))throw new Error('Options must be a list.');const list=raw.map(o=>String(o).trim().replace(/\s+/g,' ')).filter(Boolean);if(list.length===0)return null;if(list.length<2||list.length>4)throw new Error('Give 2 to 4 options, or leave them empty for a yes/no bet.');if(list.some(o=>o.length>40))throw new Error('Keep each option to 40 characters.');if(new Set(list.map(o=>o.toLocaleLowerCase())).size!==list.length)throw new Error('Each option must be different.');return list}
+export function validAnswer(market:string,answer:string,options?:string[]|null){return market==='custom'?customAnswers(options).includes(answer):market==='result'?['home','draw','away'].includes(answer):market==='over_under'?['over','under'].includes(answer):market==='exact_score'?/^(0|[1-9]\d?)-(0|[1-9]\d?)$/.test(answer):false}
 export function resultDirection(home:number,away:number){return home>away?'home':home<away?'away':'draw'}
 export function marketAnswer(market:string,home:number,away:number){return market==='result'?resultDirection(home,away):market==='over_under'?(home+away>=3?'over':'under'):home+'-'+away}
 export function exactOutcome(answer:string,home:number,away:number){if(!validAnswer('exact_score',answer))return{exact:false,partial:false};const [h,a]=answer.split('-').map(Number);return{exact:h===home&&a===away,partial:resultDirection(h,a)===resultDirection(home,away)}}
