@@ -1,10 +1,12 @@
 import { PGlite } from '@electric-sql/pglite';
 import path from 'node:path';
+import { storage } from './storage';
 import { mkdir, readFile } from 'node:fs/promises';
 const globalDb = globalThis as unknown as { predictionDb?: Promise<PGlite> };
 export function db() {
   return globalDb.predictionDb ??= (async () => {
-    const dir = process.env.PREDICTION_DATA_DIR || path.join(process.cwd(), '.data/postgres');
+    const {dir,persistent} = storage();
+    if (!persistent) console.warn('WARNING: no persistent volume. Data in '+dir+' will be lost on the next deploy. Attach a volume (Railway) or set PREDICTION_DATA_DIR.');
     await mkdir(dir, { recursive: true });
     const database = new PGlite(dir);
     await database.exec(`

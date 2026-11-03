@@ -36,3 +36,15 @@ The scheduler runs inside the Node server. Only one process may own the embedded
 Trusted operator tools: `node --import tsx scripts/moderation.ts queue`. Stop the web server before accessing the same database with the CLI.
 
 See [the secret scan report](docs/SECRET_SCAN.md) for public-review findings and scope.
+
+## Deploy on Railway
+
+The app runs as **one service with one volume**. The embedded database is a single-writer file store, so never scale it to more than one replica.
+
+1. In Railway, create a project from this GitHub repo. It builds with the `Dockerfile`; `railway.json` sets the health check (`/api/health`) and turns off deploy overlap.
+2. Add a **volume** to the service (any mount path, e.g. `/data`). Railway sets `RAILWAY_VOLUME_MOUNT_PATH` and the database is stored at `<mount>/postgres`. Until a volume is attached, `/api/health` returns 503 in production so a deploy can't go live with data that would be lost.
+3. Under the service's networking settings, generate a public domain.
+4. Optional variables: `APP_ORIGIN` (if you add a custom domain), `API_FOOTBALL_KEY` (for Football and Mixed groups).
+5. Turn on volume backups for the service.
+
+Data written to the volume survives redeploys, restarts and crashes.

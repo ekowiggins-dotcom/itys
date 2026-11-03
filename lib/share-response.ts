@@ -1,7 +1,7 @@
 import {NextRequest} from 'next/server';import {publicShare} from './share-data';import {shareLink} from './sharing';
 function escape(text:string){return text.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))}
 export async function shareResponse(req:NextRequest,winner=false){
- try{const origin=process.env.APP_ORIGIN||req.nextUrl.protocol+'//'+req.headers.get('host');const p=req.nextUrl.searchParams,invite=p.get('invite')||'';const data=await publicShare(invite,{questionId:p.get('question')||undefined,roundId:p.get('round')||undefined,winner});const {card}=data;
+ try{const origin=process.env.APP_ORIGIN||(process.env.RAILWAY_PUBLIC_DOMAIN?'https://'+process.env.RAILWAY_PUBLIC_DOMAIN:req.nextUrl.protocol+'//'+req.headers.get('host'));const p=req.nextUrl.searchParams,invite=p.get('invite')||'';const data=await publicShare(invite,{questionId:p.get('question')||undefined,roundId:p.get('round')||undefined,winner});const {card}=data;
  const target=shareLink(origin,invite,{questionId:data.questionId,roundId:data.roundId,winner},true);
  const image=new URL('/share/image',origin);image.search=req.nextUrl.search;
  const title=card.kind==='bet'?card.title:card.title+' · '+card.detail;const description=card.groupName+' · '+card.detail;
