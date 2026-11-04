@@ -25,11 +25,11 @@ export default function Admin(){
   <section className="c-form"><h2>2. Publish the week</h2><p className="c-hint">Do this once the list is complete, before Thursday 12:00. The next football week opens with the matches the rules pick.</p>
    <button className="c-btn" disabled={busy} onClick={async()=>{const d=await post({action:'adminPublishWeek'});if(d)setMsg('Published. Covers the next 10 days.')}}>Publish week</button></section>
   {msg&&<p className="c-toast" style={{position:'static',whiteSpace:'pre-line'}}>{msg}</p>}
-  <section className="c-form"><h2>3. Matches and results</h2><p className="c-hint">Lime = the rules would feature it (★ = match of the week). Enter the 90-minute score after full time; Postponed gives everyone their points back.</p>
+  <section className="c-form"><h2>3. Matches and results</h2><p className="c-hint">Lime = the rules would feature it. Enter the 90-minute score after full time; Postponed gives everyone their points back.</p>
    {!state.matches.length&&<p className="c-hint">No matches yet.</p>}
    {state.matches.map(m=>{const p=pick(m.id),s=scores[m.id]||{h:m.home90?.toString()??'',a:m.away90?.toString()??''};const manual=m.provider==='manual';
     return <div key={m.id} style={{display:'flex',flexWrap:'wrap',gap:8,alignItems:'center',padding:'10px 12px',borderRadius:14,background:p||m.featured?'#EEF8C4':'#F5F3EC'}}>
-     <div style={{flex:'1 1 260px',minWidth:0}}><b>{p?.motw?'★ ':''}{m.home} – {m.away}</b><br/><small>{fmt(m.kickoff)} · {m.league_name}{m.round_name?' · '+m.round_name:''}{p?' · '+p.reason:''}{m.featured?' · in a round':''}</small></div>
+     <div style={{flex:'1 1 260px',minWidth:0}}><b>{m.home} – {m.away}</b><br/><small>{fmt(m.kickoff)} · {m.league_name}{m.round_name?' · '+m.round_name:''}{p?' · '+p.reason:''}{m.featured?' · in a round':''}</small></div>
      {m.status==='finished'?<b>{m.home90}–{m.away90}</b>:m.status==='void'?<b>Postponed</b>:null}
      {manual&&m.status!=='void'&&<><input aria-label={m.home+' goals'} inputMode="numeric" style={{width:52,minHeight:40,margin:0,padding:'0 8px'}} value={s.h} onChange={e=>setScores({...scores,[m.id]:{...s,h:e.target.value}})}/><input aria-label={m.away+' goals'} inputMode="numeric" style={{width:52,minHeight:40,margin:0,padding:'0 8px'}} value={s.a} onChange={e=>setScores({...scores,[m.id]:{...s,a:e.target.value}})}/>
       <button className="c-chip" disabled={busy||s.h===''||s.a===''} onClick={()=>post({action:'adminResult',id:m.id,home:Number(s.h),away:Number(s.a)})}>Save score</button>

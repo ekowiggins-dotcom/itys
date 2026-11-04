@@ -98,3 +98,11 @@ test('a shared match previews with team names and lets a newcomer join and pick'
  const joined=await execute({action:'join',invite,name:'Deniz'},undefined,thu);
  await execute({action:'predict',invite,questionId:q.id,answer:'home',stake:20},joined.session,thu);
 });
+
+test('old exact-score and over/under questions are taken down and count for nobody',async()=>{
+ const d=await db();const g=(await d.query<{id:string;creator:string}>('SELECT id,admin creator FROM groups LIMIT 1')).rows[0];
+ const now=new Date();await d.query("INSERT INTO questions(id,group_id,creator,text,locks_at,market) VALUES('old-exact',$1,$2,'A vs B · Exact score',$3,'exact_score')",[g.id,g.creator,new Date(now.getTime()+3600000)]);
+ const {readFile}=await import('node:fs/promises');await d.exec(await readFile('migrations/018-retire-extra-markets.sql','utf8'));
+ const q=(await d.query<{superseded:boolean;state:string}>("SELECT superseded,state FROM questions WHERE id='old-exact'")).rows[0];assert.equal(q.superseded,true);assert.equal(q.state,'void');
+ assert.equal((await d.query("SELECT 1 FROM migrations WHERE id='018'")).rows.length,1,'the migration is registered');
+});

@@ -7,30 +7,23 @@ export type Call={id:string;text:string;options?:string[]|null;scope:string;lock
  split?:Record<string,number>;
  /** A football match call: the teams and kickoff, filled in from the round's fixtures. */
  match?:Match|null};
-export type Match={home:string;away:string;kickoff?:string;league?:string;slot?:string;reason?:string;home90?:number|null;away90?:number|null};
+export type Match={home:string;away:string;kickoff?:string;league?:string;reason?:string;home90?:number|null;away90?:number|null};
 type Labelled={options?:string[]|null;market?:string;match?:Match|null;split?:Record<string,number>};
 export type Snapshot={question_id:string;user_id?:string;name:string;answer:string;stake:number;total:number};
 export type Sections={yourTurn:Call[];locked:Call[];inIt:Call[];later:Call[];results:Call[];hidden:Call[]};
 
-/** The answers you can pick. A match result is the two teams and a draw; an exact score has no fixed list. */
+/** The answers you can pick. A match is the two teams and a draw. */
 export function answersOf(c:Labelled):string[]{
  if(c.market==='result')return ['home','draw','away'];
- if(c.market==='over_under')return ['over','under'];
- if(c.market==='exact_score')return Object.keys(c.split||{}).sort((a,b)=>(c.split![b]||0)-(c.split![a]||0));
  return c.options?.length?c.options:['yes','no'];
 }
 /** What an answer reads as: "Yes", "Fenerbahçe", "Over 2.5", "2–1". */
 export function label(a:string,c?:Labelled|null){
  if(c?.market==='result'){if(a==='home')return c.match?.home||'Home';if(a==='away')return c.match?.away||'Away';if(a==='draw')return 'Draw'}
- if(c?.market==='over_under'){if(a==='over')return 'Over 2.5';if(a==='under')return 'Under 2.5'}
- if(c?.market==='exact_score'&&/^\d+-\d+$/.test(a))return a.replace('-','–');
  return a==='yes'?'Yes':a==='no'?'No':a;
 }
-/** "Fenerbahçe – Liverpool", "… · Goals", "… · Exact score". */
-export function matchTitle(c:{market?:string;match?:Match|null;text:string}){
- if(!c.match)return c.text;const teams=c.match.home+' – '+c.match.away;
- return c.market==='over_under'?teams+' · Goals':c.market==='exact_score'?teams+' · Exact score':teams;
-}
+/** "Fenerbahçe – Liverpool". */
+export function matchTitle(c:{match?:Match|null;text:string}){return c.match?c.match.home+' – '+c.match.away:c.text}
 export const pts=(tenths:number|null|undefined)=>Math.round((tenths||0)/10);
 const terminal=(s:string)=>s==='settled'||s==='void';
 
@@ -45,9 +38,7 @@ export function sortCalls(calls:Call[],me:string|undefined,now:number,recentMs=7
   // Locked. A long-running call waits for its event; everything else waits for someone to set the result.
   if(long&&c.state==='open'&&c.event_at&&now<Date.parse(c.event_at))out.later.push(c);else out.locked.push(c);
  }
- // Same kickoff: who wins first, then goals, then the exact score.
- const order=(c:Call)=>['result','over_under','exact_score'].indexOf(c.market||'')+1;
- const byLock=(a:Call,b:Call)=>Date.parse(a.locks_at)-Date.parse(b.locks_at)||order(a)-order(b);
+ const byLock=(a:Call,b:Call)=>Date.parse(a.locks_at)-Date.parse(b.locks_at);
  out.yourTurn.sort(byLock);out.inIt.sort(byLock);out.locked.sort(byLock);
  out.later.sort((a,b)=>Date.parse(a.event_at||a.locks_at)-Date.parse(b.event_at||b.locks_at));
  out.results.sort((a,b)=>Date.parse(b.settled_at||b.locks_at)-Date.parse(a.settled_at||a.locks_at));
@@ -58,11 +49,10 @@ export type Group={answer:string;names:{name:string;id?:string;stake:number}[]};
 /** Who said what, in the call's own option order, biggest group first after the reveal. */
 export function reveal(call:Call,snaps:Snapshot[]):Group[]{
  const mine=snaps.filter(s=>s.question_id===call.id);
- const answers=call.market==='exact_score'?[...new Set(mine.map(s=>s.answer))]:answersOf(call);
- return answers.map(a=>({answer:a,names:mine.filter(s=>s.answer===a).map(s=>({name:s.name,id:s.user_id,stake:s.stake}))}));
+ return answersOf(call).map(a=>({answer:a,names:mine.filter(s=>s.answer===a).map(s=>({name:s.name,id:s.user_id,stake:s.stake}))}));
 }
 /** What an answer is worth if it's right, fixed when picks close: rarer answers score more (see lib/rules.ts). */
-export function potential(_c:unknown,same:number,total:number){return callPoints({same,total})}
+export function potential(same:number,total:number){return callPoints({same,total})}
 
 /** "Three of you went Nagelsmann. Arda went alone." */
 export function headline(groups:Group[],meName?:string,c?:Labelled){

@@ -29,7 +29,7 @@ test('the reveal tells the story and the score preview matches the scoring rule'
  const groups=reveal(call,snaps);
  assert.deepEqual(groups.map(g=>g.names.length),[1,1,0,3]);
  assert.equal(headline(groups,'Arda'),'Three of you said Nagelsmann. Can went Emre alone.');
- assert.equal(potential({},1,5),34,'alone in 5: 10 + 30 × 4/5');
+ assert.equal(potential(1,5),34,'alone in 5: 10 + 30 × 4/5');
  assert.equal(outcome(c({state:'settled',answer:'Aykut',result_answer:'Aykut',points_tenths:360})).text,'You called it · +36');
  assert.equal(outcome(c({state:'void'})).tone,'void');
  const best=callOfTheWeek([c({state:'settled',result_answer:'Aykut'})],snaps);assert.equal(best?.name,'Arda');assert.equal(best?.score,34);assert.ok(best?.alone);
@@ -52,13 +52,8 @@ test('a match call shows the teams, not Yes / No',()=>{
  const result=c({id:'r',market:'result',fixture_id:'f1',match});
  assert.deepEqual(answersOf(result).map(a=>label(a,result)),['Fenerbahçe','Draw','Liverpool']);
  assert.equal(matchTitle(result),'Fenerbahçe – Liverpool');
- const goals=c({id:'g',market:'over_under',fixture_id:'f1',match});
- assert.deepEqual(answersOf(goals).map(a=>label(a,goals)),['Over 2.5','Under 2.5']);
- const score=c({id:'s',market:'exact_score',fixture_id:'f1',match,split:{'1-1':1,'2-1':3}});
- assert.deepEqual(answersOf(score),['2-1','1-1'],'exact scores come from what people picked, most popular first');
- assert.equal(label('2-1',score),'2–1');
- const groups=reveal(score,[{question_id:'s',name:'Ege',answer:'2-1',stake:10,total:2},{question_id:'s',name:'Arda',answer:'0-0',stake:10,total:2}]);
- assert.deepEqual(groups.map(g=>g.answer),['2-1','0-0']);
+ const groups=reveal(result,[{question_id:'r',name:'Ege',answer:'home',stake:10,total:2},{question_id:'r',name:'Arda',answer:'draw',stake:10,total:2}]);
+ assert.deepEqual(groups.map(g=>[g.answer,g.names.length]),[['home',1],['draw',1],['away',0]]);
  assert.equal(outcome(c({...result,state:'settled',answer:'away',result_answer:'home'})).text,'You said Liverpool');
  assert.equal(label('yes'),'Yes','custom calls keep Yes / No');
 });

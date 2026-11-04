@@ -1,5 +1,5 @@
 import {db} from './db';import {reconcile} from './service';import {weeklyViews} from './rounds';import {betCard,inviteCard,winnerCard} from './sharing';import {when,kickLabel} from '../app/format';
-const MARKETS:Record<string,string[]>={result:['Home','Draw','Away'],over_under:['Over 2.5','Under 2.5'],exact_score:['Exact score']};
+const MARKETS:Record<string,string[]>={result:['Home','Draw','Away']};
 /** Month a long-running call resolves, e.g. "We'll know in March". */
 export function knowLabel(eventAt:Date|string,zone='UTC'){return 'We’ll know in '+new Date(eventAt).toLocaleDateString('en-GB',{timeZone:zone,month:'long'})}
 export async function publicShare(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean},now=new Date()){
@@ -19,7 +19,7 @@ export async function publicShare(invite:string,target:{questionId?:string;round
  const label=q.scope==='longterm'&&q.event_at?knowLabel(q.event_at,group.timezone):locked?'Picks are closed':'Picks close '+when(q.locks_at,now.getTime(),group.timezone);
  // A shared match: "Fenerbahçe – Liverpool" with the teams as the answers.
  if(market!=='custom'){const f=(await tx.query<{home:string;away:string;kickoff:Date;league_name:string}>('SELECT f.home,f.away,f.kickoff,f.league_name FROM football_fixtures f JOIN questions q ON q.fixture_id=f.id WHERE q.id=$1',[q.id])).rows[0];
-  if(f){const opts=market==='result'?[f.home,'Draw',f.away]:market==='over_under'?['Over 2.5','Under 2.5']:['Exact score'];const card=betCard(group.name,f.home+' – '+f.away,q.picked,opts,{when:locked?'Kicked off':kickLabel(f.kickoff,now,group.timezone)});card.subtitle=f.league_name;card.teams=[f.home,f.away];return{card,questionId:q.id,roundId:q.round_id||undefined};}}
+  if(f){const opts=[f.home,'Draw',f.away];const card=betCard(group.name,f.home+' – '+f.away,q.picked,opts,{when:locked?'Kicked off':kickLabel(f.kickoff,now,group.timezone)});card.subtitle=f.league_name;card.teams=[f.home,f.away];return{card,questionId:q.id,roundId:q.round_id||undefined};}}
  // A call about someone is shared to a chat they're probably in: the preview keeps it secret.
  if(q.subject_id&&!['settled','void'].includes((await tx.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[q.id])).rows[0].state)){const card=betCard(group.name,'A secret call about a friend',q.picked,['Open it to see'],{creator:market==='custom'?q.creator_name:undefined,when:label});card.options=[];return{card,questionId:q.id,roundId:q.round_id||undefined};}
  return{card:betCard(group.name,q.text,q.picked,options,{creator:market==='custom'?q.creator_name:undefined,when:label}),questionId:q.id,roundId:q.round_id||undefined};

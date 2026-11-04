@@ -6,7 +6,7 @@
 //     gets a second, then the best of the rest.
 //   Europe block (up to 5): favourite clubs in the Champions League, Europa League or Conference League first,
 //     then the biggest Champions League games, then Europa League if the Champions League isn't on.
-// Match of the week (exact score + over/under) is the biggest game of all picks.
+// `motw` is the week's headline game: used to order the preview, nothing more.
 import {leagueProfile,TOP_LEAGUES,UEFA} from '../locale';
 import {importance,type Fixture} from './rules';
 
