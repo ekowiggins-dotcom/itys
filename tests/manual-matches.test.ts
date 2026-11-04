@@ -66,8 +66,8 @@ test('next week shows as soon as it is published, and Saturday noon nudges peopl
  await execute({action:'predict',invite,questionId:gs.id,answer:'home',stake:20},b.session,thu);
  await runScheduler(sat);const d=await db();
  const nudges=(await d.query<{user_id:string;text:string}>("SELECT n.user_id,n.text FROM notifications n JOIN groups g ON g.id=n.group_id WHERE g.invite=$1 AND n.source_key LIKE '%:saturday'",[invite])).rows;
- assert.equal(nudges.length,3,'everyone with a weekend pick left');assert.match(nudges[0].text,/^Weekend matches: \d picks? left\. First kickoff \d\d:\d\d\.$/);
- const left=(text:string)=>Number(text.match(/: (\d+)/)![1]);const counts=nudges.map(n=>left(n.text)).sort();assert.ok(counts[0]<counts[2],'Ege picked one, so has fewer left: '+counts);
+ assert.equal(nudges.length,3,'everyone with a weekend pick left');assert.match(nudges[0].text,/^Weekend matches are on\. \d+ still needs? your call\.$/);
+ const left=(text:string)=>Number(text.match(/on\. (\d+)/)![1]);const counts=nudges.map(n=>left(n.text)).sort();assert.ok(counts[0]<counts[2],'Ege picked one, so has fewer left: '+counts);
  await publishWeek(mon);const later=await view(invite,a.session,undefined,mon) as unknown as {comingUp:{matches:{home:string}[]}|null};
  assert.ok(later.comingUp?.matches.some(m=>m.home==='Beşiktaş'),'next week is visible as soon as it’s published');
 });

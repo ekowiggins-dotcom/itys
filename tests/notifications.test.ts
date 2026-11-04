@@ -12,7 +12,7 @@ test('routine cap is shared across kinds, concurrent emitters and deduplicated r
  await d.transaction(tx=>emitNotification(tx,{groupId:f.g,userId:f.ids[1],key:'uncapped-result',kind:'proposal',text:'Essential result despite full cap'},at(2)));assert.ok((await rows(f.g,f.ids[1])).some(n=>n.source_key==='uncapped-result'&&n.in_app));
  await d.transaction(tx=>emitNotification(tx,{groupId:f.g,userId:f.ids[1],key:'new-week',kind:'round_open',text:'Next week'},at(168)));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.in_app&&n.category==='routine').length,5);assert.equal(weekStartUTC(at(167.99)),'2030-04-08');assert.equal(weekStartUTC(at(168)),'2030-04-15');
 });
-test('first-lock reminder is one hour before lock, targets only unanswered eligible members and never sends late',async()=>{
+test('friends nudge you an hour before a call locks: only if a friend is in and you are not, never the subject, never late',async()=>{
  const f=await fixture();await runScheduler(monday);const q=(await execute({action:'question',invite:f.invite,text:'Will it happen?',locksAt:at(2).toISOString(),subjectId:f.ids[2]},f.tokens[0],monday)).questionId!;
  await execute({action:'predict',invite:f.invite,questionId:q,answer:'yes',stake:20},f.tokens[0],monday);await runScheduler(at(.99));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.kind==='lock_reminder').length,0);
  await runScheduler(at(1));await runScheduler(at(1.5));assert.equal((await rows(f.g,f.ids[1])).filter(n=>n.kind==='lock_reminder'&&n.in_app).length,1);assert.equal((await rows(f.g,f.ids[0])).filter(n=>n.kind==='lock_reminder').length,0);assert.equal((await rows(f.g,f.ids[2])).filter(n=>n.kind==='lock_reminder').length,0);
@@ -37,4 +37,12 @@ test('weekly final alert includes winner and score; provisional and suggestion u
 });
 test('all resolution stages bypass a full cap and judge requests alone bypass push mute',()=>{
  const muted={...defaultPreferences,muted:true};for(const kind of ['proposal','dispute','settlement','judgment_request'] as const){const p=notificationPolicy(kind,muted,4);assert.equal(p.inApp,true);assert.equal(p.pushEligible,kind==='judgment_request')}
+});
+
+test('the nudge names friends, not the clock',async()=>{
+ const {nudgeText}=await import('../lib/notifications');
+ assert.equal(nudgeText(['Ege','Can'],['Fenerbahçe – Liverpool']),'Ege and Can made their calls on Fenerbahçe – Liverpool. What’s yours?');
+ assert.equal(nudgeText(['Ege'],['Fenerbahçe – Liverpool']),'Ege made a call on Fenerbahçe – Liverpool. What’s yours?');
+ assert.equal(nudgeText(['Ege','Can','Deniz','Mert'],['Fenerbahçe – Liverpool','Arsenal – Chelsea','Inter – Milan']),'Ege, Can and 2 more are waiting on your calls: Fenerbahçe – Liverpool and 2 more.');
+ for(const t of [nudgeText(['A'],['X']),nudgeText(['A','B','C'],['X','Y'])])assert.ok(!/kick|minute|hour|lock|odds|bet/i.test(t),t);
 });
