@@ -3,7 +3,7 @@
 This is a **free prediction game between friends**. It must never become, or look like, gambling. That protects the App Store listing, the age rating, and the app's legal position (including in Türkiye). `tests/policy.test.ts` enforces most of this: **never loosen those tests to make a change pass.** If a feature seems to need it, stop and ask the product owner.
 
 ## Hard rules for points
-- Points are **only earned**, by being right. Nobody spends, chooses, allocates or risks points: every pick counts the same (`PICK_POINTS` = 10 in `lib/rules.ts`). What a right answer is worth is set when picks close, from how the group split (`callPoints` in `lib/rules.ts`): 10 to 40, +10 for a lone call, exact score 30/40, match of the week double. A called-off call counts for nobody. Before the lock, never show points per answer (that would read like odds).
+- Points are **only earned**, by being right. Nobody spends, chooses, allocates or risks points: every pick counts the same (`PICK_POINTS` = 10 in `lib/rules.ts`). What a right answer is worth is set when picks close, from how the group split (`callPoints` in `lib/rules.ts`): 10 to 40, exact score 30, match of the week 1.5×. A called-off call counts for nobody. Before the lock, never show points per answer (that would read like odds).
 - Points can **never** be bought, sold, gifted, traded, transferred between people, or cashed out.
 - **No prizes** of any kind, cash or otherwise, are tied to points or rankings.
 - No wallets, balances, top-ups, payments or in-app purchases connected to points.

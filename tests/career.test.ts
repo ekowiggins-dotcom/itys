@@ -28,7 +28,7 @@ test('career points add up what you won, only go up, and earn badges',async()=>{
  const settled=new Date(monday.getTime()+3*86400000);await runScheduler(settled);
  const v=await view(invite,a.session,undefined,settled) as unknown as {careers:Career[]};
  const arda=v.careers.find(c=>c.user_id===admin)!;
- assert.equal(arda.points,3*43,'alone in 4: 33 + 10 per call');assert.equal(arda.level.name,'Hunch Hunter');
+ assert.equal(arda.points,3*33,'alone in 4: 33 per call');assert.equal(arda.level.name,'Hunch Hunter');
  for(const b of ['lone_wolf','hat_trick'])assert.ok(arda.badges[b],b);
  // Houdini needs fewer than a quarter agreeing (alone in 4 is exactly a quarter); counters need their target first.
  for(const b of ['houdini','crowd','early_bird'])assert.equal(arda.badges[b],undefined,b);

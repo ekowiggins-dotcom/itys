@@ -6,7 +6,7 @@ async function fixture(count=3){const owner=await execute({action:'create',name:
 async function question(f:Awaited<ReturnType<typeof fixture>>,creator=0,text='Will it happen?'){return(await execute({action:'question',invite:f.invite,text,locksAt:at(0,1).toISOString()},f.tokens[creator],monday)).questionId!}
 async function predict(f:Awaited<ReturnType<typeof fixture>>,q:string,index:number,answer:string,stake=20){return execute({action:'predict',invite:f.invite,questionId:q,answer,stake},f.tokens[index],monday)}
 test('lock snapshot is immutable; scores use snapshot shares and decimal totals rounded once',async()=>{
- assert.equal(scoreTenths(20,2,5),280);assert.equal(scoreTenths(20,1,1),100);assert.equal(scoreTenths(5,1,3),400,"the stake is ignored: 10 + 20 + 10 for a lone call in 3");
+ assert.equal(scoreTenths(20,2,5),280);assert.equal(scoreTenths(20,1,1),100);assert.equal(scoreTenths(5,1,3),300,"the stake is ignored: 10 + 20 for a lone call in 3");
  const f=await fixture(5),q=await question(f);for(let i=0;i<5;i++)await predict(f,q,i,i<2?'yes':'no');
  assert.equal((await view(f.invite,f.tokens[0],undefined,monday)).snapshots?.length,0);
  await runScheduler(at(0,1));const d=await db();
@@ -17,7 +17,7 @@ test('lock snapshot is immutable; scores use snapshot shares and decimal totals 
  const f2=await fixture(),a=await question(f2),b=await question(f2,0,'Will another thing happen?');
  for(const id of [a,b])for(let i=0;i<3;i++)await predict(f2,id,i,i===0?'yes':'no',5);
  for(const id of [a,b])await execute({action:'propose',invite:f2.invite,questionId:id,answer:'yes'},f2.tokens[0],at(0,2));
- await runScheduler(at(1,2));const state=await view(f2.invite,f2.tokens[0],undefined,at(1,2));assert.equal(state.roundScores?.find(s=>s.user_id===f2.ids[0])?.points_tenths,800,"alone in 3 on both: 40 + 40");
+ await runScheduler(at(1,2));const state=await view(f2.invite,f2.tokens[0],undefined,at(1,2));assert.equal(state.roundScores?.find(s=>s.user_id===f2.ids[0])?.points_tenths,600,"alone in 3 on both: 30 + 30");
 });
 test('named fallback judges conflicts; takeover and detailed audit are enforced',async()=>{
  const f=await fixture(),q=await question(f);await predict(f,q,1,'yes');
