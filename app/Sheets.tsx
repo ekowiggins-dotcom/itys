@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {Sheet,Face,Faces,Icon,Badge} from './ui';
+import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
 import {type Call,type Snapshot,answersOf,label,reveal,headline,potential,pts} from './calls';
 import {countdown,when} from './format';
 import {shareMessage,copyText} from './share';
@@ -21,7 +21,8 @@ export function PickSheet({call,preset,names,left,longCount,now,busy,onSave,onCl
  return <Sheet open label="Make your call" onClose={onClose}>
   <div className="c-sheet-head">{long?<Badge tone="later">{call.event_at?'We’ll know in '+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):'Later'}</Badge>:<Badge tone="soon">Locks in {countdown(call.locks_at,now)}</Badge>}</div>
   <h2 className="c-title">{call.text}</h2>
-  <p className="c-sub">{call.creator_name}’s call{pickers.length?' · '+pickers.length+' in':''} · picks stay secret until it locks</p>
+  <p className="c-sub">{call.creator_name}’s call{pickers.length?' · '+pickers.length+' in':''} · {call.split?'who said what stays secret until it locks':'make your call to see how the group is split'}</p>
+  {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={label}/></div>}
   <div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
   {!long?<div className="c-levels-wrap"><span className="c-label">How sure are you?</span><div className="c-levels" role="radiogroup" aria-label="How sure are you">{LEVELS.map(l=><button key={l.name} role="radio" aria-checked={stake===l.pts} disabled={l.pts>budget} className={'c-level'+(stake===l.pts?' on':'')} onClick={()=>setStake(l.pts)}><b>{l.name}</b><small>{l.pts} pts</small></button>)}</div>
    <p className="c-hint">{budget<10?'You’ve used all 100 points this week. Free up some by changing another call.':'Right = up to 2× back. The fewer friends with you, the more you score.'}</p></div>

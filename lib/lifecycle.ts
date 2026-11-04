@@ -41,7 +41,10 @@ async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,proc
  }
  await tx.query('UPDATE questions SET state=$1,settled_at=$2,result_answer=$4 WHERE id=$3',[answer===null?'void':'settled',now,q.id,answer]);
  if(fixture){await tx.query('UPDATE questions SET result_revision=$2 WHERE id=$1',[q.id,fixture.revision]);if(q.state==='settled'&&q.result_revision!==fixture.revision){const users=(await tx.query<{user_id:string}>('SELECT user_id FROM predictions WHERE question_id=$1',[q.id])).rows;for(const u of users)await emitNotification(tx,{groupId:q.group_id,userId:u.user_id,key:'correction:'+q.id+':'+fixture.revision,kind:'match_change',questionId:q.id,roundId:q.round_id||undefined,text:'A provider correction updated the 90-minute result and your score: '+q.text},processingNow);}}
- await alert(tx,q,'settled',null,now,processingNow);await audit(tx,q.group_id,q.id,null,answer===null?'void':'settled',now,{answer,revision:fixture?.revision||null});
+ await alert(tx,q,'settled',null,now,processingNow);
+ // The person a call was about finally gets to see it.
+ if(q.subject_id){const said=answer===null?'called off':'it was '+(answer==='yes'?'Yes':answer==='no'?'No':answer);await emitNotification(tx,{groupId:q.group_id,userId:q.subject_id,key:'about:'+q.id+':settled',kind:'about_you',questionId:q.id,roundId:q.round_id||undefined,text:'The secret call about you: “'+q.text+'” · '+said+'.'},processingNow);}
+ await audit(tx,q.group_id,q.id,null,answer===null?'void':'settled',now,{answer,revision:fixture?.revision||null});
 }
 export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|null},now:Date){
  const t=timingFor((await tx.query<{practice:boolean}>('SELECT practice FROM groups WHERE id=$1',[group.id])).rows[0]?.practice);
@@ -122,6 +125,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
  let options:string[]|null;try{options=cleanOptions(data.options)}catch(e){throw new LifecycleError((e as Error).message)}
  const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at,subject_id,options) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[id,g.id,userId,z.string().trim().min(3).max(240).parse(data.text),lock,'longterm',event,data.subjectId||null,options?JSON.stringify(options):null]);
+ if(data.subjectId)await emitNotification(tx,{groupId:g.id,userId:data.subjectId,key:'about:'+id,kind:'about_you',text:'Your friends just made a call about you. You’ll see it once it’s settled.'},now);
  await audit(tx,g.id,id,userId,'longterm created',now);return {invite:data.invite,questionId:id};
  }else if(data.action!=='tick'){
  const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1 AND group_id=$2 FOR UPDATE',[data.questionId,g.id])).rows[0];check(q,'Call not found.');

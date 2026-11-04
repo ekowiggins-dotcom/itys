@@ -319,3 +319,24 @@ main.app.c-main .card{border-radius:20px;border:1.5px solid var(--line)}
 .c-coming-row{display:flex;gap:12px;align-items:baseline;padding:8px 0;border-top:1px solid var(--line)}
 .c-coming-time{flex:0 0 78px;font-size:13px;font-weight:700;color:var(--muted)}
 .c-coming-teams{display:flex;flex-direction:column;gap:2px;min-width:0}.c-coming-teams b{font-size:15px}.c-coming-teams small{font-size:12px;color:var(--muted)}
+
+/* How the group is split (no names) */
+.c-split{display:flex;flex-direction:column;gap:8px}
+.c-split-bar{display:flex;height:10px;border-radius:99px;overflow:hidden;gap:2px;background:#EEECE4}
+.c-split-bar i{display:block;min-width:6px}
+.c-split.compact{gap:4px;margin:2px 0}
+.c-split.compact .c-split-bar{height:6px}
+.c-split-legend{font-size:12px;font-weight:600;color:var(--muted)}
+.c-split-row{display:grid;grid-template-columns:minmax(0,110px) 1fr auto;align-items:center;gap:10px}
+.c-split-label{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-split-label em{font-style:normal;font-size:11px;font-weight:700;background:var(--ink);color:#fff;border-radius:99px;padding:1px 6px;margin-left:6px}
+.c-split-dots{display:flex;flex-wrap:wrap;gap:4px}
+.c-split-dots i{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);box-sizing:border-box}
+.c-split-dots i.me{box-shadow:0 0 0 2px var(--lime),0 0 0 3.5px var(--ink)}
+.c-split-row b{font:700 16px 'Space Grotesk',sans-serif;min-width:18px;text-align:right}
+.c-split-box{background:var(--paper);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+/* Secret calls about you */
+.c-secret{display:flex;gap:12px;align-items:center;background:var(--later-bg);border:1.5px solid #CFC6FF;border-radius:20px;padding:12px 14px;margin:0 0 12px}
+.c-secret-icon{width:40px;height:40px;border-radius:12px;background:var(--later);color:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.c-secret b{font:700 15px 'Space Grotesk',sans-serif;color:var(--later)}
+main.app .c-secret p{margin:2px 0 0;font-size:13px;color:#4B3F80}

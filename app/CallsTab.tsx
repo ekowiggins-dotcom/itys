@@ -1,5 +1,5 @@
 'use client';
-import {Faces,Icon,Badge} from './ui';
+import {Faces,Icon,Badge,Split} from './ui';
 import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome} from './calls';
 import {countdown,when} from './format';
 
@@ -18,14 +18,14 @@ export function YourTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boo
   <div className="c-card-top">{long?<Badge tone="later">{knowIn(c)}</Badge>:<Badge tone={Date.parse(c.locks_at)-ctx.now<6*3600000?'soon':'neutral'}>{closes(c,ctx.now)}</Badge>}<span className="c-by">{c.creator===ctx.me?'your call':'by '+c.creator_name}<ShareButton c={c} act={act}/></span></div>
   <h3>{c.text}</h3>
   <div className={'c-options mini'+(answersOf(c).length>2?' grid':' pair')}>{answersOf(c).map(a=><button key={a} className="c-opt" onClick={()=>act.pick(c,a)}>{label(a)}</button>)}</div>
-  <div className="c-who">{pickers.length?<><Faces names={pickers} size={22}/><span>{pickers.length===1?pickers[0]+' is in':pickers.length<=3?pickers.slice(0,-1).join(', ')+' and '+pickers.at(-1)+' are in':pickers.length+' friends are in'}. Answers stay secret until it locks.</span></>:<span>Nobody’s in yet. Be first.</span>}</div>
+  <div className="c-who">{pickers.length?<><Faces names={pickers} size={22}/><span>{pickers.length===1?pickers[0]+' is in':pickers.length<=3?pickers.slice(0,-1).join(', ')+' and '+pickers.at(-1)+' are in':pickers.length+' friends are in'}. Make your call to see how they’re split.</span></>:<span>Nobody’s in yet. Be first.</span>}</div>
  </article>;
 }
 
 export function InRow({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  const about=c.subject_id===ctx.me;const long=c.scope==='longterm';
  return <article className="c-row">
-  <div className="c-row-main"><h3>{c.text}</h3><p>{about?'It’s about you, so you sit this one out':long?(c.answer?'You said '+label(c.answer):'')+' · '+(c.picked||0)+' in':'You said '+label(c.answer||'')+' · '+(c.stake||0)+' pts'}</p></div>
+  <div className="c-row-main"><h3>{c.text}</h3>{c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={label} compact/>}<p>{about?'It’s about you, so you sit this one out':long?(c.answer?'You said '+label(c.answer):'')+' · '+(c.picked||0)+' in':'You said '+label(c.answer||'')+' · '+(c.stake||0)+' pts'}</p></div>
   <div className="c-row-side">{long?<Badge tone="later">{knowIn(c)}</Badge>:<Badge tone="neutral">{closes(c,ctx.now)}</Badge>}<div className="c-row-actions"><ShareButton c={c} act={act}/>{!about&&ctx.now<Date.parse(c.locks_at)&&<button className="c-chip" onClick={()=>act.pick(c)}>Change</button>}</div></div>
  </article>;
 }
@@ -52,6 +52,7 @@ export function LaterCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  return <article className="c-card later">
   <div className="c-card-top"><Badge tone="later">{knowIn(c)}</Badge><span className="c-by">by {c.creator_name}<ShareButton c={c} act={act}/></span></div>
   <h3>{c.text}</h3>
+  {c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={label} compact/>}
   <div className="c-later-foot"><span>{c.subject_id===ctx.me?'About you · sitting out':c.answer?<>You said <b>{label(c.answer)}</b></>:'You didn’t pick'} · {c.picked||0} in</span><span>{open?<button className="c-chip" onClick={()=>act.pick(c)}>{c.answer?'Change':'Pick'}</button>:'Picks closed'}</span></div>
  </article>;
 }
