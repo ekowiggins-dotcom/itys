@@ -59,3 +59,8 @@ test('a quiet week still works: no Europe, no favourites',()=>{
  assert.equal(picks.length,3);assert.ok(picks.every(p=>/^Best of the /.test(p.reason)));
  assert.equal(selectWeek([],TR).picks.length,0);
 });
+
+test('club size breaks ties between ordinary league games',()=>{
+ const {picks}=selectWeek([f(39,'Leeds','Tottenham',2),f(39,'Manchester United','Aston Villa',3),f(39,'Fulham','Newcastle',2),f(140,'Valencia','Real Madrid',2),f(140,'Atletico Madrid','Barcelona',3)],[],{league:2,europe:0});
+ assert.deepEqual(picks.map(p=>p.fixture.home).sort(),['Atletico Madrid','Manchester United']);
+});

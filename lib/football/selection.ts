@@ -14,7 +14,7 @@ export const norm=(s:string)=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(
 
 /** Club strength for European nights, from recent UEFA coefficients and title runs. Normalized substrings. Review each summer. */
 const ELITE=['real madrid','barcelona','manchester city','liverpool','arsenal','bayern','paris saint germain','inter'];
-const STRONG=['chelsea','manchester united','tottenham','newcastle','aston villa','atletico madrid','dortmund','leverkusen','juventus','ac milan','napoli','atalanta','roma','lazio','leipzig','benfica','porto','sporting','psv','ajax','feyenoord','celtic','monaco','marseille','lille','club brugge','galatasaray','fenerbahce','besiktas'];
+const STRONG=['chelsea','manchester united','tottenham','newcastle','aston villa','atletico madrid','dortmund','leverkusen','juventus','ac milan','napoli','atalanta','roma','lazio','leipzig','benfica','porto','sporting','psv','ajax','feyenoord','celtic','monaco','marseille','lille','club brugge','villarreal','real sociedad','athletic','sevilla','real betis','frankfurt','stuttgart','brighton','fiorentina','bologna','galatasaray','fenerbahce','besiktas'];
 const tier=(team:string)=>{const t=norm(team);return ELITE.some(c=>t.includes(c))?'elite':STRONG.some(c=>t.includes(c))?'strong':'other'};
 const TIER_POINTS={elite:40,strong:22,other:8};
 const COMPETITION:Record<number,{points:number;short:string}>={2:{points:25,short:'Champions League'},3:{points:0,short:'Europa League'},848:{points:-10,short:'Conference League'}};
@@ -42,9 +42,11 @@ export function europeScore(f:Fixture,favourites:string[]=[]){
 /** How big a league game is: derbies, big clubs, the top of the table; favourite clubs always first. */
 export function leagueScore(f:Fixture,favourites:string[]=[]){
  const base=importance(f),fav=favouriteIn(f,favourites);
+ // Club size also counts in league games (Man United v Aston Villa beats Fulham v Brentford), most when both are good sides.
+ const th=tier(f.home),ta=tier(f.away),clubs=(th==='elite'?20:th==='strong'?10:0)+(ta==='elite'?20:ta==='strong'?10:0)+(th!=='other'&&ta!=='other'?10:0);
  const derby=!!leagueProfile(f.league_id)?.derbies.some(d=>d.name===base.reason);
  const reason=derby?base.reason:fav?fav+' plays':['Major club meeting','Top-four meeting'].includes(base.reason)?base.reason:'Best of the '+f.league_name;
- return{score:base.score+(fav?500:0),headline:base.score+40*favouriteCount(f,favourites),reason};
+ return{score:base.score+clubs+(fav?500:0),headline:base.score+clubs+40*favouriteCount(f,favourites),reason};
 }
 
 const byScore=(a:Pick,b:Pick)=>b.score-a.score||a.fixture.kickoff.localeCompare(b.fixture.kickoff)||a.fixture.id.localeCompare(b.fixture.id);
