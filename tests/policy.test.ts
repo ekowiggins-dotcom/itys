@@ -43,6 +43,8 @@ test('every server action is reviewed: none can buy, sell, gift, transfer or cas
   'footballSettings','footballExtra','footballSwap','footballSearch',
   // Sign in with Apple: only decides which account a device is (app/api/route.ts, lib/apple.ts). Reviewed: no points move.
   'appleSignIn',
+  // Delete my account: leaves groups and removes personal data; closed picks stay anonymised. Reviewed: no points move.
+  'deleteAccount',
   // Operator-only (ADMIN_KEY): record real matches and their real scores. Reviewed: no points move between people.
   'adminAddMatches','adminPublishWeek','adminResult','adminVoid'];
  const src=['lib/service.ts','lib/lifecycle.ts','lib/football/actions.ts','app/api/admin/route.ts','app/api/route.ts'].map(f=>readFileSync(f,'utf8')).join('\n');

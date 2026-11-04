@@ -27,3 +27,5 @@ export async function api(path: string, init: RequestInit = {}) {
   const res = await fetch(API_BASE + path, { ...init, headers, credentials: 'omit' });
   return res;
 }
+/** After deleting the account: forget the session and the last group on this phone. */
+export async function forgetAccount() { if (NATIVE) { await write(KEY, ''); await write(LAST, ''); } }

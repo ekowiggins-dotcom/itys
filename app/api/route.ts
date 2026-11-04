@@ -7,7 +7,7 @@ import { corsHeaders, isNativeOrigin, sessionToken } from '../../lib/native-clie
 import { practiceAllowed } from '../../lib/timing';
 import { resolveCode } from '../../lib/short-links';
 import { identity } from '../../lib/service';
-import { verifyAppleToken, appleSignIn, AppleError } from '../../lib/apple';
+import { verifyAppleToken, appleSignIn, deleteAccount, AppleError } from '../../lib/apple';
 export const runtime='nodejs';
 async function token(req:NextRequest){return sessionToken((await cookies()).get('prediction_session')?.value,req.headers.get('authorization'));}
 export async function OPTIONS(req:NextRequest){const headers=corsHeaders(req.headers.get('origin'));return new NextResponse(null,{status:Object.keys(headers).length?204:403,headers});}
@@ -36,6 +36,11 @@ export async function POST(req:NextRequest) {
       const response=NextResponse.json(native?{invite,session}:{invite},{headers:cors});
       if(!native)response.cookies.set('prediction_session',session,{httpOnly:true,secure:req.nextUrl.protocol==='https:',sameSite:'lax',path:'/',maxAge:60*60*24*365});
       return response;
+    }
+    // Delete my account: leaves every group and removes personal data. Doesn't move points to anyone.
+    if(input?.action==='deleteAccount'){
+      const me=await identity(await token(req));if(!me)return NextResponse.json({error:'You’re not signed in.'},{status:400,headers:cors});
+      await deleteAccount(me.id);const response=NextResponse.json({deleted:true},{headers:cors});response.cookies.delete('prediction_session');return response;
     }
     const result=await execute(input,await token(req));
     const {session,...body}=result;

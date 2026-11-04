@@ -43,3 +43,22 @@ export async function appleSignIn(sub:string,currentUserId?:string){
   return{session,invite,linked:true};
  });
 }
+
+/**
+ * Delete my account (Apple requires it in-app). Leaves every group, hands the admin role on, drops open picks,
+ * and removes sign-ins, devices, notifications and the Apple link. Closed picks stay, under "Deleted player",
+ * so friends' past results don't change. Points never move to anyone.
+ */
+export async function deleteAccount(userId:string,now=new Date()){
+ const d=await db();
+ await d.transaction(async tx=>{
+  for(const g of (await tx.query<{id:string;admin:string}>('SELECT g.id,g.admin FROM members m JOIN groups g ON g.id=m.group_id WHERE m.user_id=$1 AND m.active',[userId])).rows){
+   if(g.admin===userId){const next=(await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active AND user_id<>$2 ORDER BY joined_at LIMIT 1',[g.id,userId])).rows[0];if(next)await tx.query('UPDATE groups SET admin=$2 WHERE id=$1',[g.id,next.user_id]);}
+   await tx.query('DELETE FROM predictions WHERE user_id=$1 AND question_id IN(SELECT id FROM questions WHERE group_id=$2 AND locks_at>$3)',[userId,g.id,now]);
+   await tx.query('UPDATE members SET active=false WHERE group_id=$1 AND user_id=$2',[g.id,userId]);
+   await tx.query('UPDATE membership_periods SET left_at=$3 WHERE group_id=$1 AND user_id=$2 AND left_at IS NULL',[g.id,userId,now]);
+  }
+  for(const t of ['sessions','devices','notifications','notification_preferences','notification_counters'])await tx.query(`DELETE FROM ${t} WHERE user_id=$1`,[userId]);
+  await tx.query("UPDATE users SET name='Deleted player',apple_sub=NULL WHERE id=$1",[userId]);
+ });
+}
