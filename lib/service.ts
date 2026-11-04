@@ -123,8 +123,12 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
 export async function betPreview(invite:string,questionId:string){
  if(!/^[0-9a-f-]{36}$/i.test(questionId))return null;
  const d=await db();
- const q=(await d.query<{id:string;text:string;options:string[]|null;locks_at:Date;event_at:Date|null;scope:string;state:string;picked:number;creator_name:string}>(`SELECT q.id,q.text,q.options,q.locks_at,q.event_at,q.scope,q.state,u.name creator_name,(SELECT count(*)::int FROM predictions p WHERE p.question_id=q.id) picked FROM questions q JOIN groups g ON g.id=q.group_id JOIN users u ON u.id=q.creator WHERE g.invite=$1 AND q.id=$2 AND q.moderation_state='visible' AND NOT q.superseded AND COALESCE(q.market,'custom')='custom' AND q.subject_id IS NULL`,[invite,questionId])).rows[0];
- return q||null;
+ const q=(await d.query<{id:string;text:string;options:string[]|null;locks_at:Date;event_at:Date|null;scope:string;state:string;picked:number;creator_name:string;market:string|null;home:string|null;away:string|null;kickoff:Date|null}>(`SELECT q.id,q.text,q.options,q.locks_at,q.event_at,q.scope,q.state,q.market,f.home,f.away,f.kickoff,u.name creator_name,(SELECT count(*)::int FROM predictions p WHERE p.question_id=q.id) picked FROM questions q JOIN groups g ON g.id=q.group_id JOIN users u ON u.id=q.creator LEFT JOIN football_fixtures f ON f.id=q.fixture_id WHERE g.invite=$1 AND q.id=$2 AND q.moderation_state='visible' AND NOT q.superseded AND COALESCE(q.market,'custom') IN ('custom','result','over_under') AND q.subject_id IS NULL`,[invite,questionId])).rows[0];
+ if(!q)return null;
+ // A shared match: the answers carry team names, the call is "Home – Away".
+ if(q.market==='result'&&q.home&&q.away)return {...q,text:q.home+' – '+q.away,answers:[{value:'home',label:q.home},{value:'draw',label:'Draw'},{value:'away',label:q.away}]};
+ if(q.market==='over_under'&&q.home&&q.away)return {...q,text:q.home+' – '+q.away+': 3 goals or more?',answers:[{value:'over',label:'Over 2.5'},{value:'under',label:'Under 2.5'}]};
+ return q;
 }
 
 /** Register or remove this phone for push notifications. Tokens are hex strings from Apple (64+ chars). */

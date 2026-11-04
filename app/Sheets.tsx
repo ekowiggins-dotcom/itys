@@ -92,8 +92,8 @@ export function ShareSheet({open,title,text,url,preview,onClose,onDone}:{open:bo
 }
 
 /** A small picture of the call, the way it shows up in the chat. */
-export function CallPreview({call,groupName,pickers}:{call:{text:string;options?:string[]|null;locks_at:string;scope:string;event_at:string|null;creator_name:string};groupName:string;pickers:string[]}){
+export function CallPreview({call,groupName,pickers,foot}:{call:{text:string;options?:string[]|null;locks_at:string;scope:string;event_at:string|null;creator_name:string};groupName:string;pickers:string[];foot?:string}){
  return <div className="c-preview"><div className="c-preview-top"><span className="c-brandmark">{BRAND}</span><Badge tone={call.scope==='longterm'?'later':'soon'}>{call.scope==='longterm'&&call.event_at?'We’ll know in '+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):'Picks close '+when(call.locks_at)}</Badge></div>
   <b>{call.text}</b><div className={'c-preview-opts n'+Math.min(4,answersOf(call).length)}>{answersOf(call).map((a,i)=><span key={a} className={i===0?'on':''}>{label(a)}</span>)}</div>
-  <div className="c-preview-foot"><Faces names={[call.creator_name,...pickers.filter(p=>p!==call.creator_name)]} size={20} ring="#17201B"/><span>{call.creator_name}’s call in {groupName}</span></div></div>;
+  <div className="c-preview-foot"><Faces names={foot?pickers:[call.creator_name,...pickers.filter(p=>p!==call.creator_name)]} size={20} ring="#17201B"/><span>{foot||call.creator_name+'’s call in '+groupName}</span></div></div>;
 }

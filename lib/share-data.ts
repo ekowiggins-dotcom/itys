@@ -17,6 +17,9 @@ export async function publicShare(invite:string,target:{questionId?:string;round
  const market=q.market||'custom';const options=market==='custom'?(q.options?.length?q.options:['Yes','No']):MARKETS[market]||['Yes','No'];
  const locked=now>=new Date(q.locks_at);
  const label=q.scope==='longterm'&&q.event_at?knowLabel(q.event_at,group.timezone):locked?'Picks are closed':'Picks close '+when(q.locks_at,now.getTime(),group.timezone);
+ // A shared match: "Fenerbahçe – Liverpool" with the teams as the answers.
+ if(market!=='custom'){const f=(await tx.query<{home:string;away:string;kickoff:Date;league_name:string}>('SELECT f.home,f.away,f.kickoff,f.league_name FROM football_fixtures f JOIN questions q ON q.fixture_id=f.id WHERE q.id=$1',[q.id])).rows[0];
+  if(f){const opts=market==='result'?[f.home,'Draw',f.away]:market==='over_under'?['Over 2.5','Under 2.5']:['Exact score'];const card=betCard(group.name,f.home+' – '+f.away,q.picked,opts,{when:locked?'Kicked off':'Kicks off '+when(f.kickoff,now.getTime(),group.timezone)});card.subtitle=f.league_name;return{card,questionId:q.id,roundId:q.round_id||undefined};}}
  // A call about someone is shared to a chat they're probably in: the preview keeps it secret.
  if(q.subject_id&&!['settled','void'].includes((await tx.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[q.id])).rows[0].state)){const card=betCard(group.name,'A secret call about a friend',q.picked,['Open it to see'],{creator:market==='custom'?q.creator_name:undefined,when:label});card.options=[];return{card,questionId:q.id,roundId:q.round_id||undefined};}
  return{card:betCard(group.name,q.text,q.picked,options,{creator:market==='custom'?q.creator_name:undefined,when:label}),questionId:q.id,roundId:q.round_id||undefined};

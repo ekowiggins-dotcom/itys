@@ -32,9 +32,9 @@ export function parseMatches(text:string,zone='Europe/Istanbul'){
 export async function addMatches(fixtures:Fixture[],now=new Date()){const d=await db();await d.transaction(tx=>ingest(tx,fixtures,now));return fixtures.length}
 
 /** Tells the rounds the match list for the coming days is complete, so the next football week can open with it.
- * Covers from yesterday to 10 days ahead for every league groups follow. */
+ * Covers the past 8 days (so a week that's already running is covered) to 10 days ahead, for every league groups follow. */
 export async function publishWeek(now=new Date()){
- const d=await db();const from=new Date(now.getTime()-DAY),to=new Date(now.getTime()+10*DAY);
+ const d=await db();const from=new Date(now.getTime()-8*DAY),to=new Date(now.getTime()+10*DAY);
  const leagues=new Set<number>([...leaguePack(203),...Object.values(LEAGUE_CODES)]);
  for(const row of (await d.query<{leagues:number[]}>('SELECT leagues FROM groups')).rows)for(const id of row.leagues)leagues.add(id);
  // fetched_at = the window's end: a manual list stays "fresh" for the whole window it covers.
