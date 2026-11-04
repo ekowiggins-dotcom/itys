@@ -8,7 +8,7 @@ export type Timing = {
   disputeMs: number;      // window to dispute a proposed result
   takeoverMs: number;     // after the event, when the admin may propose instead of the creator
   resolutionMs: number;   // after the event, when anything unresolved is voided
-  lockReminderMs: number; // reminder before the first lock
+  lockReminderMs: number; // friends' nudge: how long before a call locks
   suggestionMs: number;   // when an empty Friends round gets a suggested call
   longTermMinMs: number;  // long-term calls must resolve at least this far ahead
 };

@@ -2,7 +2,7 @@ import { db } from '../db';
 import { apnsConfig, sendAlert, deadToken, type ApnsConfig, type Transport, http2Transport } from './apns';
 
 const TITLES: Record<string, string> = {
-  about_you: 'They’re talking about you', round_open: 'A new week of calls', lock_reminder: 'Picks lock soon', weekly_final: 'The week is final',
+  about_you: 'They’re talking about you', round_open: 'A new week of calls', lock_reminder: 'Your friends made their calls', weekly_final: 'The week is final',
   proposal: 'The result’s in', dispute: 'Someone said that’s not right', judgment_request: 'You’re the judge',
   settlement: 'It counts now', moderation: 'Group safety', match_change: 'Match updated',
 };
