@@ -381,3 +381,7 @@ main.app .c-alltime-row.me{background:#F4FAD9}
 
 .c-card.starter{background:var(--later-bg);border-color:#CFC6FF}
 main.app .c-card.starter p{font-size:14px;color:#4B3F80}
+
+main.app .c-btn.small-share{min-height:44px;font-size:14px;margin-top:8px}
+
+.c-preview-opts.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
