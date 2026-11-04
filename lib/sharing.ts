@@ -3,7 +3,9 @@ export type ShareCard={kind:'bet'|'winner'|'invite';groupName:string;title:strin
  /** The call's real answers (Yes / No, or its own options). */
  options?:string[];creator?:string;picked?:number;
  /** "Picks close Today 21:00" or "We'll know in March". */
- when?:string;members?:string[]};
+ when?:string;members?:string[];
+ /** A shared match: home and away team. */
+ teams?:[string,string]};
 type Winner={name:string;points_tenths:number};
 const inLine=(n:number)=>n>0?`${n} ${n===1?'friend is':'friends are'} in`:'Be the first to call it';
 export function betCard(groupName:string,question:string,picked:number,options:string[]|string=['Yes','No'],extra:{creator?:string;when?:string}={}):ShareCard{
