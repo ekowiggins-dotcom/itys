@@ -34,3 +34,19 @@ test('pick on the web, save with Apple, open the app: same account, the pick is 
  await assert.rejects(appleSignIn('apple-other',ege),/different Apple ID/);
  assert.equal(((await view(invite,a.session)) as unknown as {linked:boolean}).linked,false);
 });
+
+test('delete my account: leaves every group, hands on admin, removes personal data, keeps closed picks anonymised',async()=>{
+ const {deleteAccount}=await import('../lib/apple');const d=await db();
+ const a=await execute({action:'create',name:'Selin',groupName:'Delete test',practice:true});const invite=a.invite!;
+ const b=await execute({action:'join',invite,name:'Ozan'});await execute({action:'join',invite,name:'Bora'});await runScheduler(new Date());
+ const selin=(await identity(a.session))!.id;await appleSignIn('apple-selin',selin);
+ const q=(await execute({action:'question',invite,text:'Will Ozan be on time?',locksAt:new Date(Date.now()+10*60000).toISOString()},b.session)).questionId!;
+ await execute({action:'predict',invite,questionId:q,answer:'no'},a.session);
+ await deleteAccount(selin);
+ assert.equal(await identity(a.session),undefined,'signed out everywhere');
+ const u=(await d.query<{name:string;apple_sub:string|null}>('SELECT name,apple_sub FROM users WHERE id=$1',[selin])).rows[0];assert.equal(u.name,'Deleted player');assert.equal(u.apple_sub,null);
+ assert.equal((await d.query('SELECT 1 FROM predictions WHERE user_id=$1',[selin])).rows.length,0,'open picks removed');
+ const g=(await d.query<{admin:string}>('SELECT admin FROM groups WHERE invite=$1',[invite])).rows[0];assert.equal(g.admin,(await identity(b.session))!.id,'admin handed to the next member');
+ assert.equal((await d.query('SELECT 1 FROM members WHERE user_id=$1 AND active',[selin])).rows.length,0);
+ await assert.rejects(appleSignIn('apple-selin'),/No calls are saved/,'the Apple link is gone');
+});

@@ -16,8 +16,9 @@ Plan:
 
 ## Before submitting
 - [ ] Final name without "bet" (set in `lib/brand.ts` and `capacitor.config.ts`).
-- [ ] In-app account deletion (required for apps with accounts).
-- [ ] Terms of use and privacy policy pages, with a contact email, linked in the app and the listing.
+- [x] In-app account deletion: Group tab → Delete my account.
+- [x] Privacy (`/privacy`), terms (`/terms`) and help (`/support`) pages, linked from the start screen and the Group tab. Set `SUPPORT_EMAIL` (and `OPERATOR_NAME`) on Railway, and use these URLs in App Store Connect: Privacy Policy URL and Support URL.
+- [ ] App Privacy answers in App Store Connect: Contact info, no. Identifiers, yes: User ID (Sign in with Apple) and Device ID (push token), linked to the user, not used for tracking. User content, yes: the calls and picks. No data used for tracking.
 - [ ] Lawyer's check of the free-points model in the launch country.
 - [ ] Push, haptics, share sheet and widget working on a real device (the native features that make it more than a website).
 

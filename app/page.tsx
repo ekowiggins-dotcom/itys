@@ -8,7 +8,7 @@ import {betCard,inviteCard,shareLink,shortLink,shareText,winnerCard} from '../li
 import {when,countdown,kickLabel} from './format';
 import HowItWorks from './HowItWorks';
 import {BRAND,BRAND_NAME} from '../lib/brand';
-import {api,webOrigin,setSession,lastInvite,rememberInvite,NATIVE} from './api-client';
+import {api,webOrigin,setSession,lastInvite,rememberInvite,forgetAccount,NATIVE} from './api-client';
 import {initNative,haptic,updateWidget} from './native';
 import {Face,Faces,Icon,Sheet,AppleButton} from './ui';
 import {appleIdToken} from './apple';
@@ -90,6 +90,7 @@ export default function Home(){
  const canApple=NATIVE||!!apple.servicesId;
  /** Sign in with Apple: saves this account (web) or finds it (app, new phone). On the web, then on to the App Store. */
  async function signInApple(){try{const idToken=await appleIdToken(apple.servicesId);if(!idToken)return;if(!await act({action:'appleSignIn',idToken}))return;setSaving(false);if(!NATIVE&&apple.storeUrl){location.href=apple.storeUrl;return}setNotice(NATIVE?'You’re back in.':'Saved. Sign in with Apple in the app and your calls are there.')}catch(e){setError((e as Error).message)}}
+ async function deleteMe(){if(!window.confirm('Delete your account? You’ll leave every group, and your name becomes “Deleted player”. This can’t be undone.'))return;setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'deleteAccount'})});const d=await r.json();if(!r.ok)throw Error(d.error);await forgetAccount();location.href=NATIVE?location.pathname:'/'}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
  function go(t:Tab){setTab(t);window.scrollTo({top:0});void haptic('tap');}
 
  if(loading)return <main className="c-loading" role="status"><span className="c-brandmark big">{BRAND}</span></main>;
@@ -109,6 +110,7 @@ export default function Home(){
    <small>The game starts once three friends join. Points are free and can’t be bought or cashed out. For players aged 18 and over.</small>
   </form>
   {canApple&&<div className="c-signin"><small>Already made a call?</small><AppleButton busy={busy} onClick={()=>void signInApple()}/></div>}
+  <LegalLinks/>
   {error&&<p className="c-toast error" role="alert">{error}</p>}
  </main>;
 
@@ -176,6 +178,8 @@ export default function Home(){
    <FootballPanel data={data} act={p=>act(p)} busy={busy}/>
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
    <HowItWorks/>
+   <LegalLinks/>
+   <button className="c-link c-danger-link" disabled={busy} onClick={()=>void deleteMe()}>Delete my account</button>
   </>}
   </main>
 
@@ -232,3 +236,6 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
   {error&&<p className="c-toast error" role="alert">{error}</p>}{notice&&<p className="c-toast" role="status">{notice}</p>}
  </main>;
 }
+
+/** Privacy, terms and help live on the website, also from inside the app. */
+function LegalLinks(){const base=webOrigin();return <nav className="c-footer-links"><a href={base+'/privacy'} target="_blank" rel="noreferrer">Privacy</a><a href={base+'/terms'} target="_blank" rel="noreferrer">Terms</a><a href={base+'/support'} target="_blank" rel="noreferrer">Help</a></nav>}
