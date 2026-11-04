@@ -62,7 +62,7 @@ export function reveal(call:Call,snaps:Snapshot[]):Group[]{
  return answers.map(a=>({answer:a,names:mine.filter(s=>s.answer===a).map(s=>({name:s.name,id:s.user_id,stake:s.stake}))}));
 }
 /** What an answer is worth if it's right, fixed when picks close: rarer answers score more (see lib/rules.ts). */
-export function potential(c:{market?:string;match?:Match|null},same:number,total:number){return callPoints({same,total,market:c.market,slot:c.match?.slot,exact:'exact'})}
+export function potential(_c:unknown,same:number,total:number){return callPoints({same,total})}
 
 /** "Three of you went Nagelsmann. Arda went alone." */
 export function headline(groups:Group[],meName?:string,c?:Labelled){

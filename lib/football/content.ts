@@ -10,6 +10,5 @@ export async function materialize(tx:Transaction,r:FootballRound,now:Date){if(r.
  if(!picks.length){await tx.query("UPDATE rounds SET state='skipped',skip_reason='Feed arrived after all kickoffs',finalized_at=$2 WHERE id=$1",[r.id,now]);return;}
  const admin=(await tx.query<{admin:string}>('SELECT admin FROM groups WHERE id=$1',[r.group_id])).rows[0].admin;
  for(const p of picks)await addMarkets(tx,r,p.fixture,'featured',admin,['result'],p.reason);
- await addMarkets(tx,r,motw.fixture,'motw',admin,['exact_score','over_under'],'Match of the week · '+motw.reason);
  await tx.query("UPDATE rounds SET content_ready=true,state='live' WHERE id=$1",[r.id]);
 }

@@ -17,7 +17,7 @@ export function MatchHead({c,dark=false}:{c:Call;dark?:boolean}){const m=c.match
  return <div className={'c-match'+(dark?' dark':'')}><Crest team={m.home}/><div className="c-match-mid"><b>{m.home}</b><span>{c.state==='settled'&&m.home90!=null?m.home90+' – '+m.away90:'vs'}</span><b>{m.away}</b></div><Crest team={m.away}/></div>;
 }
 const marketLine=(c:Call)=>c.market==='over_under'?'3 or more goals?':c.market==='exact_score'?'Call the exact score':'Who wins?';
-const byLine=(c:Call,ctx:Ctx)=>c.match?(c.match.slot==='motw'?'★ Match of the week':c.match.league||'Football'):c.creator===ctx.me?'your call':'by '+c.creator_name;
+const byLine=(c:Call,ctx:Ctx)=>c.match?(c.match.league||'Football'):c.creator===ctx.me?'your call':'by '+c.creator_name;
 
 export function YourTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boolean}){
  if(c.match)return <MatchTurnCard c={c} ctx={ctx} act={act} first={first}/>;
@@ -32,7 +32,7 @@ export function YourTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boo
 
 function MatchTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boolean}){
  const pickers=(c.picker_ids||[]).map(id=>ctx.names[id]).filter(Boolean),answers=answersOf(c);
- return <article className={'c-card turn match'+(first?' first':'')+(c.match?.slot==='motw'?' motw':'')}>
+ return <article className={'c-card turn match'+(first?' first':'')}>
   <div className="c-card-top"><Badge tone={Date.parse(c.locks_at)-ctx.now<6*3600000?'soon':'neutral'}>{Date.parse(c.locks_at)-ctx.now<6*3600000?'Kicks off in '+countdown(c.locks_at,ctx.now):'Kick-off '+when(c.locks_at,ctx.now)}</Badge><span className="c-by">{byLine(c,ctx)}<ShareButton c={c} act={act}/></span></div>
   <MatchHead c={c}/>
   <p className="c-market">{marketLine(c)}</p>

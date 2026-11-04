@@ -32,6 +32,6 @@ test('career points add up what you won, only go up, and earn badges',async()=>{
  for(const b of ['lone_wolf','hat_trick'])assert.ok(arda.badges[b],b);
  // Houdini needs fewer than a quarter agreeing (alone in 4 is exactly a quarter); counters need their target first.
  for(const b of ['houdini','crowd','early_bird'])assert.equal(arda.badges[b],undefined,b);
- assert.equal(arda.badges.lone_wolf,3);assert.equal(arda.badges.rock_solid,undefined,'Spot On is only for exact scores');
+ assert.equal(arda.badges.lone_wolf,3);assert.equal(arda.badges.rock_solid,undefined,'On Fire needs ten in a row');
  const ege=v.careers.find(c=>c.user_id!==admin)!;assert.equal(ege.points,0);assert.equal(ege.level.name,'Guesser');assert.equal(ege.earned,0);
 });

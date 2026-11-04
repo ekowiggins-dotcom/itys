@@ -28,8 +28,6 @@ async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,proc
  await snapshot(tx,q,now);
  const predictions=(await tx.query<{user_id:string;answer:string;stake:number;forfeited:boolean}>('SELECT lp.*,COALESCE(p.forfeited,false) forfeited FROM locked_predictions lp LEFT JOIN predictions p ON p.question_id=lp.question_id AND p.user_id=lp.user_id WHERE lp.question_id=$1',[q.id])).rows;
  const long=q.scope==='longterm';
- // Match of the week doubles every question on that match, the result included.
- const slot=q.fixture_id&&(await tx.query('SELECT 1 FROM questions WHERE fixture_id=$1 AND round_id IS NOT DISTINCT FROM $2 AND slot=$3 AND NOT superseded LIMIT 1',[q.fixture_id,q.round_id,'motw'])).rows.length?'motw':q.slot;
  const scoreDate=long?now:(await tx.query<{opens_at:Date}>('SELECT opens_at FROM rounds WHERE id=$1',[q.round_id])).rows[0]?.opens_at||now;
  const season=(await tx.query<{id:string}>('SELECT id FROM seasons WHERE group_id=$1 AND starts_at<=$2 AND ends_at>$2',[q.group_id,scoreDate])).rows[0];
  for(const p of predictions){
@@ -37,7 +35,7 @@ async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,proc
  const voided=answer===null,correct=answer===p.answer;
  const exact=q.market==='exact_score'&&fixture&&fixture.home90!==null&&fixture.away90!==null?exactOutcome(p.answer,fixture.home90,fixture.away90):{exact:false,partial:false};
  // Points are set now, from how the group split at the lock. Wrong, called off or forfeited: 0.
- const value=p.forfeited||voided?0:q.market==='exact_score'?callPoints({same,total:predictions.length,market:q.market,slot,exact:exact.exact?'exact':exact.partial?'partial':null}):correct?callPoints({same,total:predictions.length,market:q.market,slot}):0;
+ const value=p.forfeited||voided||!correct?0:callPoints({same,total:predictions.length});
  const numeric={value:String(value),tenths:value*10};
  if(fixture){const old=(await tx.query<{points_value:string}>('SELECT points_value FROM scores WHERE question_id=$1 AND user_id=$2',[q.id,p.user_id])).rows[0];await tx.query('INSERT INTO football_score_revisions VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING',[randomUUID(),q.id,p.user_id,fixture.revision,old?.points_value||null,numeric.value,processingNow]);}
  const sql='INSERT INTO scores(question_id,user_id,points_tenths,settled_at,season_id,allocation,expires_at,points_value,exact_correct) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) '+(fixture?'ON CONFLICT(question_id,user_id) DO UPDATE SET points_tenths=EXCLUDED.points_tenths,points_value=EXCLUDED.points_value,exact_correct=EXCLUDED.exact_correct,settled_at=EXCLUDED.settled_at':'ON CONFLICT DO NOTHING');
