@@ -340,3 +340,41 @@ main.app.c-main .card{border-radius:20px;border:1.5px solid var(--line)}
 .c-secret-icon{width:40px;height:40px;border-radius:12px;background:var(--later);color:#fff;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .c-secret b{font:700 15px 'Space Grotesk',sans-serif;color:var(--later)}
 main.app .c-secret p{margin:2px 0 0;font-size:13px;color:#4B3F80}
+
+/* Career: level pill, profile, badges, all-time */
+.c-level-pill{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;border-radius:99px;padding:2px 12px 2px 2px;font:700 12px 'DM Sans',sans-serif;background:#fff;color:var(--ink);border:1.5px solid var(--line2);cursor:pointer;min-height:32px}
+.c-level-pill.dark{background:var(--ink2);color:#fff;border-color:#46524A}
+.c-pill-art{display:inline-flex;width:26px;height:26px}
+.c-profile-hero{background:var(--ink);color:#fff;border-radius:24px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.c-profile-id{display:flex;flex-direction:column;align-items:center;gap:6px}
+.c-profile-id b{font:700 24px 'Space Grotesk',sans-serif}
+.c-level-chip{background:var(--lime);color:var(--ink);font-size:13px;font-weight:700;border-radius:99px;padding:4px 12px}
+.c-career-points{font:700 52px/1 'Space Grotesk',sans-serif;letter-spacing:-2px;margin-top:6px}
+.c-career-sub{font-size:13px;color:var(--soft)}
+.c-career-progress{width:100%;display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:13px;font-weight:700}
+.c-career-progress .c-bar{height:12px;background:var(--ink2)}
+.c-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.c-stats>div{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:3px}
+.c-stats b{font:700 22px 'Space Grotesk',sans-serif}.c-stats span{font-size:12px;color:var(--muted);line-height:1.3}
+.c-badges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.c-badge-card{background:#fff;border:1.5px dashed #C9C6BA;border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.c-badge-card.on{border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.c-badge-card b{font:700 15px 'Space Grotesk',sans-serif}.c-badge-card small{font-size:12px;line-height:1.35;color:var(--muted)}
+.c-badge-top{display:flex;justify-content:space-between;align-items:flex-start}
+.c-badge-count{font-size:12px;font-weight:700;border-radius:99px;padding:3px 8px;background:#EEECE4;color:var(--muted)}
+.c-badge-card.on .c-badge-count{background:var(--ink);color:#fff}
+.c-medal{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#EEECE4;border:2px dashed #C9C6BA;box-sizing:border-box}
+.c-medal.on{border:3px solid var(--ink)}
+.c-history{background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:2px 14px}
+.c-history>div{display:flex;justify-content:space-between;align-items:center;min-height:46px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+.c-history>div:last-child{border-bottom:0}.c-history b{font:700 16px 'Space Grotesk',sans-serif}
+main.app .c-seg.wide.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.c-alltime{background:#fff;border:1.5px solid var(--line);border-radius:20px;overflow:hidden;margin:0 4px}
+main.app .c-alltime-row{width:100%;display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 14px;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;text-align:left;cursor:pointer;color:var(--ink)}
+main.app .c-alltime-row:last-child{border-bottom:0}
+main.app .c-alltime-row.me{background:#F4FAD9}
+.c-alltime-name{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}.c-alltime-name b{font-size:15px}.c-alltime-name small{font-size:12px;color:var(--muted)}
+.c-alltime-pts{font:700 18px 'Space Grotesk',sans-serif}
+.c-step[role=button],.c-table-row[role=button]{cursor:pointer}
+.c-levelup{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding-top:8px}
+.c-huge.light{color:#fff}

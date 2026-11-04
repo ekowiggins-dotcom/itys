@@ -11,6 +11,7 @@ import {practiceAllowed,timingFor} from './timing';
 import {lifecycle,maintain} from './lifecycle';
 import {nextMonday,weeklyViews,type Round,DAY} from './rounds';
 import {ensureShareCodes} from './short-links';
+import {careerView} from './career';
 import {selectWeek,favouritesFor} from './football/selection';import {coverage} from './football/store';
 const name=z.string().trim().min(1).max(60);
 export class RuleError extends Error{}
@@ -111,9 +112,10 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const splits=new Map<string,Record<string,number>>();
  for(const r of (await tx.query<{question_id:string;answer:string;n:number}>('SELECT question_id,answer,count(*)::int n FROM predictions WHERE question_id=ANY($1::text[]) GROUP BY 1,2',[splitIds])).rows){const m=splits.get(r.question_id)||{};m[r.answer]=r.n;splits.set(r.question_id,m)}
  for(const b of shownBets)if(splits.has(String(b.id)))b.split=splits.get(String(b.id));
+ const careers=await careerView(tx,group.id,rounds as unknown as Parameters<typeof careerView>[2]);
  const suggestions=alerts.filter(a=>a.stage==='suggestion');
  const t=timingFor(group.practice);
- return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
+ return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,careers,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
 /** Public preview of one shared bet for people opening an invite link before they join.

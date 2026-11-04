@@ -16,12 +16,14 @@ import {CallsList,SectionTitle,type CallsAct,type CallsCtx} from './CallsTab';
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,LEVELS} from './Sheets';
 import {NewCallSheet,type NewCall} from './NewCallSheet';
 import RankingTab from './RankingTab';
+import {ProfileSheet,LevelUpSheet,LevelPill} from './Career';
+import {LEVELS as CAREER_LEVELS,type Career} from '../lib/career';
 import {setGroupOrder} from '../lib/avatar';
 import type {SeasonView} from './SeasonsPanel';
 
 type Preview={id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
 type Member={user_id:string;name:string;active:boolean;admin:boolean;fallback?:boolean};
-type GroupView=LifecycleData & FootballData & {timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
+type GroupView=LifecycleData & FootballData & {timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
 type Tab='calls'|'ranking'|'group';
 const TABS:{id:Tab;label:string;icon:string}[]=[{id:'calls',label:'Calls',icon:'calls'},{id:'ranking',label:'Ranking',icon:'ranking'},{id:'group',label:'Group',icon:'group'}];
 const SEEN='calld.seen.';
@@ -34,7 +36,7 @@ async function openLink(url:string){const u=new URL(url);if(u.searchParams.get('
 export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
- const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode}|null>(null),[createdId,setCreatedId]=useState('');
+ const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
 
  async function load(code:string){const r=await api('/api?invite='+encodeURIComponent(code)+(selectedRound.current?'&round='+encodeURIComponent(selectedRound.current):'')+(focusRef.current?'&question='+encodeURIComponent(focusRef.current):''));const d=await r.json();if(!r.ok)throw Error(d.error);setData(d);void rememberInvite(code);}
@@ -62,6 +64,8 @@ export default function Home(){
   if(['settled','void'].includes(c.state))setResult(c);else if(clock<Date.parse(c.locks_at)&&c.state==='open'){if(!c.answer&&c.subject_id!==me)setPick({call:c})}else setRevealing(c);},[data?.joined,focusQuestion,data?.bets]);
  // Show a fresh result once: the "called it" moment.
  useEffect(()=>{if(!data?.joined||result||pick||creating)return;const fresh=sections.results.find(c=>c.answer&&c.state==='settled'&&!seen(c.id)&&clock-Date.parse(c.settled_at||c.locks_at)<3*86400000);if(fresh){markSeen(fresh.id);setResult(fresh);if(fresh.answer===fresh.result_answer)void haptic('win')}},[data?.bets]);
+ // Level up: shown once, the first time the app sees you at a higher level.
+ useEffect(()=>{if(!data?.joined||!me)return;const mine=data.careers?.find(c=>c.user_id===me);if(!mine)return;const key='calld.level.'+invite;let seenLevel=0;try{seenLevel=Number(localStorage.getItem(key)||0)}catch{return}if(seenLevel&&mine.level.n>seenLevel){setLevelUp(CAREER_LEVELS[seenLevel-1]?.name||'');void haptic('win')}try{localStorage.setItem(key,String(mine.level.n))}catch{}},[data?.careers]);
  // After making a call, offer to put it in the group chat.
  useEffect(()=>{if(!createdId)return;const c=findCall(createdId);if(!c)return;setCreatedId('');openShare(c,'Send it to the group');},[createdId,data?.bets]);
  // Home-screen widget and weekly-win haptic (app only).
@@ -120,6 +124,7 @@ export default function Home(){
  const judgeFor=new Set((data.alerts||[]).filter(a=>a.stage==='judgment requested'&&a.question_id).map(a=>a.question_id!));
  const ctx:CallsCtx={me,meName,names,now:clock,snaps,admin:!!members.find(m=>m.user_id===me)?.admin,activeIds:new Set(members.filter(m=>m.active).map(m=>m.user_id)),judgeFor,disputeMs:data.timing?.disputeMs||86400000,busy};
  const a:CallsAct={pick:(c,ans)=>setPick({call:c,preset:ans}),reveal:setRevealing,result:c=>{markSeen(c.id);setResult(c)},resolve:(c,mode)=>setResolving({call:c,mode}),dispute:c=>{if(window.confirm('Say the result isn’t right? A friend who stayed out of it will decide.'))void act({action:'dispute',questionId:c.id},'Got it. A friend will decide.')},share:c=>openShare(c)};
+ const myCareer=data.careers?.find(c=>c.user_id===me);
  const footballQs=data.questions.filter(q=>(q.market||'custom')!=='custom');
  const footballBlock=football?<><SectionTitle count={footballQs.filter(q=>!q.answer&&clock<Date.parse(q.locks_at)).length||undefined}>Matches</SectionTitle><FootballPanel data={data} act={p=>act(p)} busy={busy}/>{footballQs.map(q=><FootballPick key={q.id} q={q} now={clock} active={canPickFootball} busy={busy} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake},'Pick saved.')}/>)}{data.comingUp&&<ComingUp c={data.comingUp} zone={zone} now={clock}/>}</>:null;
  const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football;
@@ -128,7 +133,7 @@ export default function Home(){
  return <div className="c-shell">
   <header className="c-top">
    <div className="c-top-row">
-    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:roundType==='Friends'?'Friends':roundType}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/></div>
+    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:roundType==='Friends'?'Friends':roundType}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':'Notifications'} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
      <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this week</span></>:<><b>{left}</b><span>pts to play</span></>}</button></div>
    </div>
@@ -144,7 +149,7 @@ export default function Home(){
    <button className="c-fab" onClick={()=>setCreating(true)}><Icon name="plus" stroke={2.6}/> New call</button>
   </>}
 
-  {tab==='ranking'&&<RankingTab rounds={data.rounds||[]} board={board} onSelect={setBoardRound} me={me} meName={meName} calls={calls} snaps={snaps} seasons={data.seasons||[]} admin={!!members.find(m=>m.user_id===me)?.admin} busy={busy} act={p=>act(p)} clock={clock} onShareWinner={r=>{const url=origin?r.share_code?shortLink(origin,r.share_code):shareLink(origin,invite,{roundId:r.id,winner:true}):'';setSharing({title:'Share the winner',url,text:shareText(winnerCard(data.group.name,r),url)})}}/>}
+  {tab==='ranking'&&<RankingTab rounds={data.rounds||[]} board={board} onSelect={setBoardRound} me={me} meName={meName} calls={calls} snaps={snaps} seasons={data.seasons||[]} admin={!!members.find(m=>m.user_id===me)?.admin} busy={busy} act={p=>act(p)} clock={clock} careers={data.careers||[]} names={names} onProfile={setProfile} onShareWinner={r=>{const url=origin?r.share_code?shortLink(origin,r.share_code):shareLink(origin,invite,{roundId:r.id,winner:true}):'';setSharing({title:'Share the winner',url,text:shareText(winnerCard(data.group.name,r),url)})}}/>}
 
   {tab==='group'&&<>
    <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>
@@ -163,6 +168,8 @@ export default function Home(){
   <ResultSheet call={result} snaps={snaps} meName={meName} onClose={()=>setResult(null)} onShare={(c,text)=>{const url=linkFor(c);setResult(null);setSharing({title:'Rub it in',url,text:text+' '+url})}}/>
   <ResolveSheet call={resolving?.call||null} mode={resolving?.mode||'set'} busy={busy} onClose={()=>setResolving(null)} onPick={(c,answer)=>act({action:resolving?.mode==='judge'?'judge':'propose',questionId:c.id,answer},resolving?.mode==='judge'?'Decided. It counts now.':'Result set. Everyone has a day to say if it’s not right.')}/>
   <NewCallSheet open={creating} now={clock} practice={practice} weeklyOpen={weeklyOpen} weeklyWhy={weeklyWhy} deadline={data.selectedRound?Date.parse(data.selectedRound.deadline_at):null} members={others} busy={busy} onClose={()=>setCreating(false)} onCreate={(c:NewCall)=>{const payload:Record<string,unknown>={...c};if(c.action==='question'){requestId.current||=crypto.randomUUID();payload.requestId=requestId.current}return act(payload).then(ok=>{if(ok)requestId.current='';return ok})}}/>
+  <ProfileSheet c={data.careers?.find(c=>c.user_id===profile)||null} name={names[profile]||''} me={profile===me} onClose={()=>setProfile('')}/>
+  <LevelUpSheet c={levelUp&&myCareer?myCareer:null} from={levelUp} onClose={()=>setLevelUp('')} onShare={()=>{const url=groupLink;setLevelUp('');if(myCareer)setSharing({title:'Tell the group',url,text:`Just levelled up to ${myCareer.level.name} in ${data.group.name} (${myCareer.points.toLocaleString('en-GB')} career points). ${url}`})}}/>
   <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>
  </div>;
 }
