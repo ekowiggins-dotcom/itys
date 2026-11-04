@@ -32,7 +32,7 @@ test('a whole practice week runs in an hour; normal groups keep the weekly sched
  await runScheduler(at(10)); // window closed: settles
  assert.equal(await state(),'settled');
  const ben=(await identity(b.session))!.id;
- assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,ben])).rows[0].points_tenths,150);
+ assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,ben])).rows[0].points_tenths,250);
  await runScheduler(at(52)); // past publish: everything settled, so final
  const done=await view(invite,a.session,undefined,at(52));
  const round=done.rounds?.find(r=>r.id===v.selectedRound?.id);

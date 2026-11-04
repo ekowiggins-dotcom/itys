@@ -30,7 +30,7 @@ test('an undisputed late proposal settles with its answer when the shortened win
  await lifecycle({action:'tick',invite:f.invite},f.ids[0],new Date(now.getTime()+3*HOUR));
  assert.deepEqual(await state(q),{state:'settled',result_answer:'yes'});
  // Lone correct pick: 20 x (2 - 1/1) = 20.0
- assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows[0].points_tenths,200);
+ assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows[0].points_tenths,100);
 });
 
 test('a late proposal disputed before the deadline is still voided at the deadline',async()=>{

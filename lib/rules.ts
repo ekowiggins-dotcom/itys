@@ -1,5 +1,19 @@
-/** Every pick is worth the same. Nobody spends or chooses points: a right call earns 10 to 20 (more when fewer friends agreed), an exact score 30. */
+/** Every pick counts the same. Nobody spends or chooses points: they're set for each answer when picks close (see callPoints). */
 export const PICK_POINTS=10;
+
+/**
+ * What a right answer is worth, set the moment picks close from how the group split. Nothing is spent, so a wrong call just scores 0.
+ * - 10 if everyone said the same, up to 40 the fewer friends agreed: 10 + 30 × (1 − share who said it)
+ * - +10 for the only one who said it (in a group of 3 or more)
+ * - Exact score: 30, +10 if nobody else had it. Right winner, wrong score: 5
+ * - Match of the week: double
+ */
+export function callPoints(o:{same:number;total:number;market?:string|null;slot?:string|null;exact?:'exact'|'partial'|null}){
+ const lone=o.same===1&&o.total>=3?10:0,double=o.slot==='motw'?2:1;
+ if(o.market==='exact_score')return (o.exact==='exact'?30+lone:o.exact==='partial'?5:0)*double;
+ const share=o.total?o.same/o.total:1;
+ return (Math.round(10+30*(1-share))+lone)*double;
+}
 export const DAY_MS=86400000;
 export function disputeCutoff(proposedAt:number,resolutionAt:number,windowMs=DAY_MS){return Math.min(proposedAt+windowMs,resolutionAt)}
 export function pendingAllocation(settledAt:number,startsAt:number|null,now:number):'pending'|'credited'|'expired'{
@@ -8,11 +22,8 @@ export function pendingAllocation(settledAt:number,startsAt:number|null,now:numb
  return now>cutoff?'expired':'pending';
 }
 export function departureRule(scope:string,locked:boolean){return !locked?'withdrawn':scope==='weekly'?'retained':'forfeited'}
-// Integer rational arithmetic: half-up rounding to the displayed tenth.
-export function scoreTenths(stake:number,same:number,total:number,longterm=false){
- const numerator=BigInt(longterm?20:stake)*BigInt(2*total-same)*10n;
- return Number((numerator*2n+BigInt(total))/(2n*BigInt(total)));
-}
+/** Kept for older callers: a right call's score in tenths. */
+export function scoreTenths(_stake:number,same:number,total:number){return callPoints({same,total})*10}
 
 export type Standing={user_id:string;name:string;active:boolean;points_tenths:number;exact_correct:number;rank:number};
 export function rankStandings(rows:Omit<Standing,'rank'>[]):Standing[]{

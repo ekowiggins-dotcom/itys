@@ -55,7 +55,7 @@ export default function Home(){
  setGroupOrder(data?.joined?members.map(m=>m.name):data?.memberNames||[]);
  // Football questions carry their match: teams, kickoff, league. Matches then sit in the same list as every other call.
  const calls=useMemo(()=>((data?.bets||[]) as Call[]).map(c=>{const q=c.fixture_id?data!.questions.find(x=>x.id===c.id):null;if(!q?.home||!q.away)return c;
-  const match={home:q.home,away:q.away,kickoff:q.kickoff,league:q.league_name,slot:q.slot,reason:q.selection_reason,home90:q.home90,away90:q.away90};
+  const motw=data!.questions.some(x=>x.fixture_id===q.fixture_id&&x.slot==='motw');const match={home:q.home,away:q.away,kickoff:q.kickoff,league:q.league_name,slot:motw?'motw':q.slot,reason:q.selection_reason,home90:q.home90,away90:q.away90};
   return {...c,market:c.market||q.market,match,text:matchTitle({market:c.market||q.market,match,text:c.text})}}),[data?.bets,data?.questions]);const snaps=(data?.snapshots||[]) as Snapshot[];
  const sections=useMemo(()=>sortCalls(calls,me,clock),[calls,me,clock]);
  const findCall=(id:string)=>calls.find(c=>c.id===id);

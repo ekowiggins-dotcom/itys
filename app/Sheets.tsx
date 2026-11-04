@@ -25,7 +25,7 @@ export function PickSheet({call,preset,names,longCount,now,busy,step,onSkip,onSa
   {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={a=>label(a,call)}/></div>}
   {call.market==='exact_score'?<ScorePicker c={call} value={answer} onChange={setAnswer}/>
   :<div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a,call)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>}
-  <p className="c-hint">{long?'Later calls count for the season.'+(fullLong?' You already have 3 going: wait for one to finish.':''):call.market==='exact_score'?'Exact score right = 30 pts. Right winner only = 5.':'Right = 10 to 20 pts. The fewer friends with you, the more you score.'}</p>
+  <p className="c-hint">{long?'Later calls count for the season.'+(fullLong?' You already have 3 going: wait for one to finish.':''):call.market==='exact_score'?'Exact score: 30 pts, 40 if nobody else has it. Right winner only: 5.'+(call.match?.slot==='motw'?' Match of the week: double.':''):'Points are set when picks close: 10 if everyone agrees, up to 50 if you’re the only one.'+(call.match?.slot==='motw'?' Match of the week: double.':'')}</p>
   <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer)&&!more)onClose()}}>{!answer?'Pick one first':(more?'Lock in & next':call.answer?'Update to ':'Lock in ')+(more?'':label(answer,call))}{more&&answer&&<Icon name="arrow" size={18}/>}</button>
   {more&&onSkip&&<button className="c-link center" onClick={onSkip}>Skip for now</button>}
  </Sheet>;
@@ -48,9 +48,9 @@ export function RevealSheet({call,snaps,me,meName,onClose}:{call:Call|null;snaps
   <h2 className="c-title big">{call.text}</h2>
   <p className="c-sub light">{headline(groups,meName,call)}</p>
   <div className="c-reveal">{[...groups].sort((a,b)=>b.names.length-a.names.length).map(g=>{const isMine=g===mine;const alone=g.names.length===1&&total>2;return <div key={g.answer} className={'c-group'+(isMine?' mine':'')+(g.names.length?'':' empty')}>
-   <div className="c-group-head"><b>{label(g.answer,call)}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
+   <div className="c-group-head"><b>{label(g.answer,call)}{g.names.length>0&&<em className="c-worth">+{potential(call,g.names.length,total)}</em>}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
    {g.names.length>0&&<><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><div className="c-names">{g.names.map(n=><span key={n.name}><Face name={n.name} size={26}/>{n.name===meName?'You':n.name}</span>)}</div></>}
-   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer,call)}, you score +{potential(myStake||10,g.names.length,total)}.</p>}
+   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer,call)}, you score +{potential(call,g.names.length,total)}.</p>}
   </div>})}</div>
  </Sheet>;
 }

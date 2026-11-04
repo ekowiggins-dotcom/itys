@@ -29,10 +29,10 @@ test('the reveal tells the story and the score preview matches the scoring rule'
  const groups=reveal(call,snaps);
  assert.deepEqual(groups.map(g=>g.names.length),[1,1,0,3]);
  assert.equal(headline(groups,'Arda'),'Three of you said Nagelsmann. Can went Emre alone.');
- assert.equal(potential(20,1,5),36,'alone and right: 20 × 1.8');
+ assert.equal(potential({},1,5),44,'alone in 5: 10 + 30 × 4/5 + 10 for going alone');
  assert.equal(outcome(c({state:'settled',answer:'Aykut',result_answer:'Aykut',points_tenths:360})).text,'You called it · +36');
  assert.equal(outcome(c({state:'void'})).tone,'void');
- const best=callOfTheWeek([c({state:'settled',result_answer:'Aykut'})],snaps);assert.equal(best?.name,'Arda');assert.equal(best?.score,36);assert.ok(best?.alone);
+ const best=callOfTheWeek([c({state:'settled',result_answer:'Aykut'})],snaps);assert.equal(best?.name,'Arda');assert.equal(best?.score,44);assert.ok(best?.alone);
 });
 
 test('When will we know? turns into valid lock and event times',()=>{
@@ -63,3 +63,15 @@ test('a match call shows the teams, not Yes / No',()=>{
  assert.equal(label('yes'),'Yes','custom calls keep Yes / No');
 });
 
+
+test('points are set at the lock from how the group split: rarer right answers score more',async()=>{
+ const {callPoints}=await import('../lib/rules');
+ assert.equal(callPoints({same:6,total:6}),10,'everyone agreed');
+ assert.equal(callPoints({same:3,total:6}),25,'half the group');
+ assert.equal(callPoints({same:1,total:6}),45,'the only one: 10 + 25 + 10');
+ assert.equal(callPoints({same:1,total:2}),25,'no lone bonus in a pair');
+ assert.equal(callPoints({same:2,total:6,slot:'motw'}),60,'match of the week doubles');
+ assert.equal(callPoints({same:2,total:4,market:'exact_score',exact:'exact'}),30);
+ assert.equal(callPoints({same:1,total:4,market:'exact_score',exact:'exact'}),40);
+ assert.equal(callPoints({same:1,total:4,market:'exact_score',exact:'partial'}),5);
+});
