@@ -5,6 +5,7 @@ import { db } from './db';
 import { z } from 'zod';
 import type { Transaction } from '@electric-sql/pglite';
 import {maintainSeasons} from './seasons';
+import {NORMAL,PRACTICE_ROUND,timingFor,type Timing} from './timing';
 import {emitNotification,lockReminders} from './notifications';
 import {ensureRounds,snapshot,finalizeRounds} from './rounds';
 export {scoreTenths} from './rules';
@@ -13,7 +14,7 @@ const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
 type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null};
-export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null){return q.event_at?new Date(q.event_at).getTime()+7*DAY:new Date(opens!).getTime()+14*DAY-60000}
+export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null,t:Timing=NORMAL){return q.event_at?new Date(q.event_at).getTime()+t.resolutionMs:new Date(opens!).getTime()+(t.practice?PRACTICE_ROUND.lockByMs+t.resolutionMs:14*DAY-60000)}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
  // Essential competition alerts never consult blocks or group mute preferences.
@@ -43,6 +44,7 @@ async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,proc
  await alert(tx,q,'settled',null,now,processingNow);await audit(tx,q.group_id,q.id,null,answer===null?'void':'settled',now,{answer,revision:fixture?.revision||null});
 }
 export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|null},now:Date){
+ const t=timingFor((await tx.query<{practice:boolean}>('SELECT practice FROM groups WHERE id=$1',[group.id])).rows[0]?.practice);
  await maintainRecovery(tx,group.id,now);
  await ensureRounds(tx,group.id,now);
  const qs=(await tx.query<Question>("SELECT * FROM questions WHERE group_id=$1 AND NOT superseded AND (state NOT IN ('settled','void') OR fixture_id IS NOT NULL)",[group.id])).rows;
@@ -55,7 +57,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  const kick=new Date(f.kickoff),oldLock=new Date(q.locks_at);const lock=oldLock<=now?new Date(Math.min(oldLock.getTime(),kick.getTime())):kick;
  await tx.query('UPDATE questions SET locks_at=$2,event_at=$3 WHERE id=$1',[q.id,lock,kick]);q.locks_at=lock;q.event_at=kick;
  await snapshot(tx,q,now);
- const cutoff=deadline(q,group.opens_at),voided=f.status==='void'||kick>=new Date(r.fixture_end_at)||now.getTime()>=cutoff;
+ const cutoff=deadline(q,group.opens_at,t),voided=f.status==='void'||kick>=new Date(r.fixture_end_at)||now.getTime()>=cutoff;
  if(voided){await tx.query('UPDATE questions SET void_reason=$2 WHERE id=$1',[q.id,f.status==='void'?'Postponed, abandoned or cancelled':kick>=new Date(r.fixture_end_at)?'Moved outside this round':'Resolution deadline reached']);await settle(tx,q,null,now,now,f);continue;}
  if(f.needs_review){await tx.query('INSERT INTO football_review_flags VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[q.id,f.revision,'Kickoff changed after predictions were submitted; timing review required',now]);continue;}
  if(f.status==='finished'&&now<kick)continue;
@@ -64,13 +66,13 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  continue;
  }
  await snapshot(tx,q,now);
- const cutoff=deadline(q,group.opens_at);
+ const cutoff=deadline(q,group.opens_at,t);
  // The dispute window closes at proposal+24h or the resolution deadline, whichever is first (rules.disputeCutoff).
- const settleAt=q.proposed_at?disputeCutoff(new Date(q.proposed_at).getTime(),cutoff):Infinity;
+ const settleAt=q.proposed_at?disputeCutoff(new Date(q.proposed_at).getTime(),cutoff,t.disputeMs):Infinity;
  if(q.moderation_state!=='pending'&&q.state==='proposed'&&now.getTime()>=settleAt)await settle(tx,q,q.proposed_answer,new Date(settleAt),now);
  else if(now.getTime()>=cutoff)await settle(tx,q,null,new Date(cutoff),now);
  }
- await lockReminders(tx,group.id,now);
+ await lockReminders(tx,group.id,now,t);
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
@@ -80,7 +82,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  // Commit due settlements independently of an action that may subsequently fail.
  await d.transaction(async tx=>{const g=(await tx.query<{id:string;opens_at:Date|null}>('SELECT id,opens_at FROM groups WHERE invite=$1 FOR UPDATE',[data.invite])).rows[0];if(g){await touchMember(tx,g.id,userId,now);await maintain(tx,g,now)}});
  return d.transaction(async tx=>{
- const g=(await tx.query<{id:string;admin:string;opens_at:Date|null;fallback_id:string|null;timezone:string}>('SELECT * FROM groups WHERE invite=$1 FOR UPDATE',[data.invite])).rows[0];check(g,'Group not found.');
+ const g=(await tx.query<{id:string;admin:string;opens_at:Date|null;fallback_id:string|null;timezone:string;practice:boolean}>('SELECT * FROM groups WHERE invite=$1 FOR UPDATE',[data.invite])).rows[0];check(g,'Group not found.');const t=timingFor(g.practice);
  const member=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,userId])).rows.length;check(member,'Join this group first.');
  await maintain(tx,g,now);
  if(moderationActions.includes(data.action)){
@@ -113,7 +115,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  await maintain(tx,g,now);
  }else if(data.action==='longterm'){
  const lock=new Date(z.iso.datetime().parse(data.locksAt)),event=new Date(z.iso.datetime().parse(data.eventAt));
- const sunday=localSunday(now,g.timezone);
+ const sunday=t.practice?new Date(now.getTime()+t.longTermMinMs):localSunday(now,g.timezone);
  check(event>sunday,'Use a weekly call for events ending by this Sunday. Long-term calls must resolve later.');
  check(lock>now&&event>=lock,'Lock must be in the future and no later than the event deadline.');
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
@@ -136,12 +138,12 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  if(data.action==='propose'){
  const creatorActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,q.creator])).rows.length;
  const event=q.event_at?new Date(q.event_at).getTime():new Date(g.opens_at!).getTime()+7*DAY-60000;
- check(userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+2*DAY)),'Only the creator or authorized takeover admin can propose.');
+ check(userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+t.takeoverMs)),'Only the creator or authorized takeover admin can propose.');
  check(q.state==='open','A proposal already exists.');
  if(userId!==q.creator)await audit(tx,g.id,q.id,userId,'admin takeover',now,{creator:q.creator});
  await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[option(),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
  }else if(data.action==='dispute'){
- check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+DAY,deadline(q,g.opens_at)),'The dispute window has closed.');
+ check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+t.disputeMs,deadline(q,g.opens_at,t)),'The dispute window has closed.');
  check(!(await tx.query('SELECT 1 FROM disputes WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows.length,'You already disputed this call.');
  await tx.query('INSERT INTO disputes VALUES($1,$2,$3)',[q.id,userId,now]);await tx.query("UPDATE questions SET state='disputed' WHERE id=$1",[q.id]);await alert(tx,q,'disputed',userId,now);
  const judge=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ($3::text IS NULL OR m.user_id<>$3) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes di WHERE di.question_id=$4 AND di.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id LIMIT 1`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows[0];

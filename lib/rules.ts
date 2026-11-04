@@ -1,5 +1,5 @@
 export const DAY_MS=86400000;
-export function disputeCutoff(proposedAt:number,resolutionAt:number){return Math.min(proposedAt+DAY_MS,resolutionAt)}
+export function disputeCutoff(proposedAt:number,resolutionAt:number,windowMs=DAY_MS){return Math.min(proposedAt+windowMs,resolutionAt)}
 export function pendingAllocation(settledAt:number,startsAt:number|null,now:number):'pending'|'credited'|'expired'{
  const cutoff=settledAt+30*DAY_MS;
  if(startsAt!==null&&startsAt>=settledAt&&startsAt<=cutoff&&startsAt<=now)return 'credited';

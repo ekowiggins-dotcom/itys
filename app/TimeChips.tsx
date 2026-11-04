@@ -16,6 +16,9 @@ export function weeklyPresets(now:number,deadline:number):Preset[]{
  if(deadline>now+15*60000)ok.push({label:'Last call · '+when(deadline,now),at:deadline});
  const seen=new Set<number>();return ok.filter(p=>!seen.has(p.at)&&seen.add(p.at)).slice(0,5);
 }
+/** Practice groups: everything happens within the hour. */
+export function practicePresets(now:number,deadline:number):Preset[]{const MIN=60000;const list=[2,5,10,20].map(m=>({label:'In '+m+' min',at:now+m*MIN})).filter(p=>p.at<=deadline);if(deadline>now+MIN)list.push({label:'Last call · '+when(deadline,now),at:deadline});return list}
+export function practiceLongPresets(now:number,kind:'lock'|'resolve'):Preset[]{const MIN=60000;return (kind==='lock'?[2,5,10]:[20,30,45]).map(m=>({label:'In '+m+' min',at:now+m*MIN}))}
 export function lockPresets(now:number):Preset[]{return[{label:'Tomorrow',at:at(now,1,12)},{label:'In 3 days',at:at(now,3,12)},{label:'In a week',at:at(now,7,12)}]}
 export function resolvePresets(now:number):Preset[]{const end=new Date(now);end.setMonth(11,31);end.setHours(23,59,0,0);const list=[{label:'In a month',at:at(now,30,23,59)},{label:'In 3 months',at:at(now,91,23,59)},{label:'In 6 months',at:at(now,182,23,59)}];if(end.getTime()>at(now,30,0))list.push({label:'End of year',at:end.getTime()});return list}
 

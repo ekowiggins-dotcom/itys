@@ -183,3 +183,6 @@ main.app .notification-settings{margin:0 0 12px}
 main.app .member-row{padding:10px 2px}
 main.app .member-actions summary{background:none;padding:4px 10px;font-size:20px;color:var(--ink)}
 main.app .leave-box{border:0;padding:8px 2px}
+.practice-badge{display:inline-block;background:#ffb020;color:#1d2620;border-radius:99px;padding:2px 9px;font-size:11px;font-weight:700}
+.practice-toggle{display:flex!important;gap:10px;align-items:flex-start;background:#fff6e0;border:1px solid #f0d28a;border-radius:12px;padding:12px}
+.practice-toggle input{width:20px!important;height:20px;margin:2px 0 0!important;flex:0 0 auto}.practice-toggle small{display:block;font-weight:500;margin-top:2px}
