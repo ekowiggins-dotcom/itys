@@ -48,3 +48,7 @@ The app runs as **one service with one volume**. The embedded database is a sing
 5. Turn on volume backups for the service.
 
 Data written to the volume survives redeploys, restarts and crashes.
+
+## Practice groups (testing)
+
+Set `PRACTICE_GROUPS=1` on the server to show a **Practice group** option when creating a group. Practice groups run the normal rules on a fast clock: the round opens as soon as three people have joined, calls lock within 45 minutes, results can be disputed for 3 minutes, unresolved calls void 10 minutes after their event, standings publish at +50 minutes and the next round opens every hour. Normal groups are never affected, even while the setting is on. Remove the variable to hide the option; existing practice groups keep their fast clock.

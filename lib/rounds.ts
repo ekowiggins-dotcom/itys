@@ -1,3 +1,4 @@
+import {timingFor} from './timing';
 import {randomUUID} from 'node:crypto';
 import {nextStart,period,validAnswer,type GroupType} from './football/rules';
 import {materialize} from './football/content';
@@ -10,7 +11,7 @@ export async function roundEvent(tx:Transaction,r:Round,kind:string,text:string,
  if(kind==='round-open'&&processingNow<new Date(r.deadline_at)||kind==='final')for(const m of recipients.rows)await emitNotification(tx,{groupId:r.group_id,userId:m.user_id,key:'round:'+r.id+':'+kind,kind:kind==='final'?'weekly_final':'round_open',roundId:r.id,text,eventAt:at},processingNow);
 }
 export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
- let g=(await tx.query<{opens_at:Date|null;next_round_at:Date|null;group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[];country:string}|null}>('SELECT opens_at,next_round_at,group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[groupId])).rows[0];
+ let g=(await tx.query<{practice:boolean;opens_at:Date|null;next_round_at:Date|null;group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[];country:string}|null}>('SELECT practice,opens_at,next_round_at,group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[groupId])).rows[0];
  if(!g.opens_at)return;
  if(!(await tx.query('SELECT 1 FROM seasons WHERE group_id=$1',[groupId])).rows.length)await tx.query('INSERT INTO seasons(id,group_id,name,starts_at,ends_at) VALUES($1,$2,$3,$4,$5)',[randomUUID(),groupId,'Pilot season · 8 weeks',g.opens_at,new Date(new Date(g.opens_at).getTime()+56*DAY)]);
  let cursor=new Date(g.next_round_at||g.opens_at);
@@ -34,7 +35,7 @@ export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
  }else if(legacy&&legacy.state==='planned'){
  await tx.query('DELETE FROM round_members WHERE round_id=$1',[legacy.id]);await tx.query('DELETE FROM rounds WHERE id=$1',[legacy.id]);
  }
- cursor=period(cursor,g.group_type,g.timezone).next;
+ cursor=period(cursor,g.group_type,g.timezone,g.practice).next;
  }
  const waiting=(await tx.query<Round>("SELECT * FROM rounds WHERE group_id=$1 AND state='waiting_feed'",[groupId])).rows;for(const r of waiting){await materialize(tx,r,now);const updated=(await tx.query<Round>('SELECT * FROM rounds WHERE id=$1',[r.id])).rows[0];if(updated.state==='live')await roundEvent(tx,updated,'round-open','Football picks are ready. Your 100 confidence points are available.',now,now);}
  await tx.query('UPDATE groups SET next_round_at=$1 WHERE id=$2',[cursor,groupId]);
@@ -45,8 +46,8 @@ export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
  }
 }
 async function insertRound(tx:Transaction,g:string,at:Date){
- const settings=(await tx.query<{group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[]}|null}>('SELECT group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[g])).rows[0];
- const type=settings.pending_settings?.groupType||settings.group_type,zone=settings.pending_settings?.timezone||settings.timezone,leagues=settings.pending_settings?.leagues||settings.leagues;const dates=period(at,type,zone);
+ const settings=(await tx.query<{practice:boolean;group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[]}|null}>('SELECT practice,group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[g])).rows[0];
+ const type=settings.pending_settings?.groupType||settings.group_type,zone=settings.pending_settings?.timezone||settings.timezone,leagues=settings.pending_settings?.leagues||settings.leagues;const dates=period(at,type,zone,settings.practice);
  const id=randomUUID();await tx.query('INSERT INTO rounds(id,group_id,opens_at,deadline_at,publish_at,group_type,timezone,leagues,pick_end_at,fixture_end_at,content_ready) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT DO NOTHING',[id,g,at,dates.deadline,dates.publish,type,zone,JSON.stringify(leagues),dates.pickEnd,dates.fixtureEnd,type==='Friends']);
  return (await tx.query<Round>('SELECT * FROM rounds WHERE group_id=$1 AND opens_at=$2',[g,at])).rows[0];
 }
@@ -58,10 +59,11 @@ export async function snapshot(tx:Transaction,q:{id:string;locks_at:Date;subject
  for(const p of picks)await tx.query('INSERT INTO locked_predictions VALUES($1,$2,$3,$4)',[q.id,p.user_id,p.answer,p.stake]);
 }
 export async function finalizeRounds(tx:Transaction,g:string,now:Date){
+ const t=timingFor((await tx.query<{practice:boolean}>('SELECT practice FROM groups WHERE id=$1',[g])).rows[0]?.practice);
  const rounds=(await tx.query<Round>("SELECT * FROM rounds WHERE group_id=$1 AND state NOT IN ('final','skipped','planned') ORDER BY opens_at",[g])).rows;
  for(const r of rounds){
  const counts=(await tx.query<{total:string;pending:string}>("SELECT count(*) total,count(*) FILTER(WHERE state NOT IN ('settled','void')) pending FROM questions WHERE round_id=$1 AND NOT superseded",[r.id])).rows[0];
- if(r.group_type==='Friends'&&now.getTime()>=new Date(r.opens_at).getTime()+2*DAY&&Number(counts.total)===0&&now<=new Date(r.deadline_at))await roundEvent(tx,r,'suggestion','No calls yet. Try: Will everyone arrive on time this weekend?',new Date(new Date(r.opens_at).getTime()+2*DAY));
+ if(r.group_type==='Friends'&&now.getTime()>=new Date(r.opens_at).getTime()+t.suggestionMs&&Number(counts.total)===0&&now<=new Date(r.deadline_at))await roundEvent(tx,r,'suggestion','No calls yet. Try: Will everyone arrive on time this weekend?',new Date(new Date(r.opens_at).getTime()+t.suggestionMs));
  if(now<new Date(r.publish_at))continue;
  if(!r.provisional_published){await tx.query('UPDATE rounds SET provisional_published=true WHERE id=$1',[r.id]);await roundEvent(tx,r,'provisional','Provisional standings are published. Pending results can still change the ranking.',new Date(r.publish_at));}
  if(Number(counts.total)===0){await tx.query("UPDATE rounds SET state='skipped',skip_reason=CASE WHEN content_ready THEN skip_reason ELSE 'Fixture feed unavailable' END,finalized_at=$2 WHERE id=$1",[r.id,now]);continue;}
