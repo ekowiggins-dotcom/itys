@@ -1,4 +1,5 @@
 import {NORMAL,type Timing} from './timing';
+import {nextThursdayNoon,shifted} from './football/rules';
 import {randomUUID} from 'node:crypto';import type {Transaction} from '@electric-sql/pglite';
 import {defaultPreferences,notificationPolicy,weekStartUTC,type NotificationKind,type NotificationPreferences} from './notification-rules';
 export async function emitNotification(tx:Transaction,input:{groupId:string;userId:string;key:string;kind:NotificationKind;text:string;questionId?:string;roundId?:string;eventAt?:Date},now:Date){
@@ -18,6 +19,18 @@ export async function lockReminders(tx:Transaction,g:string,now:Date,t:Timing=NO
  for(const r of rounds){const lock=new Date(r.first_lock);if(now.getTime()<lock.getTime()-t.lockReminderMs||now>=lock)continue;
  const members=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND EXISTS(SELECT 1 FROM questions q WHERE q.round_id=$2 AND q.locks_at>$3 AND q.state='open' AND (q.subject_id IS NULL OR q.subject_id<>m.user_id) AND NOT EXISTS(SELECT 1 FROM predictions p WHERE p.question_id=q.id AND p.user_id=m.user_id))`,[g,r.id,now])).rows;
  for(const m of members)await emitNotification(tx,{groupId:g,userId:m.user_id,key:'round:'+r.id+':lock',kind:'lock_reminder',roundId:r.id,text:t.practice?'First lock in a few minutes. You still have calls to pick.':'First lock in less than an hour. You still have calls to pick.',eventAt:new Date(lock.getTime()-t.lockReminderMs)},now);
+ }
+}
+/** Saturday 12:00 (group time): a nudge for football weeks if you still have weekend matches to pick. */
+export async function weekendReminders(tx:Transaction,g:string,now:Date){
+ const rounds=(await tx.query<{id:string;opens_at:Date;timezone:string}>("SELECT id,opens_at,timezone FROM rounds WHERE group_id=$1 AND state='live' AND group_type<>'Friends'",[g])).rows;
+ for(const r of rounds){
+  const anchor=nextThursdayNoon(new Date(new Date(r.opens_at).getTime()-7*86400000),r.timezone),saturday=shifted(anchor,2,12,0,r.timezone);
+  if(saturday<new Date(r.opens_at)||now<saturday||now.getTime()>saturday.getTime()+3*3600000)continue;
+  const until=new Date(saturday.getTime()+36*3600000);
+  const rows=(await tx.query<{user_id:string;left:number;first:Date}>(`SELECT m.user_id,count(q.id)::int "left",min(q.locks_at) first FROM members m JOIN questions q ON q.round_id=$2 AND q.state='open' AND q.locks_at>$3 AND q.locks_at<=$4 AND (q.subject_id IS NULL OR q.subject_id<>m.user_id) AND NOT EXISTS(SELECT 1 FROM predictions p WHERE p.question_id=q.id AND p.user_id=m.user_id) WHERE m.group_id=$1 AND m.active GROUP BY m.user_id`,[g,r.id,now,until])).rows;
+  for(const m of rows){const first=new Intl.DateTimeFormat('en-GB',{timeZone:r.timezone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(m.first));
+   await emitNotification(tx,{groupId:g,userId:m.user_id,key:'round:'+r.id+':saturday',kind:'lock_reminder',roundId:r.id,text:`Weekend matches: ${m.left} ${m.left===1?'pick':'picks'} left. First kickoff ${first}.`,eventAt:saturday},now);}
  }
 }
 export async function notificationView(tx:Transaction,g:string,u:string,now:Date){
