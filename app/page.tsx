@@ -87,7 +87,7 @@ export default function Home(){
    <label>Your name<input name="name" required maxLength={60} placeholder="What do your friends call you?" autoComplete="given-name"/></label>
    <label>Group name<input name="groupName" required maxLength={60} placeholder="Sunday League Lads"/></label>
    <label>What will you call?<select name="groupType" defaultValue="Friends"><option value="Friends">Our own calls</option><option value="Football">Football matches</option><option value="Mixed">Both</option></select></label>
-   {practiceAllowed&&<label className="c-check"><input type="checkbox" name="practice" value="1"/><span><b>Practice group</b><small>For testing: a whole week in an hour.</small></span></label>}
+   {practiceAllowed&&<label className="c-check"><input type="checkbox" name="practice" value="1"/><span><b>Practice group</b><small>For testing: a whole week in an hour. Your own calls only: real football runs on the real calendar.</small></span></label>}
    <button className="c-btn" disabled={busy}>Create group <Icon name="arrow"/></button>
    <small>The game starts once three friends join. Points are free and can’t be bought or cashed out. For players aged 18 and over.</small>
   </form>
