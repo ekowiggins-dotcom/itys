@@ -6,6 +6,6 @@ export function GET() {
   const team = process.env.APPLE_TEAM_ID || process.env.APNS_TEAM_ID, bundle = process.env.IOS_BUNDLE_ID;
   if (!team || !bundle) return NextResponse.json({ applinks: { details: [] } });
   return NextResponse.json({
-    applinks: { details: [{ appIDs: [team + '.' + bundle], components: [{ '/': '/', '?': { invite: '?*' }, comment: 'Group invite and shared call links' }] }] },
+    applinks: { details: [{ appIDs: [team + '.' + bundle], components: [{ '/': '/', '?': { invite: '?*' }, comment: 'Group invite and shared call links' }, { '/': '/c/*', comment: 'Short share links' }] }] },
   }, { headers: { 'Cache-Control': 'public, max-age=3600' } });
 }

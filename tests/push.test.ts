@@ -41,7 +41,7 @@ test('queued alerts are pushed with deep-link data; dead tokens are disabled; no
  assert.equal(r.sent,1);
  const toAna=sent.find(s=>s.token===tok('a'))!;
  assert.equal(toAna.env,'sandbox');assert.equal(toAna.headers['apns-topic'],cfg.bundleId);assert.match(toAna.headers.authorization,/^bearer /);
- assert.equal(toAna.body.aps.alert.title,'A new round is open');assert.equal(toAna.body.invite,invite);assert.ok(toAna.body.roundId);
+ assert.equal(toAna.body.aps.alert.title,'A new week of calls');assert.equal(toAna.body.invite,invite);assert.ok(toAna.body.roundId);
  const d=await db();const ids=await Promise.all([a,b,c].map(x=>identity(x.session)));
  const status=async(u:string)=>(await d.query<{push_status:string}>("SELECT push_status FROM notifications WHERE user_id=$1 AND kind='round_open'",[u])).rows[0].push_status;
  assert.equal(await status(ids[0]!.id),'sent');assert.equal(await status(ids[1]!.id),'failed');assert.equal(await status(ids[2]!.id),'no_device');

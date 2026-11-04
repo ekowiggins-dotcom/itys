@@ -2,9 +2,9 @@ import { db } from '../db';
 import { apnsConfig, sendAlert, deadToken, type ApnsConfig, type Transport, http2Transport } from './apns';
 
 const TITLES: Record<string, string> = {
-  round_open: 'A new round is open', lock_reminder: 'Picks lock soon', weekly_final: 'The week is final',
-  proposal: 'Result proposed', dispute: 'Result disputed', judgment_request: 'Your call is needed',
-  settlement: 'Result settled', moderation: 'Group safety', match_change: 'Match updated',
+  round_open: 'A new week of calls', lock_reminder: 'Picks lock soon', weekly_final: 'The week is final',
+  proposal: 'The result’s in', dispute: 'Someone said that’s not right', judgment_request: 'You’re the judge',
+  settlement: 'It counts now', moderation: 'Group safety', match_change: 'Match updated',
 };
 const MAX_AGE = 6 * 3600000;
 
