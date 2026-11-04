@@ -9,8 +9,14 @@ export async function GET() {
   const s = storage();
   if (!s.persistent) return NextResponse.json({ ok: false, error: 'No persistent volume attached. In Railway, add a volume to this service (any mount path, e.g. /data) and redeploy.' }, { status: 503 });
   try {
-    await (await db()).query('SELECT 1');
-    return NextResponse.json({ ok: true, storage: s.source }, { headers: { 'Cache-Control': 'no-store' } });
+    const d = await db();
+    await d.query('SELECT 1');
+    // Football feed at a glance (never the key itself): open /api/health to check it after setting API_FOOTBALL_KEY.
+    const feed = (await d.query<{ last_success: Date | null; error: string | null }>("SELECT last_success,error FROM football_feed_status WHERE id='api-football'")).rows[0];
+    const counts = (await d.query<{ fixtures: number; leagues: number; groups: number }>("SELECT (SELECT count(*)::int FROM football_fixtures) fixtures,(SELECT count(DISTINCT league_id)::int FROM football_feed_windows) leagues,(SELECT count(*)::int FROM groups WHERE group_type IN ('Football','Mixed')) groups")).rows[0];
+    const football = { keySet: !!process.env.API_FOOTBALL_KEY, footballGroups: counts.groups, leaguesLoaded: counts.leagues, fixtures: counts.fixtures, lastSync: feed?.last_success || null, error: feed?.error || null,
+      note: !process.env.API_FOOTBALL_KEY ? 'Set API_FOOTBALL_KEY in Railway.' : !counts.groups ? 'Create a Football or Mixed group: the feed only syncs when one exists.' : feed?.error ? feed.error : counts.leagues < 8 ? 'Loading leagues: the free plan allows ~10 requests a minute, so this fills in over the next hour.' : 'Feed working.' };
+    return NextResponse.json({ ok: true, storage: s.source, football }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ ok: false, error: 'Database unavailable' }, { status: 503 });
   }
