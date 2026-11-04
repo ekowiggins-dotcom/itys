@@ -1,6 +1,6 @@
 import {touchMember,moderationView} from './moderation';
 import {footballAction} from './football/actions';
-import {nextStart,period,validAnswer,slotLimits,cleanOptions,type GroupType} from './football/rules';
+import {nextStart,period,validAnswer,slotLimits,cleanOptions,type GroupType,type Fixture} from './football/rules';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {db} from './db';
 import {seasonViews} from './seasons';
@@ -11,6 +11,7 @@ import {practiceAllowed,timingFor} from './timing';
 import {lifecycle,maintain} from './lifecycle';
 import {nextMonday,weeklyViews,type Round,DAY} from './rounds';
 import {ensureShareCodes} from './short-links';
+import {selectWeek,favouritesFor} from './football/selection';import {coverage} from './football/store';
 const name=z.string().trim().min(1).max(60);
 export class RuleError extends Error{}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new RuleError(message)}
@@ -87,13 +88,20 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const leagueCatalog=(await tx.query('SELECT * FROM football_leagues ORDER BY country,name')).rows;
  const feedStatus={...((await tx.query<{last_attempt:Date|null;last_success:Date|null;error:string|null}>("SELECT last_attempt,last_success,error FROM football_feed_status WHERE id='api-football'")).rows[0]||{error:'Live feed not connected'}),connected:!!process.env.API_FOOTBALL_KEY||process.env.FOOTBALL_FEED==='manual',manual:process.env.FOOTBALL_FEED==='manual'};
  const moderation=await moderationView(tx,group.id,user!.id,now);
+ // Next football week's matches, as soon as they're published: visible now, pickable when the week opens on Thursday.
+ let comingUp:{opensAt:Date;matches:{home:string;away:string;kickoff:Date;league_name:string;reason:string;motw:boolean}[]}|null=null;
+ const nextOpen=group.next_round_at&&new Date(group.next_round_at)>now&&group.group_type!=='Friends'&&!group.practice?new Date(group.next_round_at):null;
+ if(nextOpen){const end=period(nextOpen,group.group_type,group.timezone).fixtureEnd;if(await coverage(tx,group.leagues,nextOpen,end,now)){
+  const upcoming=(await tx.query<Fixture>("SELECT * FROM football_fixtures WHERE league_id=ANY($1::int[]) AND kickoff>=$2 AND kickoff<$3 AND status='scheduled'",[group.leagues,nextOpen,end])).rows.map(f=>({...f,kickoff:new Date(f.kickoff).toISOString()}));
+  const {picks,motw}=selectWeek(upcoming,favouritesFor(group.leagues));
+  if(picks.length)comingUp={opensAt:nextOpen,matches:picks.map(p=>({home:p.fixture.home,away:p.fixture.away,kickoff:new Date(p.fixture.kickoff),league_name:p.fixture.league_name,reason:p.reason,motw:p===motw}))};}}
  // Hidden content is redacted in every member-facing surface, including historical notifications and audit.
  const hidden=(await tx.query<{id:string;moderation_state:string}>("SELECT id,moderation_state FROM questions WHERE group_id=$1 AND moderation_state<>'visible'",[group.id])).rows;const hiddenIds=new Set(hidden.map(q=>q.id));
  for(const row of [...questions,...bets] as Record<string,unknown>[])if(hiddenIds.has(String(row.id))){row.text='Call hidden by moderation';row.creator_name='a group member';row.moderation_state=hidden.find(q=>q.id===row.id)!.moderation_state;}
  for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(hiddenIds.has(String(row.question_id))){row.text='Call hidden by moderation';if(row.details)row.details=null;}
  const suggestions=alerts.filter(a=>a.stage==='suggestion');
  const t=timingFor(group.practice);
- return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets,alerts,seasons,groupMembers,moderation,audit,snapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
+ return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
 /** Public preview of one shared bet for people opening an invite link before they join.

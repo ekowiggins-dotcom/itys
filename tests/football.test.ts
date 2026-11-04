@@ -11,7 +11,9 @@ async function fixture(type:'Mixed'|'Football'='Mixed',load=true){const a=await 
  await runScheduler(open);const state=await view(invite,a.session,undefined,open);return{invite,tokens,ids,fixtures,round:state.selectedRound!};}
 async function markets(roundId:string){return(await(await db()).query<{id:string;fixture_id:string;market:string;slot:string;locks_at:Date}>('SELECT * FROM questions WHERE round_id=$1 AND NOT superseded ORDER BY market',[roundId])).rows}
 test('Türkiye calendar and DST-aware periods, fixed slots and deterministic derby selection',()=>{
- assert.equal(nextStart(base,'Mixed','Europe/Istanbul').toISOString(),open.toISOString());const p=period(open,'Mixed','Europe/Istanbul');assert.equal(p.deadline.toISOString(),'2030-04-14T20:59:00.000Z');assert.equal(p.publish.toISOString(),'2030-04-18T08:00:00.000Z');assert.equal(p.pickEnd.toISOString(),'2030-04-17T21:00:00.000Z');
+ // A new football group starts a starter week straight away unless Thursday is less than a day off.
+ assert.equal(nextStart(base,'Mixed','Europe/Istanbul').toISOString(),base.toISOString());assert.equal(nextStart(new Date('2030-04-10T10:00:00Z'),'Mixed','Europe/Istanbul').toISOString(),open.toISOString());
+ const starter=period(base,'Mixed','Europe/Istanbul');assert.equal(starter.next.toISOString(),open.toISOString());assert.equal(starter.fixtureEnd.toISOString(),'2030-04-10T21:00:00.000Z');assert.ok(starter.deadline>base&&starter.customCutoff>base);const p=period(open,'Mixed','Europe/Istanbul');assert.equal(p.deadline.toISOString(),'2030-04-14T20:59:00.000Z');assert.equal(p.publish.toISOString(),'2030-04-18T08:00:00.000Z');assert.equal(p.pickEnd.toISOString(),'2030-04-17T21:00:00.000Z');
  const before=new Date('2030-03-25T00:00:00Z');const london=period(before,'Friends','Europe/London');assert.equal(london.next.toISOString(),'2030-03-31T23:00:00.000Z');assert.deepEqual([slotLimits('Friends').total,slotLimits('Football').total,slotLimits('Mixed').total],[6,15,17]);
 });
 test('automatic featured matches, match-of-week markets, mixed custom cutoff and transactional extra slots',async()=>{

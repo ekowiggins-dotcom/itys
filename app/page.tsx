@@ -21,7 +21,7 @@ import type {SeasonView} from './SeasonsPanel';
 
 type Preview={id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
 type Member={user_id:string;name:string;active:boolean;admin:boolean;fallback?:boolean};
-type GroupView=LifecycleData & FootballData & {timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[]};
+type GroupView=LifecycleData & FootballData & {timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
 type Tab='calls'|'ranking'|'group';
 const TABS:{id:Tab;label:string;icon:string}[]=[{id:'calls',label:'Calls',icon:'calls'},{id:'ranking',label:'Ranking',icon:'ranking'},{id:'group',label:'Group',icon:'group'}];
 const SEEN='calld.seen.';
@@ -121,7 +121,7 @@ export default function Home(){
  const ctx:CallsCtx={me,meName,names,now:clock,snaps,admin:!!members.find(m=>m.user_id===me)?.admin,activeIds:new Set(members.filter(m=>m.active).map(m=>m.user_id)),judgeFor,disputeMs:data.timing?.disputeMs||86400000,busy};
  const a:CallsAct={pick:(c,ans)=>setPick({call:c,preset:ans}),reveal:setRevealing,result:c=>{markSeen(c.id);setResult(c)},resolve:(c,mode)=>setResolving({call:c,mode}),dispute:c=>{if(window.confirm('Say the result isn’t right? A friend who stayed out of it will decide.'))void act({action:'dispute',questionId:c.id},'Got it. A friend will decide.')},share:c=>openShare(c)};
  const footballQs=data.questions.filter(q=>(q.market||'custom')!=='custom');
- const footballBlock=football?<><SectionTitle count={footballQs.filter(q=>!q.answer&&clock<Date.parse(q.locks_at)).length||undefined}>Matches</SectionTitle><FootballPanel data={data} act={p=>act(p)} busy={busy}/>{footballQs.map(q=><FootballPick key={q.id} q={q} now={clock} active={canPickFootball} busy={busy} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake},'Pick saved.')}/>)}</>:null;
+ const footballBlock=football?<><SectionTitle count={footballQs.filter(q=>!q.answer&&clock<Date.parse(q.locks_at)).length||undefined}>Matches</SectionTitle><FootballPanel data={data} act={p=>act(p)} busy={busy}/>{footballQs.map(q=><FootballPick key={q.id} q={q} now={clock} active={canPickFootball} busy={busy} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake},'Pick saved.')}/>)}{data.comingUp&&<ComingUp c={data.comingUp} zone={zone} now={clock}/>}</>:null;
  const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football;
  const others=members.filter(m=>m.active&&m.user_id!==me).map(m=>({id:m.user_id,name:m.name}));
 
@@ -164,6 +164,13 @@ export default function Home(){
   <NewCallSheet open={creating} now={clock} practice={practice} weeklyOpen={weeklyOpen} weeklyWhy={weeklyWhy} deadline={data.selectedRound?Date.parse(data.selectedRound.deadline_at):null} members={others} busy={busy} onClose={()=>setCreating(false)} onCreate={(c:NewCall)=>{const payload:Record<string,unknown>={...c};if(c.action==='question'){requestId.current||=crypto.randomUUID();payload.requestId=requestId.current}return act(payload).then(ok=>{if(ok)requestId.current='';return ok})}}/>
   <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>
  </div>;
+}
+
+/** Next week's matches as soon as they're published: look now, pick from Thursday 12:00. */
+function ComingUp({c,zone,now}:{c:NonNullable<GroupView['comingUp']>;zone:string;now:number}){
+ const fmt=(t:string)=>new Date(t).toLocaleString('en-GB',{timeZone:zone,weekday:'short',hour:'2-digit',minute:'2-digit'});
+ return <section className="c-card coming"><div className="c-card-top"><span className="c-badge later">Picks open {when(c.opensAt,now,zone)}</span><span className="c-by">{c.matches.length} matches</span></div><h3>Coming next week</h3>
+  <div className="c-coming">{c.matches.map(m=><div key={m.home+m.kickoff} className="c-coming-row"><span className="c-coming-time">{fmt(m.kickoff)}</span><span className="c-coming-teams"><b>{m.motw?'★ ':''}{m.home} – {m.away}</b><small>{m.reason}</small></span></div>)}</div></section>;
 }
 
 function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:boolean;clock:number;onJoin:(name:string,answer:string,stake:number,p:Preview|null)=>void;error:string;notice:string}){

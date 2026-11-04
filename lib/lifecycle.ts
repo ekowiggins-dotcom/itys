@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { Transaction } from '@electric-sql/pglite';
 import {maintainSeasons} from './seasons';
 import {NORMAL,PRACTICE_ROUND,timingFor,type Timing} from './timing';
-import {emitNotification,lockReminders} from './notifications';
+import {emitNotification,lockReminders,weekendReminders} from './notifications';
 import {ensureRounds,snapshot,finalizeRounds} from './rounds';
 export {scoreTenths} from './rules';
 import {disputeCutoff} from './rules';
@@ -73,6 +73,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  else if(now.getTime()>=cutoff)await settle(tx,q,null,new Date(cutoff),now);
  }
  await lockReminders(tx,group.id,now,t);
+ if(!t.practice)await weekendReminders(tx,group.id,now);
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
