@@ -92,12 +92,12 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const feedStatus={...((await tx.query<{last_attempt:Date|null;last_success:Date|null;error:string|null}>("SELECT last_attempt,last_success,error FROM football_feed_status WHERE id='api-football'")).rows[0]||{error:'Live feed not connected'}),connected:!!process.env.API_FOOTBALL_KEY||process.env.FOOTBALL_FEED==='manual',manual:process.env.FOOTBALL_FEED==='manual'};
  const moderation=await moderationView(tx,group.id,user!.id,now);
  // Next football week's matches, as soon as they're published: visible now, pickable when the week opens on Thursday.
- let comingUp:{opensAt:Date;matches:{home:string;away:string;kickoff:Date;league_name:string;reason:string;motw:boolean}[]}|null=null;
+ let comingUp:{opensAt:Date;matches:{home:string;away:string;kickoff:Date;league_name:string;reason:string}[]}|null=null;
  const nextOpen=group.next_round_at&&new Date(group.next_round_at)>now&&group.group_type!=='Friends'&&!group.practice?new Date(group.next_round_at):null;
  if(nextOpen){const end=period(nextOpen,group.group_type,group.timezone).fixtureEnd;if(await coverage(tx,group.leagues,nextOpen,end,now)){
   const upcoming=(await tx.query<Fixture>("SELECT * FROM football_fixtures WHERE league_id=ANY($1::int[]) AND kickoff>=$2 AND kickoff<$3 AND status='scheduled'",[group.leagues,nextOpen,end])).rows.map(f=>({...f,kickoff:new Date(f.kickoff).toISOString()}));
-  const {picks,motw}=selectWeek(upcoming,favouritesFor(group.leagues));
-  if(picks.length)comingUp={opensAt:nextOpen,matches:picks.map(p=>({home:p.fixture.home,away:p.fixture.away,kickoff:new Date(p.fixture.kickoff),league_name:p.fixture.league_name,reason:p.reason,motw:p===motw}))};}}
+  const {picks}=selectWeek(upcoming,favouritesFor(group.leagues));
+  if(picks.length)comingUp={opensAt:nextOpen,matches:picks.map(p=>({home:p.fixture.home,away:p.fixture.away,kickoff:new Date(p.fixture.kickoff),league_name:p.fixture.league_name,reason:p.reason}))};}}
  // Hidden content is redacted in every member-facing surface, including historical notifications and audit.
  const hidden=(await tx.query<{id:string;moderation_state:string}>("SELECT id,moderation_state FROM questions WHERE group_id=$1 AND moderation_state<>'visible'",[group.id])).rows;const hiddenIds=new Set(hidden.map(q=>q.id));
  for(const row of [...questions,...bets] as Record<string,unknown>[])if(hiddenIds.has(String(row.id))){row.text='Call hidden by moderation';row.creator_name='a group member';row.moderation_state=hidden.find(q=>q.id===row.id)!.moderation_state;}
@@ -127,7 +127,6 @@ export async function betPreview(invite:string,questionId:string){
  if(!q)return null;
  // A shared match: the answers carry team names, the call is "Home – Away".
  if(q.market==='result'&&q.home&&q.away)return {...q,text:q.home+' – '+q.away,answers:[{value:'home',label:q.home},{value:'draw',label:'Draw'},{value:'away',label:q.away}]};
- if(q.market==='over_under'&&q.home&&q.away)return {...q,text:q.home+' – '+q.away+': 3 goals or more?',answers:[{value:'over',label:'Over 2.5'},{value:'under',label:'Under 2.5'}]};
  return q;
 }
 

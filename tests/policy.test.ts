@@ -40,7 +40,7 @@ test('every server action is reviewed: none can buy, sell, gift, transfer or cas
  // Adding an action? Confirm it cannot move points between people or exchange them for anything, then list it here.
  const reviewed=['create','join','question','predict','registerDevice','unregisterDevice',
   'report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek',
-  'footballSettings','footballExtra','footballSwap','footballMotw','footballSearch',
+  'footballSettings','footballExtra','footballSwap','footballSearch',
   // Operator-only (ADMIN_KEY): record real matches and their real scores. Reviewed: no points move between people.
   'adminAddMatches','adminPublishWeek','adminResult','adminVoid'];
  const src=['lib/service.ts','lib/lifecycle.ts','lib/football/actions.ts','app/api/admin/route.ts'].map(f=>readFileSync(f,'utf8')).join('\n');

@@ -398,18 +398,8 @@ main.app .c-btn.small-share{min-height:44px;font-size:14px;margin-top:8px}
 .c-market.light{color:var(--soft)}
 .c-options.three{grid-template-columns:1fr auto 1fr}
 .c-options.three .c-opt{overflow-wrap:anywhere;line-height:1.15;padding:6px 10px}
-.c-opt.wide{width:100%;justify-content:center}
-.c-card.turn.motw{background:linear-gradient(180deg,#F4FBD6 0,#fff 70%)}
 .c-row-kick{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:2px}
 .c-sub.center{text-align:center;margin:0 0 12px}
-.c-score-pick{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:4px 0 6px}
-.c-score-pick>i{font:700 28px 'Space Grotesk',sans-serif;font-style:normal;padding-bottom:12px}
-.c-score-side{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0;flex:1}
-.c-score-side>span{font-weight:700;font-size:14px;text-align:center;overflow-wrap:anywhere}
-.c-stepper{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line2);border-radius:18px;padding:5px}
-.c-stepper button{width:44px;height:44px;border-radius:14px;border:0;background:var(--paper);color:var(--ink);font:700 22px 'DM Sans',sans-serif;cursor:pointer}
-.c-stepper button:disabled{opacity:.35;cursor:default}
-.c-stepper b{min-width:36px;text-align:center;font:700 30px 'Space Grotesk',sans-serif}
 /* Going through the week's calls one after another */
 .c-steps{display:flex;gap:4px;flex:1;margin-right:10px;max-width:220px}
 .c-steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
@@ -419,3 +409,25 @@ main.app .c-btn.small-share{min-height:44px;font-size:14px;margin-top:8px}
 .c-worth{font-style:normal;font-weight:700;font-size:.85em;color:var(--lime);margin-left:4px}
 .c-group .c-worth{color:var(--ink);background:var(--lime);border-radius:8px;padding:1px 6px;margin-left:8px}
 .c-bar-row>span .c-worth{display:block;margin:1px 0 0}
+
+/* Group tab: football */
+.c-card.football h3{margin:4px 0 6px}
+.c-card.football .c-sub{margin:0 0 10px}
+.c-fixtures{list-style:none;margin:6px 0 4px;padding:0;display:flex;flex-direction:column}
+.c-fixtures li{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-top:1px solid var(--line)}
+.c-fixtures li b{font-size:15px}.c-fixtures li small{color:var(--muted);font-size:13px}
+.c-more{border-top:1px solid var(--line);padding-top:4px;margin-top:6px}
+.c-more summary{min-height:48px;display:flex;align-items:center;font-weight:700;cursor:pointer;list-style:none}
+.c-more summary::-webkit-details-marker{display:none}
+.c-more summary::after{content:'›';margin-left:auto;font-size:22px;color:var(--muted);transition:transform .15s}
+.c-more[open] summary::after{transform:rotate(90deg)}
+.c-more select{width:100%;min-height:48px;border-radius:14px;border:1.5px solid var(--line2);padding:0 12px;font:500 15px 'DM Sans',sans-serif;background:#fff;color:var(--ink);margin:0 0 8px}
+.c-form-row{display:flex;gap:8px;align-items:flex-start}.c-form-row select{flex:1;min-width:0}
+main.app .c-form-row .c-btn,.c-form-row .c-btn{width:auto;flex:0 0 auto;min-height:48px;padding:0 18px}
+.c-settings{display:flex;flex-direction:column;gap:12px;padding-bottom:8px}
+.c-settings>label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:700}
+.c-settings fieldset{border:0;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.c-settings legend{font-size:13px;font-weight:700;margin-bottom:6px}
+.c-settings .c-check{display:flex;align-items:center;gap:8px;font-size:14px;min-height:36px}
+.c-settings .c-check input{width:20px;height:20px;margin:0}
+.c-settings small{color:var(--muted);line-height:1.45}
