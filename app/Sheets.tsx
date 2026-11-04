@@ -2,6 +2,7 @@
 import {useEffect,useState} from 'react';
 import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
 import {type Call,type Snapshot,answersOf,label,reveal,headline,potential,pts} from './calls';
+import {MatchHead} from './CallsTab';
 import {countdown,when} from './format';
 import {shareMessage,copyText} from './share';
 import {whatsappLink} from '../lib/sharing';
@@ -12,7 +13,7 @@ export const LEVELS=[{name:'Hunch',pts:10},{name:'Sure',pts:20},{name:'Certain',
 /** Make (or change) your call: pick an answer, say how sure you are, lock it in. */
 export function PickSheet({call,preset,names,left,longCount,now,busy,onSave,onClose}:{call:Call|null;preset?:string;names:Record<string,string>;left:number;longCount:number;now:number;busy:boolean;onSave:(c:Call,answer:string,stake:number)=>Promise<boolean>;onClose:()=>void}){
  const [answer,setAnswer]=useState(''),[stake,setStake]=useState(20);
- useEffect(()=>{if(call){setAnswer(preset||call.answer||'');setStake(call.stake&&LEVELS.some(l=>l.pts===call.stake)?call.stake:left+(call.stake||0)>=20?20:10)}},[call?.id,preset]);
+ useEffect(()=>{if(call){setAnswer(preset||call.answer||(call.market==='exact_score'?'1-1':''));setStake(call.stake&&LEVELS.some(l=>l.pts===call.stake)?call.stake:left+(call.stake||0)>=20?20:10)}},[call?.id,preset]);
  if(!call)return null;
  const long=call.scope==='longterm',budget=left+(call.answer?call.stake||0:0);
  const pickers=(call.picker_ids||[]).map(id=>names[id]).filter(Boolean);
@@ -20,15 +21,24 @@ export function PickSheet({call,preset,names,left,longCount,now,busy,onSave,onCl
  const canSave=!!answer&&!busy&&!fullLong&&(long||stake<=budget);
  return <Sheet open label="Make your call" onClose={onClose}>
   <div className="c-sheet-head">{long?<Badge tone="later">{call.event_at?'We’ll know in '+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):'Later'}</Badge>:<Badge tone="soon">Locks in {countdown(call.locks_at,now)}</Badge>}</div>
-  <h2 className="c-title">{call.text}</h2>
-  <p className="c-sub">{call.creator_name}’s call{pickers.length?' · '+pickers.length+' in':''} · {call.split?'who said what stays secret until it locks':'make your call to see how the group is split'}</p>
-  {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={label}/></div>}
-  <div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
+  {call.match?<><MatchHead c={call}/><p className="c-sub center">{call.match.league||'Football'}{call.market==='over_under'?' · 3 or more goals?':call.market==='exact_score'?' · exact score after 90 minutes':' · result after 90 minutes'}{pickers.length?' · '+pickers.length+' in':''}</p></>
+  :<><h2 className="c-title">{call.text}</h2>
+  <p className="c-sub">{call.creator_name}’s call{pickers.length?' · '+pickers.length+' in':''} · {call.split?'who said what stays secret until it locks':'make your call to see how the group is split'}</p></>}
+  {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={a=>label(a,call)}/></div>}
+  {call.market==='exact_score'?<ScorePicker c={call} value={answer} onChange={setAnswer}/>
+  :<div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a,call)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>}
   {!long?<div className="c-levels-wrap"><span className="c-label">How sure are you?</span><div className="c-levels" role="radiogroup" aria-label="How sure are you">{LEVELS.map(l=><button key={l.name} role="radio" aria-checked={stake===l.pts} disabled={l.pts>budget} className={'c-level'+(stake===l.pts?' on':'')} onClick={()=>setStake(l.pts)}><b>{l.name}</b><small>{l.pts} pts</small></button>)}</div>
-   <p className="c-hint">{budget<10?'You’ve used all 100 points this week. Free up some by changing another call.':'Right = up to 2× back. The fewer friends with you, the more you score.'}</p></div>
+   <p className="c-hint">{budget<10?'You’ve used all 100 points this week. Free up some by changing another call.':call.market==='exact_score'?'Exact score right = 3×. Right winner only = half back.':'Right = up to 2× back. The fewer friends with you, the more you score.'}</p></div>
   :<p className="c-hint">Later calls are worth 10 pts each and count for the season.{fullLong?' You already have 3 going: wait for one to finish.':''}</p>}
-  <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer,long?10:stake))onClose()}}>{!answer?'Pick one first':call.answer?'Update: '+label(answer)+(long?'':' · '+stake+' pts'):'Lock in '+label(answer)+(long?'':' · '+stake+' pts')}</button>
+  <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer,long?10:stake))onClose()}}>{!answer?'Pick one first':call.answer?'Update: '+label(answer,call)+(long?'':' · '+stake+' pts'):'Lock in '+label(answer,call)+(long?'':' · '+stake+' pts')}</button>
  </Sheet>;
+}
+
+/** Exact score: two steppers, 0–9 goals each. Answers are saved as "2-1". */
+function ScorePicker({c,value,onChange}:{c:Call;value:string;onChange:(v:string)=>void}){
+ const [h,a]=(/^\d+-\d+$/.test(value)?value:'1-1').split('-').map(Number);
+ const side=(team:string,n:number,set:(n:number)=>void)=><div className="c-score-side"><span>{team}</span><div className="c-stepper"><button aria-label={'One less for '+team} disabled={n<=0} onClick={()=>set(n-1)}>−</button><b aria-live="polite">{n}</b><button aria-label={'One more for '+team} disabled={n>=9} onClick={()=>set(n+1)}>+</button></div></div>;
+ return <div className="c-score-pick">{side(c.match?.home||'Home',h,n=>onChange(n+'-'+a))}<i>–</i>{side(c.match?.away||'Away',a,n=>onChange(h+'-'+n))}</div>;
 }
 
 /** After the lock: who said what. */
@@ -39,11 +49,11 @@ export function RevealSheet({call,snaps,me,meName,onClose}:{call:Call|null;snaps
  return <Sheet open dark full label="Who said what" onClose={onClose}>
   <span className="c-kicker">Locked · picks are out</span>
   <h2 className="c-title big">{call.text}</h2>
-  <p className="c-sub light">{headline(groups,meName)}</p>
+  <p className="c-sub light">{headline(groups,meName,call)}</p>
   <div className="c-reveal">{[...groups].sort((a,b)=>b.names.length-a.names.length).map(g=>{const isMine=g===mine;const alone=g.names.length===1&&total>2;return <div key={g.answer} className={'c-group'+(isMine?' mine':'')+(g.names.length?'':' empty')}>
-   <div className="c-group-head"><b>{label(g.answer)}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
+   <div className="c-group-head"><b>{label(g.answer,call)}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
    {g.names.length>0&&<><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><div className="c-names">{g.names.map(n=><span key={n.name}><Face name={n.name} size={26}/>{n.name===meName?'You':n.name}</span>)}</div></>}
-   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer)}, you score +{potential(myStake,g.names.length,total)}.</p>}
+   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer,call)}, you score +{potential(myStake,g.names.length,total)}.</p>}
   </div>})}</div>
  </Sheet>;
 }
@@ -58,11 +68,11 @@ export function ResultSheet({call,snaps,meName,onClose,onShare}:{call:Call|null;
  return <Sheet open label="Result" onClose={onClose} full><div className={'c-result'+(won?' won':'')}>
   {won&&<div className="c-confetti" aria-hidden="true">{Array.from({length:16},(_,i)=><i key={i}/>)}</div>}
   <span className="c-kicker dark">{call.text}</span>
-  <h3 className="c-it">{label(call.result_answer||'')} it is.</h3>
+  <h3 className="c-it">{call.match&&call.match.home90!=null?call.match.home+' '+call.match.home90+'–'+call.match.away90+' '+call.match.away:label(call.result_answer||'',call)+' it is.'}</h3>
   {won?<><Face name={meName||'You'} size={88} ring="#17201B"/><h2 className="c-huge">You called it.</h2><p className="c-sub dark">{others.length?'With '+others.join(', ')+'.':right.length===1&&groups.reduce((n,g)=>n+g.names.length,0)>1?'The only one in the group.':'Nice.'}</p><span className="c-score">+{score}</span></>
   :<><h2 className="c-huge">{call.answer?'Not this time.':'You sat this one out.'}</h2><p className="c-sub dark">{right.length?(right.length===1?right[0].name+' was the only one who called it.':right.map(n=>n.name).join(', ')+' called it.'):'Nobody saw that coming.'}</p></>}
   {(won?wrong:right).length>0&&<div className="c-also"><span>{won?'Better luck next time':'Called it'}</span><Faces names={(won?wrong:right).map(n=>n.name)} size={30}/></div>}
-  {won&&<button className="c-btn dark" onClick={()=>onShare(call,`Called it: ${label(call.result_answer||'')}. ${call.text} +${score} for me`)}><Icon name="share"/> Rub it in the group chat</button>}
+  {won&&<button className="c-btn dark" onClick={()=>onShare(call,`Called it: ${label(call.result_answer||'',call)}. ${call.text} +${score} for me`)}><Icon name="share"/> Rub it in the group chat</button>}
   <button className="c-link" onClick={onClose}>Back to calls</button>
  </div></Sheet>;
 }
@@ -75,8 +85,8 @@ export function ResolveSheet({call,mode,busy,onPick,onClose}:{call:Call|null;mod
   <span className="c-kicker dark">{mode==='judge'?'You’re the judge':'What happened?'}</span>
   <h2 className="c-title">{call.text}</h2>
   <p className="c-sub">{mode==='judge'?`Someone said ${call.proposed_by?'the result':'it'} wasn’t right. Your answer is final.`:'Everyone gets a day to say if it’s not right. Then it counts.'}</p>
-  <div className={'c-options'+(answersOf(call).length>2?' stack':' pair')}>{answersOf(call).map(a=><button key={a} className={'c-opt'+(pick===a?' on':'')} onClick={()=>setPick(a)}><span>It was {label(a)}</span>{pick===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
-  <button className="c-btn" disabled={!pick||busy} onClick={async()=>{if(await onPick(call,pick))onClose()}}>{pick?'Set the result: '+label(pick):'Choose what happened'}</button>
+  <div className={'c-options'+(answersOf(call).length>2?' stack':' pair')}>{answersOf(call).map(a=><button key={a} className={'c-opt'+(pick===a?' on':'')} onClick={()=>setPick(a)}><span>It was {label(a,call)}</span>{pick===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
+  <button className="c-btn" disabled={!pick||busy} onClick={async()=>{if(await onPick(call,pick))onClose()}}>{pick?'Set the result: '+label(pick,call):'Choose what happened'}</button>
  </Sheet>;
 }
 
@@ -92,8 +102,8 @@ export function ShareSheet({open,title,text,url,preview,onClose,onDone}:{open:bo
 }
 
 /** A small picture of the call, the way it shows up in the chat. */
-export function CallPreview({call,groupName,pickers,foot}:{call:{text:string;options?:string[]|null;locks_at:string;scope:string;event_at:string|null;creator_name:string};groupName:string;pickers:string[];foot?:string}){
+export function CallPreview({call,groupName,pickers,foot}:{call:{text:string;options?:string[]|null;market?:string;match?:Call['match'];locks_at:string;scope:string;event_at:string|null;creator_name:string};groupName:string;pickers:string[];foot?:string}){
  return <div className="c-preview"><div className="c-preview-top"><span className="c-brandmark">{BRAND}</span><Badge tone={call.scope==='longterm'?'later':'soon'}>{call.scope==='longterm'&&call.event_at?'We’ll know in '+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):'Picks close '+when(call.locks_at)}</Badge></div>
-  <b>{call.text}</b><div className={'c-preview-opts n'+Math.min(4,answersOf(call).length)}>{answersOf(call).map((a,i)=><span key={a} className={i===0?'on':''}>{label(a)}</span>)}</div>
+  <b>{call.text}</b><div className={'c-preview-opts n'+Math.min(4,answersOf(call).length)}>{answersOf(call).map((a,i)=><span key={a} className={i===0?'on':''}>{label(a,call)}</span>)}</div>
   <div className="c-preview-foot"><Faces names={foot?pickers:[call.creator_name,...pickers.filter(p=>p!==call.creator_name)]} size={20} ring="#17201B"/><span>{foot||call.creator_name+'’s call in '+groupName}</span></div></div>;
 }

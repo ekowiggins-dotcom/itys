@@ -22,7 +22,7 @@ export function Podium({rows,me,onProfile}:{rows:Row[];me?:string;onProfile?:(id
 export function callOfTheWeek(calls:Call[],snaps:Snapshot[]){
  let best:{name:string;answer:string;score:number;alone:boolean;text:string}|null=null;
  for(const c of calls){if(c.state!=='settled'||c.scope!=='weekly'||!c.result_answer)continue;const mine=snaps.filter(s=>s.question_id===c.id);const right=mine.filter(s=>s.answer===c.result_answer);
-  for(const s of right){const score=potential(s.stake,right.length,mine.length);if(!best||score>best.score)best={name:s.name,answer:c.result_answer,score,alone:right.length===1&&mine.length>1,text:c.text}}}
+  for(const s of right){const score=potential(s.stake,right.length,mine.length);if(!best||score>best.score)best={name:s.name,answer:label(c.result_answer,c),score,alone:right.length===1&&mine.length>1,text:c.text}}}
  return best;
 }
 
@@ -42,7 +42,7 @@ export default function RankingTab({rounds,board,onSelect,me,meName,calls,snaps,
    {!board?<div className="c-empty"><h2>No ranking yet</h2><p>The first week starts once three friends are in.</p></div>:board.state==='skipped'?<div className="c-empty"><h2>This week didn’t count</h2><p>{board.skip_reason||'Not enough of you played.'}</p></div>:<>
     {board.state==='final'&&board.winners.length>0&&<div className="c-winner"><span className="c-kicker dark">{board.winners.length>1?'Shared win':'Winner of the week'}</span><b>{board.winners.map(w=>w.user_id===me?'You':w.name).join(' & ')}</b><button className="c-chip dark" onClick={()=>onShareWinner(board)}><Icon name="share" size={16}/> Share</button></div>}
     <Podium rows={weekRows} me={me} onProfile={onProfile}/>
-    {best&&<div className="c-cotw"><span className="c-cotw-icon"><Icon name="star" size={22}/></span><div><span>Call of the week</span><b>{best.name===meName?'You':best.name} on {label(best.answer)}{best.alone?', alone':''} · +{best.score}</b></div></div>}
+    {best&&<div className="c-cotw"><span className="c-cotw-icon"><Icon name="star" size={22}/></span><div><span>Call of the week</span><b>{best.name===meName?'You':best.name} on {best.answer}{best.alone?', alone':''} · +{best.score}</b></div></div>}
     <p className="c-foot-note">{live?'Points land as results come in. Final ranking '+when(board.publish_at,clock,board.timezone)+'. Everyone starts fresh next week.':board.state==='final'?'Final.':''}</p>
    </>}
   </>}

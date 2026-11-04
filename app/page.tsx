@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import LifecyclePanel,{type LifecycleData} from './LifecyclePanel';
 import type {WeeklyRound} from './rounds-types';
-import FootballPanel,{FootballPick,type FootballQuestion,type FootballData} from './Football';
+import FootballPanel,{type FootballQuestion,type FootballData} from './Football';
 import {slotLimits,period} from '../lib/football/rules';
 import {betCard,inviteCard,shareLink,shortLink,shareText,winnerCard} from '../lib/sharing';
 import {when,countdown,kickLabel} from './format';
@@ -11,7 +11,7 @@ import {BRAND,BRAND_NAME} from '../lib/brand';
 import {api,webOrigin,setSession,lastInvite,rememberInvite,NATIVE} from './api-client';
 import {initNative,haptic,updateWidget} from './native';
 import {Face,Faces,Icon} from './ui';
-import {type Call,type Snapshot,sortCalls,answersOf,label} from './calls';
+import {type Call,type Snapshot,sortCalls,answersOf,label,matchTitle} from './calls';
 import {CallsList,SectionTitle,type CallsAct,type CallsCtx} from './CallsTab';
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,LEVELS} from './Sheets';
 import {NewCallSheet,type NewCall} from './NewCallSheet';
@@ -53,7 +53,10 @@ export default function Home(){
  const members=data?.groupMembers||[];
  const names=useMemo(()=>Object.fromEntries(members.map(m=>[m.user_id,m.name])),[members]);
  setGroupOrder(data?.joined?members.map(m=>m.name):data?.memberNames||[]);
- const calls=(data?.bets||[]) as Call[];const snaps=(data?.snapshots||[]) as Snapshot[];
+ // Football questions carry their match: teams, kickoff, league. Matches then sit in the same list as every other call.
+ const calls=useMemo(()=>((data?.bets||[]) as Call[]).map(c=>{const q=c.fixture_id?data!.questions.find(x=>x.id===c.id):null;if(!q?.home||!q.away)return c;
+  const match={home:q.home,away:q.away,kickoff:q.kickoff,league:q.league_name,slot:q.slot,reason:q.selection_reason,home90:q.home90,away90:q.away90};
+  return {...c,market:c.market||q.market,match,text:matchTitle({market:c.market||q.market,match,text:c.text})}}),[data?.bets,data?.questions]);const snaps=(data?.snapshots||[]) as Snapshot[];
  const sections=useMemo(()=>sortCalls(calls,me,clock),[calls,me,clock]);
  const findCall=(id:string)=>calls.find(c=>c.id===id);
  const linkFor=(c:Call)=>origin?(c.share_code?shortLink(origin,c.share_code):shareLink(origin,invite,{questionId:c.id,roundId:c.round_id||undefined})):'';
@@ -75,8 +78,8 @@ export default function Home(){
  },[data,invite]);
 
  function openShare(c:Call,title='Share this call'){const url=linkFor(c);if(!url)return;
-  const fq=c.fixture_id?data!.questions.find(q=>q.id===c.id):null;
-  if(fq&&fq.home&&fq.away){const k=kickLabel(fq.kickoff||c.locks_at,new Date(),zone);setSharing({title,url,text:`${fq.home} – ${fq.away}, ${k.charAt(0).toLowerCase()+k.slice(1)}.\n${c.answer?'I’ve made my call. Have you?':'Who wins? Make your call:'} ${url}`,preview:<CallPreview call={{text:fq.home+' – '+fq.away,options:fq.market==='result'?[fq.home,'Draw',fq.away]:fq.market==='over_under'?['Over 2.5','Under 2.5']:['Exact score'],locks_at:c.locks_at,scope:'weekly',event_at:null,creator_name:BRAND_NAME}} groupName={data!.group.name} pickers={(c.picker_ids||[]).map(id=>names[id]).filter(Boolean)} foot={(fq.league_name||'Football')+' · '+data!.group.name}/>});return}const pickers=(c.picker_ids||[]).map(id=>names[id]).filter(Boolean);const about=c.subject_id?names[c.subject_id]:'';setSharing({title,url,text:about&&!['settled','void'].includes(c.state)?`There’s a secret call about ${about} in ${data!.group.name}. ${about}, don’t look. ${url}`:shareText(betCard(data!.group.name,c.text,c.picked||0,answersOf(c).map(label)),url),preview:<CallPreview call={c} groupName={data!.group.name} pickers={pickers}/>})}
+  const m=c.match;
+  if(m){const k=kickLabel(m.kickoff||c.locks_at,new Date(),zone);setSharing({title,url,text:`${m.home} – ${m.away}, ${k.charAt(0).toLowerCase()+k.slice(1)}.\n${c.answer?'I’ve made my call. Have you?':c.market==='result'?'Who wins? Make your call:':'Make your call:'} ${url}`,preview:<CallPreview call={{...c,options:c.market==='exact_score'?['Exact score']:null,market:c.market==='exact_score'?undefined:c.market,creator_name:BRAND_NAME}} groupName={data!.group.name} pickers={(c.picker_ids||[]).map(id=>names[id]).filter(Boolean)} foot={(m.league||'Football')+' · '+data!.group.name}/>});return}const pickers=(c.picker_ids||[]).map(id=>names[id]).filter(Boolean);const about=c.subject_id?names[c.subject_id]:'';setSharing({title,url,text:about&&!['settled','void'].includes(c.state)?`There’s a secret call about ${about} in ${data!.group.name}. ${about}, don’t look. ${url}`:shareText(betCard(data!.group.name,c.text,c.picked||0,answersOf(c).map(a=>label(a,c))),url),preview:<CallPreview call={c} groupName={data!.group.name} pickers={pickers}/>})}
  function nextLockAt(){const t=[...calls.filter(c=>c.state==='open'&&!c.fixture_id).map(c=>Date.parse(c.locks_at)),...(data?.questions||[]).filter(q=>(q.market||'custom')!=='custom').map(q=>Date.parse(q.locks_at))].filter(x=>x>clock).sort((a,b)=>a-b);return t[0]}
  async function joinAndPick(name:string,answer:string,stake:number,p:Preview|null){const joined=await act({action:'join',name});if(!joined)return;if(!p||!answer){setNotice('You’re in. Let’s make it interesting.');return;}const ok=await act(p.scope==='longterm'?{action:'predictLongterm',questionId:p.id,answer}:{action:'predict',questionId:p.id,answer,stake});setNotice(ok?'You’re in, and your call is saved.':'You’re in. That call isn’t taking picks right now.');}
  function go(t:Tab){setTab(t);window.scrollTo({top:0});void haptic('tap');}
@@ -128,7 +131,9 @@ export default function Home(){
  const a:CallsAct={pick:(c,ans)=>setPick({call:c,preset:ans}),reveal:setRevealing,result:c=>{markSeen(c.id);setResult(c)},resolve:(c,mode)=>setResolving({call:c,mode}),dispute:c=>{if(window.confirm('Say the result isn’t right? A friend who stayed out of it will decide.'))void act({action:'dispute',questionId:c.id},'Got it. A friend will decide.')},share:c=>openShare(c)};
  const myCareer=data.careers?.find(c=>c.user_id===me);
  const footballQs=data.questions.filter(q=>(q.market||'custom')!=='custom');
- const footballBlock=football?<><SectionTitle count={footballQs.filter(q=>!q.answer&&clock<Date.parse(q.locks_at)).length||undefined}>Matches</SectionTitle><FootballPanel data={data} act={p=>act(p)} busy={busy}/>{footballQs.map(q=><FootballPick key={q.id} q={q} share={(()=>{const c=findCall(q.id);return c&&clock<Date.parse(q.locks_at)?<button className="c-btn ghost small-share" onClick={()=>openShare(c,'Share this match')}><Icon name="share" size={18}/> Invite friends to call it</button>:null})()} now={clock} active={canPickFootball} busy={busy} onSave={(answer,stake)=>act({action:'predict',questionId:q.id,answer,stake},'Pick saved.')}/>)}{data.comingUp&&<ComingUp c={data.comingUp} zone={zone} now={clock}/>}</>:null;
+ // Matches are in the list above. Here: only "waiting for matches" and next week's preview.
+ const waitingMatches=football&&!footballQs.length&&data.selectedRound?.state==='waiting_feed';
+ const footballBlock=football&&(waitingMatches||data.comingUp)?<>{waitingMatches&&<section className="c-card coming"><span className="c-badge later">Matches</span><h3>This week’s matches are on their way</h3><p className="c-sub">They show up here as soon as they’re published.</p></section>}{data.comingUp&&<ComingUp c={data.comingUp} zone={zone} now={clock}/>}</>:null;
  const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football;
  const others=members.filter(m=>m.active&&m.user_id!==me).map(m=>({id:m.user_id,name:m.name}));
 
@@ -158,7 +163,7 @@ export default function Home(){
   {tab==='group'&&<>
    <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>
     <button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>
-   {!football&&<FootballPanel data={data} act={p=>act(p)} busy={busy}/>}
+   <FootballPanel data={data} act={p=>act(p)} busy={busy}/>
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
    <HowItWorks/>
   </>}
@@ -189,7 +194,7 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
  const p=data.preview||null;const [answer,setAnswer]=useState(''),[stake,setStake]=useState(20),[name,setName]=useState('');
  const locked=!!p&&(clock>=Date.parse(p.locks_at)||p.state!=='open');const long=p?.scope==='longterm';
  const people=data.memberNames||[];
- const opts=p?.answers||(p?answersOf(p).map(a=>({value:a,label:label(a)})):[]);
+ const opts=p?.answers||(p?answersOf(p).map(a=>({value:a,label:label(a,p)})):[]);
  return <main className="c-join">
   <div className="c-join-top"><span className="c-brandmark">{BRAND}</span><span>Free · no money, ever</span></div>
   {p?<>
@@ -207,7 +212,7 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
   <form className="c-join-form" onSubmit={e=>{e.preventDefault();onJoin(name.trim(),locked?'':answer,stake,p)}}>
    <label htmlFor="join-name">What do your friends call you?</label>
    <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder="Your name" autoComplete="given-name"/>
-   <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?'I’m in: '+label(answer):'Pick an answer first'):'Join the group'}</button>
+   <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?'I’m in: '+(opts.find(o=>o.value===answer)?.label||label(answer)):'Pick an answer first'):'Join the group'}</button>
    <small>No sign-up form. Everyone gets 100 free points a week, just for bragging rights. Points can’t be bought or cashed out. 18+.</small>
   </form>
   {error&&<p className="c-toast error" role="alert">{error}</p>}{notice&&<p className="c-toast" role="status">{notice}</p>}
