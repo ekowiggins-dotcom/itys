@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';import type {Transaction} from '@electric-sql/pglite';import {db} from '../db';import {ApiFootball} from './provider';import {UEFA} from '../locale';import type {Fixture} from './rules';
+import {randomUUID} from 'node:crypto';import type {Transaction} from '@electric-sql/pglite';import {db} from '../db';import {ApiFootball,FeedError} from './provider';import {UEFA} from '../locale';import type {Fixture} from './rules';
 export async function ingest(tx:Transaction,fixtures:Fixture[],now:Date){
  for(const f of fixtures){const old=(await tx.query<Fixture>('SELECT * FROM football_fixtures WHERE id=$1',[f.id])).rows[0];let review=!!old?.needs_review;
  if(old&&new Date(f.kickoff)<new Date(old.kickoff)&&new Date(f.kickoff)<=now){review ||= (await tx.query('SELECT 1 FROM predictions p JOIN questions q ON q.id=p.question_id WHERE q.fixture_id=$1 AND p.submitted_at>$2',[f.id,f.kickoff])).rows.length>0;}
@@ -33,5 +33,5 @@ export async function syncFootball(now=new Date()){
   // Request budget (API-Football free plan: 100 a day): each league's schedule every 6 hours, plus the featured
   // matches that are about to start or are being played, by id, on every 15-minute sweep.
   for(const id of new Set(rows.flatMap(r=>[...r.leagues,...(r.pending_settings?.leagues||[])]))){const last=(await d.query<{at:Date|null}>('SELECT max(fetched_at) at FROM football_feed_windows WHERE league_id=$1',[id])).rows[0]?.at;if(!last||now.getTime()-new Date(last).getTime()>=SCHEDULE_MS)await syncLeague(id,now)}
-  await syncLive(now);await d.query("UPDATE football_feed_status SET last_success=$1,error=NULL WHERE id='api-football'",[now]);return{connected:true}}catch{await d.query("UPDATE football_feed_status SET error='Feed unavailable; check current-season access, quota and provider status' WHERE id='api-football'");return{connected:true,error:true}}
+  await syncLive(now);await d.query("UPDATE football_feed_status SET last_success=$1,error=NULL WHERE id='api-football'",[now]);return{connected:true}}catch(e){const message=e instanceof FeedError?e.message:'Feed unavailable; check current-season access, quota and provider status';await d.query("UPDATE football_feed_status SET error=$1 WHERE id='api-football'",[message]);return{connected:true,error:true}}
 }
