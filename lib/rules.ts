@@ -4,15 +4,15 @@ export const PICK_POINTS=10;
 /**
  * What a right answer is worth, set the moment picks close from how the group split. Nothing is spent, so a wrong call just scores 0.
  * - 10 if everyone said the same, up to 40 the fewer friends agreed: 10 + 30 × (1 − share who said it)
- * - +10 for the only one who said it (in a group of 3 or more)
- * - Exact score: 30, +10 if nobody else had it. Right winner, wrong score: 5
- * - Match of the week: double
+ * - Exact score: 30. Right winner, wrong score: 5
+ * - Match of the week: 1.5× (rounded)
+ * Top of the range is 40, or 60 on the match of the week.
  */
 export function callPoints(o:{same:number;total:number;market?:string|null;slot?:string|null;exact?:'exact'|'partial'|null}){
- const lone=o.same===1&&o.total>=3?10:0,double=o.slot==='motw'?2:1;
- if(o.market==='exact_score')return (o.exact==='exact'?30+lone:o.exact==='partial'?5:0)*double;
+ const boost=o.slot==='motw'?1.5:1;
+ if(o.market==='exact_score')return Math.round((o.exact==='exact'?30:o.exact==='partial'?5:0)*boost);
  const share=o.total?o.same/o.total:1;
- return (Math.round(10+30*(1-share))+lone)*double;
+ return Math.round(Math.round(10+30*(1-share))*boost);
 }
 export const DAY_MS=86400000;
 export function disputeCutoff(proposedAt:number,resolutionAt:number,windowMs=DAY_MS){return Math.min(proposedAt+windowMs,resolutionAt)}

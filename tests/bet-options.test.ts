@@ -36,8 +36,8 @@ test('a 4-option bet accepts only its options, scores by crowd share and resolve
  await runScheduler(at(1,3));
  const d=await db();
  const scores=Object.fromEntries((await d.query<{user_id:string;points_tenths:number}>('SELECT user_id,points_tenths FROM scores WHERE question_id=$1',[q])).rows.map(r=>[r.user_id,r.points_tenths]));
- // Can was picked by 1 of 4 and alone: 10 + 30 x 3/4 = 33, +10 lone = 43. Wrong picks score 0.
- assert.equal(scores[f.ids[2]],430);assert.equal(scores[f.ids[0]],0);assert.equal(scores[f.ids[3]],0);
+ // Can was picked by 1 of 4: 10 + 30 x 3/4 = 32.5, rounded to 33. Wrong picks score 0.
+ assert.equal(scores[f.ids[2]],330);assert.equal(scores[f.ids[0]],0);assert.equal(scores[f.ids[3]],0);
  assert.equal((await d.query<{result_answer:string}>('SELECT result_answer FROM questions WHERE id=$1',[q])).rows[0].result_answer,'Can');
 });
 
