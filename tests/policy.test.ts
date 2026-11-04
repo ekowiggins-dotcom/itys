@@ -39,7 +39,7 @@ test('no casino or money imagery in the interface',()=>{
 test('every server action is reviewed: none can buy, sell, gift, transfer or cash out points',()=>{
  // Adding an action? Confirm it cannot move points between people or exchange them for anything, then list it here.
  const reviewed=['create','join','question','predict','registerDevice','unregisterDevice',
-  'report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick',
+  'report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek',
   'footballSettings','footballExtra','footballSwap','footballMotw','footballSearch',
   // Operator-only (ADMIN_KEY): record real matches and their real scores. Reviewed: no points move between people.
   'adminAddMatches','adminPublishWeek','adminResult','adminVoid'];
