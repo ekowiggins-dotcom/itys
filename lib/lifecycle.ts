@@ -80,7 +80,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
-const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
+const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
 export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const data=schema.parse(input),d=await db();
  // Commit due settlements independently of an action that may subsequently fail.
@@ -117,6 +117,17 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(!(await tx.query('SELECT 1 FROM seasons WHERE group_id=$1 AND starts_at<$3 AND ends_at>$2',[g.id,start,end])).rows.length,'Season windows cannot overlap.');
  await tx.query('INSERT INTO seasons(id,group_id,name,starts_at,ends_at) VALUES($1,$2,$3,$4,$5)',[randomUUID(),g.id,data.name||'Next season',start,end]);
  await maintain(tx,g,now);
+ }else if(data.action==='startFirstWeek'){
+ // A new group doesn't have to wait for Monday (or Thursday for football): the admin can open a starter week now.
+ // It ends with the regular week it falls in, so the normal rhythm follows. It moves no points.
+ check(g.admin===userId,'Only the admin can start the first week early.');
+ check(!g.practice,'Practice groups already run on a fast clock.');
+ check(g.opens_at&&new Date(g.opens_at)>now,'The first week has already started.');
+ const active=Number((await tx.query<{count:string}>('SELECT count(*) FROM members WHERE group_id=$1 AND active',[g.id])).rows[0].count);check(active>=3,'Get three friends in first.');
+ const old=new Date(g.opens_at!);
+ await tx.query('UPDATE groups SET opens_at=$1,next_round_at=$1 WHERE id=$2',[now,g.id]);
+ await tx.query('UPDATE seasons SET starts_at=$1 WHERE group_id=$2 AND starts_at=$3',[now,g.id,old]);
+ g.opens_at=now;await maintain(tx,g,now);
  }else if(data.action==='longterm'){
  const lock=new Date(z.iso.datetime().parse(data.locksAt)),event=new Date(z.iso.datetime().parse(data.eventAt));
  const sunday=t.practice?new Date(now.getTime()+t.longTermMinMs):localSunday(now,g.timezone);

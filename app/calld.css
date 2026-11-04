@@ -378,3 +378,6 @@ main.app .c-alltime-row.me{background:#F4FAD9}
 .c-step[role=button],.c-table-row[role=button]{cursor:pointer}
 .c-levelup{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding-top:8px}
 .c-huge.light{color:#fff}
+
+.c-card.starter{background:var(--later-bg);border-color:#CFC6FF}
+main.app .c-card.starter p{font-size:14px;color:#4B3F80}
