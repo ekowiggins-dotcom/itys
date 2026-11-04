@@ -1,0 +1,144 @@
+name: TestFlight
+
+# Builds, signs and uploads the iOS app (with its widget) to TestFlight from a GitHub-hosted Mac.
+# No Mac or certificates needed: Xcode signs automatically using an App Store Connect API key.
+#
+# Repository secrets (Settings → Secrets and variables → Actions → Secrets):
+#   APPLE_TEAM_ID     10-character Team ID
+#   ASC_KEY_ID        App Store Connect API key ID
+#   ASC_ISSUER_ID     API key issuer ID
+#   ASC_KEY_P8        Full contents of the AuthKey_XXXX.p8 file
+# Repository variables (… → Variables):
+#   API_BASE          Server address, e.g. https://your-app.up.railway.app (or your own domain)
+#   LINK_DOMAIN       Domain for invite links / universal links, e.g. your-app.up.railway.app
+#
+# Without the secrets, the run does an unsigned Release device build and stops, which checks
+# that a release build compiles.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['ios-v*']
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      BUNDLE_ID: app.calld.ios
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check signing secrets
+        id: cfg
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+          KEY: ${{ secrets.ASC_KEY_P8 }}
+          API_BASE: ${{ vars.API_BASE }}
+        run: |
+          if [ -n "$TEAM" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER" ] && [ -n "$KEY" ] && [ -n "$API_BASE" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=TestFlight not configured::Add APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 secrets and the API_BASE variable to upload. Running an unsigned Release build only."
+          fi
+
+      - run: npm ci
+
+      - name: Bundle the UI for the app
+        run: npm run build:native
+        env:
+          API_BASE: ${{ vars.API_BASE || 'https://example.up.railway.app' }}
+          WEB_ORIGIN: ${{ vars.API_BASE || 'https://example.up.railway.app' }}
+          APNS_ENV: production
+
+      - name: Prepare the Xcode project
+        run: |
+          npx cap sync ios
+          node scripts/ios-setup.mjs
+        env:
+          IOS_BUNDLE_ID: ${{ env.BUNDLE_ID }}
+          SIDEBET_LINK_DOMAIN: ${{ vars.LINK_DOMAIN || 'example.up.railway.app' }}
+
+      - name: Unsigned Release build (no secrets)
+        if: steps.cfg.outputs.signed != 'true'
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Calld.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO archive | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"
+          test -d "$RUNNER_TEMP/Calld.xcarchive/Products/Applications/App.app/PlugIns/SidebetWidget.appex"
+
+      - name: Install the API key
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          KEY: ${{ secrets.ASC_KEY_P8 }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8"
+
+      - name: Archive (signed)
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Calld.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"
+
+      - name: Upload to TestFlight
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Calld.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" | tee export.log | grep -E "error|Upload|EXPORT (SUCCEEDED|FAILED)"
+          echo "::notice title=Uploaded::Build ${{ github.run_number }} is processing in App Store Connect. It appears in TestFlight in about 10–30 minutes."
+
+      - name: Remove the API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-logs
+          path: |
+            archive.log
+            export.log
+          if-no-files-found: ignore
