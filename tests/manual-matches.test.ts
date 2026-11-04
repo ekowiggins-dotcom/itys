@@ -71,3 +71,16 @@ test('next week shows as soon as it is published, and Saturday noon nudges peopl
  await publishWeek(mon);const later=await view(invite,a.session,undefined,mon) as unknown as {comingUp:{matches:{home:string}[]}|null};
  assert.ok(later.comingUp?.matches.some(m=>m.home==='Beşiktaş'),'next week is visible as soon as it’s published');
 });
+
+test('a starter week that closed with no matches can be reopened by the admin once matches are added',async()=>{
+ const tue=new Date('2030-07-02T08:00:00Z');
+ const a=await execute({action:'create',name:'Arda',groupName:'Late adders',groupType:'Football',timezone:'Europe/Istanbul'},undefined,tue),invite=a.invite!;
+ for(const n of ['Ege','Can'])await execute({action:'join',invite,name:n},undefined,tue);
+ await publishWeek(tue);await runScheduler(tue);
+ assert.equal((await view(invite,a.session,undefined,tue)).selectedRound?.state,'skipped','nothing published for the starter week');
+ const t2=new Date(tue.getTime()+3600000);
+ const {fixtures}=parseMatches('2030-07-02 22:00 | UCL | Fenerbahçe | Liverpool');await addMatches(fixtures,t2);await publishWeek(t2);
+ await execute({action:'startFirstWeek',invite},a.session,t2);
+ const v=await view(invite,a.session,undefined,t2);assert.equal(v.selectedRound?.state,'live');
+ assert.ok((v.questions as unknown as {text:string}[]).some(q=>q.text.startsWith('Fenerbahçe')));
+});

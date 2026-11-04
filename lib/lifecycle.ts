@@ -122,12 +122,21 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  // It ends with the regular week it falls in, so the normal rhythm follows. It moves no points.
  check(g.admin===userId,'Only the admin can start the first week early.');
  check(!g.practice,'Practice groups already run on a fast clock.');
+ // A football week that closed because no matches were published yet can be opened again once they are.
+ const empty=(await tx.query<{id:string;opens_at:Date}>("SELECT id,opens_at FROM rounds WHERE group_id=$1 AND state='skipped' AND skip_reason IN ('No league games','Feed arrived after all kickoffs') AND opens_at<=$2 AND pick_end_at>$2 ORDER BY opens_at DESC LIMIT 1",[g.id,now])).rows[0];
+ if(empty&&!(g.opens_at&&new Date(g.opens_at)>now)){
+  await tx.query("UPDATE rounds SET state='waiting_feed',skip_reason=NULL,finalized_at=NULL,content_ready=false WHERE id=$1",[empty.id]);
+  await tx.query('DELETE FROM football_skipped_weeks WHERE group_id=$1 AND opens_at=$2',[g.id,empty.opens_at]);
+  await maintain(tx,g,now);
+  const r=(await tx.query<{state:string}>('SELECT state FROM rounds WHERE id=$1',[empty.id])).rows[0];check(r.state==='live','No published matches left before the next week. Add them at /admin, publish, then try again.');
+ }else{
  check(g.opens_at&&new Date(g.opens_at)>now,'The first week has already started.');
  const active=Number((await tx.query<{count:string}>('SELECT count(*) FROM members WHERE group_id=$1 AND active',[g.id])).rows[0].count);check(active>=3,'Get three friends in first.');
  const old=new Date(g.opens_at!);
  await tx.query('UPDATE groups SET opens_at=$1,next_round_at=$1 WHERE id=$2',[now,g.id]);
  await tx.query('UPDATE seasons SET starts_at=$1 WHERE group_id=$2 AND starts_at=$3',[now,g.id,old]);
  g.opens_at=now;await maintain(tx,g,now);
+ }
  }else if(data.action==='longterm'){
  const lock=new Date(z.iso.datetime().parse(data.locksAt)),event=new Date(z.iso.datetime().parse(data.eventAt));
  const sunday=t.practice?new Date(now.getTime()+t.longTermMinMs):localSunday(now,g.timezone);
