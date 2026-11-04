@@ -1,4 +1,5 @@
 'use client';
+import {teamColors,teamCode} from '../lib/team-colors';
 import {useEffect,useRef} from 'react';
 import {avatarColor,initials} from '../lib/avatar';
 // Small shared pieces of the Calld look: faces, icons and bottom sheets.
@@ -46,4 +47,9 @@ export function Split({answers,counts,mine,label,compact=false}:{answers:string[
   {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label">{label(a)}{a===mine&&<em>you</em>}</span><span className="c-split-dots">{Array.from({length:counts[a]||0},(_,k)=><i key={k} style={{background:SPLIT_COLORS[i%4]}} className={a===mine&&k===0?'me':''}/>)}</span><b>{counts[a]||0}</b></div>)}
   {compact&&<span className="c-split-legend" aria-hidden="true">{answers.filter(a=>counts[a]).map(a=>(counts[a])+' '+label(a)).join(' · ')}</span>}
  </div>;
+}
+
+/** A club as a coloured disc with its three-letter code. No badges or logos. */
+export function Crest({team,size=52}:{team:string;size?:number}){const c=teamColors(team);
+ return <span className="c-crest" aria-hidden="true" style={{width:size,height:size,background:c.fill,color:c.text,boxShadow:`inset 0 0 0 ${Math.max(3,size/14)}px ${c.ring}`,fontSize:size*0.3}}>{teamCode(team)}</span>;
 }
