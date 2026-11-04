@@ -38,3 +38,12 @@ export function countdown(value: string | number | Date, now = Date.now()) {
 }
 
 export const answerLabel = (a: string) => (a === 'yes' ? 'Yes' : a === 'no' ? 'No' : a);
+
+/** "Tonight 20:45", "Tomorrow 19:00", "Sat 16:00". */
+export function kickLabel(at:Date|string,now:Date,zone:string){
+ const t=new Date(at),fmt=(o:Intl.DateTimeFormatOptions)=>new Intl.DateTimeFormat('en-GB',{timeZone:zone,...o}).format(t),day=(d:Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:zone}).format(d);
+ const hm=fmt({hour:'2-digit',minute:'2-digit',hourCycle:'h23'}),h=Number(hm.slice(0,2));
+ if(day(t)===day(now))return(h>=17?'Tonight ':'Today ')+hm;
+ if(day(t)===day(new Date(now.getTime()+86400000)))return 'Tomorrow '+hm;
+ return fmt({weekday:'short'})+' '+hm;
+}
