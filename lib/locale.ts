@@ -9,6 +9,8 @@ export type LeagueProfile = {
   timezone: string;
   bigClubs: string[]; // normalized substrings: lowercase, no accents
   derbies: Derby[];
+  /** Clubs whose games are always picked for groups in this league's country (normalized substrings). */
+  favourites?: string[];
 };
 
 export const LEAGUES: Record<number, LeagueProfile> = {
@@ -51,6 +53,7 @@ export const LEAGUES: Record<number, LeagueProfile> = {
     id: 203, name: 'Süper Lig', country: 'TR', timezone: 'Europe/Istanbul',
     bigClubs: ['galatasaray', 'fenerbahce', 'besiktas', 'trabzonspor'],
     derbies: [{ name: 'Istanbul derby', clubs: ['galatasaray', 'fenerbahce', 'besiktas'] }],
+    favourites: ['fenerbahce', 'galatasaray', 'besiktas'],
   },
   71: {
     id: 71, name: 'Brasileirão Série A', country: 'BR', timezone: 'America/Sao_Paulo',
@@ -65,7 +68,17 @@ export const LEAGUES: Record<number, LeagueProfile> = {
     bigClubs: ['inter miami', 'la galaxy', 'los angeles fc'],
     derbies: [{ name: 'El Tráfico', clubs: ['la galaxy', 'los angeles fc'] }],
   },
+  // European club competitions: midweek games. Picked by lib/football/selection.ts, not by derbies.
+  2: { id: 2, name: 'UEFA Champions League', country: 'EU', timezone: 'Europe/Paris', bigClubs: [], derbies: [] },
+  3: { id: 3, name: 'UEFA Europa League', country: 'EU', timezone: 'Europe/Paris', bigClubs: [], derbies: [] },
+  848: { id: 848, name: 'UEFA Conference League', country: 'EU', timezone: 'Europe/Paris', bigClubs: [], derbies: [] },
 };
+
+/** The four leagues every group gets weekend picks from, and the midweek European competitions. */
+export const TOP_LEAGUES = [39, 140, 135, 78];
+export const UEFA = [2, 3, 848];
+/** A group follows its home league, the top four leagues and Europe. */
+export function leaguePack(home: number) { return [...new Set([home, ...TOP_LEAGUES, ...UEFA])]; }
 
 const COUNTRY_LEAGUE: Record<string, number> = {
   GB: 39, IE: 39, ES: 140, IT: 135, DE: 78, AT: 78, FR: 61, BE: 61, TR: 203, BR: 71, US: 253, CA: 253,
@@ -100,7 +113,7 @@ export function groupDefaults(input: { timezone?: string; country?: string }) {
   return {
     timezone: zoneOk ? input.timezone! : 'UTC', // clients always send one; UTC only for API callers that don't
     country: country || league.country,
-    leagues: [leagueId],
+    leagues: leaguePack(leagueId),
   };
 }
 

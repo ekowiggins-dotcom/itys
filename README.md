@@ -49,6 +49,20 @@ The app runs as **one service with one volume**. The embedded database is a sing
 
 Data written to the volume survives redeploys, restarts and crashes.
 
+## Football matches
+
+Football and Mixed groups need `API_FOOTBALL_KEY` from [API-Football](https://www.api-football.com) (dashboard.api-football.com → Account → My Access). Without it, football groups wait for the feed.
+
+How a football week is picked (`lib/football/selection.ts`, tested in `tests/selection.test.ts`):
+
+- The week runs **Thursday 12:00 → next Thursday**: Thursday Europa League, the weekend's league games, then Champions League on Tuesday and Wednesday. One ranking for the whole week.
+- **League games (up to 5):** the group's favourite clubs first (Türkiye: Fenerbahçe, Galatasaray, Beşiktaş), then the best games of the Premier League, La Liga, Serie A and Bundesliga, one per league before any league gets a second. "Best" = derby (100) > two big clubs (60) > both in the top four (40), plus table positions.
+- **European games (up to 5):** favourite clubs in the Champions, Europa or Conference League first, then by size: club strength (elite 40, strong 22, other 8, both elite +30), Champions League +25 / Conference League −10, knockout round (final +60 … play-off +15), both in the top eight +10.
+- **Match of the week** (exact score + over/under) is the biggest game overall; a derby between two favourite clubs wins it.
+- Groups follow their home league, the top four leagues and Europe by default (`leaguePack` in `lib/locale.ts`). Club tiers live in `selection.ts`; review them each summer.
+
+**Requests:** each league's schedule is refreshed every 6 hours, and only featured matches that are about to start or being played are polled every 15 minutes (by id, 20 per request). That's about 50–90 requests a day for a Türkiye group (8 leagues). The free plan allows 100 a day but may not include the current season: if the Group tab says the provider rejected the request, upgrade to Pro.
+
 ## Practice groups (testing)
 
 Set `PRACTICE_GROUPS=1` on the server to show a **Practice group** option when creating a group. Practice groups run the normal rules on a fast clock: the round opens as soon as three people have joined, calls lock within 45 minutes, results can be disputed for 3 minutes, unresolved calls void 10 minutes after their event, standings publish at +50 minutes and the next round opens every hour. Normal groups are never affected, even while the setting is on. Remove the variable to hide the option; existing practice groups keep their fast clock.
