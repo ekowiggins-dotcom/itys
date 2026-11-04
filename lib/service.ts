@@ -115,7 +115,8 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const careers=await careerView(tx,group.id,rounds as unknown as Parameters<typeof careerView>[2]);
  const suggestions=alerts.filter(a=>a.stage==='suggestion');
  const t=timingFor(group.practice);
- return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,careers,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
+ const linked=!!(await tx.query('SELECT 1 FROM users WHERE id=$1 AND apple_sub IS NOT NULL',[user!.id])).rows.length;
+ return {linked,timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,careers,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
 /** Public preview of one shared bet for people opening an invite link before they join.

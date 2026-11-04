@@ -10,7 +10,8 @@ import HowItWorks from './HowItWorks';
 import {BRAND,BRAND_NAME} from '../lib/brand';
 import {api,webOrigin,setSession,lastInvite,rememberInvite,NATIVE} from './api-client';
 import {initNative,haptic,updateWidget} from './native';
-import {Face,Faces,Icon} from './ui';
+import {Face,Faces,Icon,Sheet,AppleButton} from './ui';
+import {appleIdToken} from './apple';
 import {type Call,type Snapshot,sortCalls,answersOf,label,matchTitle} from './calls';
 import {CallsList,SectionTitle,type CallsAct,type CallsCtx} from './CallsTab';
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview} from './Sheets';
@@ -23,7 +24,7 @@ import type {SeasonView} from './SeasonsPanel';
 
 type Preview={answers?:{value:string;label:string}[];kickoff?:string|null;id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
 type Member={user_id:string;name:string;active:boolean;admin:boolean;fallback?:boolean};
-type GroupView=LifecycleData & FootballData & {timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
+type GroupView=LifecycleData & FootballData & {linked?:boolean;timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
 type Tab='calls'|'ranking'|'group';
 const TABS:{id:Tab;label:string;icon:string}[]=[{id:'calls',label:'Calls',icon:'calls'},{id:'ranking',label:'Ranking',icon:'ranking'},{id:'group',label:'Group',icon:'group'}];
 const SEEN='calld.seen.';
@@ -37,11 +38,12 @@ export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
  const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
+ const [apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
 
  async function load(code:string){const r=await api('/api?invite='+encodeURIComponent(code)+(selectedRound.current?'&round='+encodeURIComponent(selectedRound.current):'')+(focusRef.current?'&question='+encodeURIComponent(focusRef.current):''));const d=await r.json();if(!r.ok)throw Error(d.error);setData(d);void rememberInvite(code);}
  const focusRef=useRef('');
- useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>setPracticeAllowed(!!c.practiceAllowed)).catch(()=>{})},[]);
+ useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null})}).catch(()=>{})},[]);
  useEffect(()=>{setOrigin(webOrigin());void (async()=>{const params=new URLSearchParams(location.search);focusRef.current=params.get('question')||'';setFocusQuestion(focusRef.current);if(params.get('view')==='winner')setTab('ranking');const code=params.get('invite')||(await lastInvite())||'';selectedRound.current=params.get('round')||'';setInvite(code);if(code)await load(code).catch(e=>setError(e.message));setLoading(false);if(NATIVE)void initNative({onOpen:url=>{void openLink(url)}});})()},[]);
  async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
  useEffect(()=>{if(!invite)return;const timer=setInterval(()=>{void load(invite).catch(()=>{})},15000);return ()=>clearInterval(timer)},[invite]);
@@ -84,7 +86,10 @@ export default function Home(){
  function startFlow(first:Call,preset?:string){const open=sortCalls(calls,me,Date.now()).yourTurn.map(c=>c.id).filter(id=>id!==first.id);const ids=!first.answer?[first.id,...open]:[first.id];setFlow(ids);setPick({call:first,preset})}
  function advance(from:Call){const ids=flow||[];const i=ids.indexOf(from.id);const next=ids.slice(i+1).map(id=>findCall(id)).find(c=>c&&!c.answer&&c.state==='open'&&Date.now()<Date.parse(c.locks_at));if(next){setPick({call:next});return true}setPick(null);setFlow(null);return false}
  function nextLockAt(){const t=[...calls.filter(c=>c.state==='open'&&!c.fixture_id).map(c=>Date.parse(c.locks_at)),...(data?.questions||[]).filter(q=>(q.market||'custom')!=='custom').map(q=>Date.parse(q.locks_at))].filter(x=>x>clock).sort((a,b)=>a-b);return t[0]}
- async function joinAndPick(name:string,answer:string,p:Preview|null){const joined=await act({action:'join',name});if(!joined)return;if(!p||!answer){setNotice('You’re in. Let’s make it interesting.');return;}const ok=await act(p.scope==='longterm'?{action:'predictLongterm',questionId:p.id,answer}:{action:'predict',questionId:p.id,answer});setNotice(ok?'You’re in, and your call is saved.':'You’re in. That call isn’t taking picks right now.');}
+ async function joinAndPick(name:string,answer:string,p:Preview|null){if(p)focused.current=p.id;const joined=await act({action:'join',name});if(!joined)return;if(!p||!answer){setNotice('You’re in. Let’s make it interesting.');return;}const ok=await act(p.scope==='longterm'?{action:'predictLongterm',questionId:p.id,answer}:{action:'predict',questionId:p.id,answer});if(ok&&!NATIVE&&canApple){setSaving(true);return}setNotice(ok?'You’re in, and your call is saved.':'You’re in. That call isn’t taking picks right now.');}
+ const canApple=NATIVE||!!apple.servicesId;
+ /** Sign in with Apple: saves this account (web) or finds it (app, new phone). On the web, then on to the App Store. */
+ async function signInApple(){try{const idToken=await appleIdToken(apple.servicesId);if(!idToken)return;if(!await act({action:'appleSignIn',idToken}))return;setSaving(false);if(!NATIVE&&apple.storeUrl){location.href=apple.storeUrl;return}setNotice(NATIVE?'You’re back in.':'Saved. Sign in with Apple in the app and your calls are there.')}catch(e){setError((e as Error).message)}}
  function go(t:Tab){setTab(t);window.scrollTo({top:0});void haptic('tap');}
 
  if(loading)return <main className="c-loading" role="status"><span className="c-brandmark big">{BRAND}</span></main>;
@@ -103,6 +108,7 @@ export default function Home(){
    <button className="c-btn" disabled={busy}>Create group <Icon name="arrow"/></button>
    <small>The game starts once three friends join. Points are free and can’t be bought or cashed out. For players aged 18 and over.</small>
   </form>
+  {canApple&&<div className="c-signin"><small>Already made a call?</small><AppleButton busy={busy} onClick={()=>void signInApple()}/></div>}
   {error&&<p className="c-toast error" role="alert">{error}</p>}
  </main>;
 
@@ -166,6 +172,7 @@ export default function Home(){
   {tab==='group'&&<>
    <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>
     <button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>
+   {canApple&&data.linked===false&&<section className="c-card save"><span className="c-kicker dark">Your account</span><h3>Don’t lose your calls</h3><p className="c-sub">Sign in with Apple to keep your calls, points and level on any phone, and to pick up where you left off in the app.</p><AppleButton busy={busy} onClick={()=>void signInApple()}/></section>}
    <FootballPanel data={data} act={p=>act(p)} busy={busy}/>
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
    <HowItWorks/>
@@ -180,6 +187,11 @@ export default function Home(){
   <ResultSheet call={result} snaps={snaps} meName={meName} onClose={()=>setResult(null)} onShare={(c,text)=>{const url=linkFor(c);setResult(null);setSharing({title:'Rub it in',url,text:text+' '+url})}}/>
   <ResolveSheet call={resolving?.call||null} mode={resolving?.mode||'set'} busy={busy} onClose={()=>setResolving(null)} onPick={(c,answer)=>act({action:resolving?.mode==='judge'?'judge':'propose',questionId:c.id,answer},resolving?.mode==='judge'?'Decided. It counts now.':'Result set. Everyone has a day to say if it’s not right.')}/>
   <NewCallSheet open={creating} now={clock} practice={practice} weeklyOpen={weeklyOpen} weeklyWhy={weeklyWhy} deadline={data.selectedRound?Date.parse(data.selectedRound.deadline_at):null} members={others} busy={busy} onClose={()=>setCreating(false)} onCreate={(c:NewCall)=>{const payload:Record<string,unknown>={...c};if(c.action==='question'){requestId.current||=crypto.randomUUID();payload.requestId=requestId.current}return act(payload).then(ok=>{if(ok)requestId.current='';return ok})}}/>
+  {saving&&<Sheet open label="Save your call" onClose={()=>setSaving(false)}><div className="c-save"><span className="c-kicker dark">Your call is in</span><h2>Save it and get the app</h2>
+   <ul><li><Icon name="check" size={18} stroke={2.6}/>See how the group splits the moment picks close</li><li><Icon name="check" size={18} stroke={2.6}/>A nudge when friends make their calls</li><li><Icon name="check" size={18} stroke={2.6}/>Your calls, points and level on any phone</li></ul>
+   <AppleButton busy={busy} onClick={()=>void signInApple()}>{apple.storeUrl?'Sign in with Apple & get the app':'Sign in with Apple'}</AppleButton>
+   <p className="c-hint">{apple.storeUrl?'In the app, sign in with Apple again: your call will be there.':'Later, sign in with Apple in the app and your call will be there.'}</p>
+   <button className="c-link" onClick={()=>{setSaving(false);setNotice('You’re in, and your call is saved.')}}>Not now</button></div></Sheet>}
   <ProfileSheet c={data.careers?.find(c=>c.user_id===profile)||null} name={names[profile]||''} me={profile===me} onClose={()=>setProfile('')}/>
   <LevelUpSheet c={levelUp&&myCareer?myCareer:null} from={levelUp} onClose={()=>setLevelUp('')} onShare={()=>{const url=groupLink;setLevelUp('');if(myCareer)setSharing({title:'Tell the group',url,text:`Just levelled up to ${myCareer.level.name} in ${data.group.name} (${myCareer.points.toLocaleString('en-GB')} career points). ${url}`})}}/>
   <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>

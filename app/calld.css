@@ -431,3 +431,16 @@ main.app .c-form-row .c-btn,.c-form-row .c-btn{width:auto;flex:0 0 auto;min-heig
 .c-settings .c-check{display:flex;align-items:center;gap:8px;font-size:14px;min-height:36px}
 .c-settings .c-check input{width:20px;height:20px;margin:0}
 .c-settings small{color:var(--muted);line-height:1.45}
+
+/* Sign in with Apple (Apple's black button) */
+main.app .c-apple,.c-apple{width:100%;min-height:54px;border-radius:18px;background:#000;color:#fff;border:0;display:flex;align-items:center;justify-content:center;gap:10px;font:600 17px -apple-system,'DM Sans',sans-serif;cursor:pointer}
+.c-apple:disabled{opacity:.6}
+.c-save{display:flex;flex-direction:column}
+.c-save h2{font:700 26px/1.1 'Space Grotesk',sans-serif;margin:6px 0 8px}
+.c-save ul{margin:4px 0 16px;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.c-save li{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35}
+.c-save li svg{flex:0 0 auto;margin-top:1px}
+.c-save .c-link{align-self:center;margin:6px auto 0;color:var(--muted)}
+.c-card.save{display:flex;flex-direction:column;gap:10px}
+.c-landing .c-signin{margin-top:14px;display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.c-landing .c-signin small{color:var(--soft);text-align:center}

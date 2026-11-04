@@ -53,3 +53,8 @@ export function Split({answers,counts,mine,label,compact=false}:{answers:string[
 export function Crest({team,size=52}:{team:string;size?:number}){const c=teamColors(team);
  return <span className="c-crest" aria-hidden="true" style={{width:size,height:size,background:c.fill,color:c.text,boxShadow:`inset 0 0 0 ${Math.max(3,size/14)}px ${c.ring}`,fontSize:size*0.3}}>{teamCode(team)}</span>;
 }
+
+/** Apple's own button style: black, the Apple mark, "Sign in with Apple". */
+export function AppleButton({onClick,busy,children='Sign in with Apple'}:{onClick:()=>void;busy?:boolean;children?:React.ReactNode}){
+ return <button type="button" className="c-apple" disabled={busy} onClick={onClick}><svg viewBox="0 0 17 20" width="17" height="20" aria-hidden="true"><path fill="currentColor" d="M14.2 10.6c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9C3.7 4.8 2 5.8 1.1 7.4c-1.9 3.3-.5 8.1 1.3 10.8.9 1.3 1.9 2.7 3.3 2.7 1.3-.1 1.8-.9 3.4-.9s2 .9 3.4.8c1.4 0 2.3-1.3 3.2-2.6 1-1.5 1.4-2.9 1.4-3-.1 0-2.8-1-2.9-4.6zM11.6 3c.7-.9 1.2-2 1.1-3.2-1 0-2.3.7-3 1.6-.7.8-1.3 2-1.1 3.1 1.1.1 2.3-.6 3-1.5z"/></svg><span>{children}</span></button>;
+}
