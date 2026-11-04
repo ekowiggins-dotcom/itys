@@ -41,3 +41,17 @@ npx cap open ios
 In Xcode, select your Team for both the **App** and **SidebetWidget** targets, then run on your iPhone. Builds run from Xcode use the APNs sandbox; App Store and TestFlight builds use production.
 
 If you use a different bundle ID, set `IOS_BUNDLE_ID` for both the build commands and the setup script; the App Group becomes `group.<bundle id>`.
+
+## TestFlight without a Mac
+
+`.github/workflows/testflight.yml` builds, signs and uploads the app from a GitHub-hosted Mac.
+
+1. **App Store Connect → Apps → +:** create the app (bundle ID `app.calld.ios`, name Calld). The App IDs and App Group from *One-time Apple setup* must exist first.
+2. **Users and Access → Integrations → App Store Connect API → +:** create a key with the **Admin** role, so Xcode can create signing certificates and profiles in the cloud. Download the `.p8` once; note the Key ID and Issuer ID.
+3. **GitHub → Settings → Secrets and variables → Actions:**
+   - Secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the whole `.p8` file, including the BEGIN/END lines).
+   - Variables: `API_BASE` (your server, e.g. `https://your-app.up.railway.app`) and `LINK_DOMAIN` (the same host without `https://`).
+4. **Actions → TestFlight → Run workflow.** Each run uploads a new build numbered after the run. Pushing a tag like `ios-v1.0.1` also starts one.
+5. **App Store Connect → TestFlight:** the build appears after processing (about 10–30 minutes). Add yourself under *Internal Testing* to install it right away with the TestFlight app. For friends, create an *External Testing* group with a public link; Apple reviews the first external build before the link works.
+
+Builds declare no non-exempt encryption (`ITSAppUsesNonExemptEncryption = false`; the app only uses HTTPS), so no export-compliance question is asked per build.
