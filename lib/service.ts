@@ -4,7 +4,7 @@ import {nextStart,period,validAnswer,slotLimits,cleanOptions,type GroupType,type
 import {randomBytes,randomUUID} from 'node:crypto';
 import {db} from './db';
 import {seasonViews} from './seasons';
-import {notificationView} from './notifications';
+import {notificationView,emitNotification} from './notifications';
 import {z} from 'zod';
 import {groupDefaults,validTimezone} from './locale';
 import {practiceAllowed,timingFor} from './timing';
@@ -54,7 +54,9 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
  let options:string[]|null;try{options=cleanOptions(data.options)}catch(e){throw new RuleError((e as Error).message)}
  const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,round_id,event_at,subject_id,options) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[id,g.id,user.id,z.string().trim().min(3).max(240).parse(data.text),lock,round.id,round.deadline_at,data.subjectId||null,options?JSON.stringify(options):null]);
- if(data.requestId)await tx.query('INSERT INTO question_requests VALUES($1,$2,$3,$4)',[g.id,user.id,data.requestId,id]);return {invite:data.invite,questionId:id};
+ if(data.requestId)await tx.query('INSERT INTO question_requests VALUES($1,$2,$3,$4)',[g.id,user.id,data.requestId,id]);
+ if(data.subjectId)await emitNotification(tx,{groupId:g.id,userId:data.subjectId,key:'about:'+id,kind:'about_you',text:'Your friends just made a call about you. You’ll see it once it’s settled.'},now);
+ return {invite:data.invite,questionId:id};
  }
  check(round,'Competition starts next Monday after three members join, during an active season.');
  const q=(await tx.query<{locks_at:Date;subject_id:string|null;market:string;fixture_id:string|null;options:string[]|null}>("SELECT locks_at,subject_id,market,fixture_id,options FROM questions WHERE id=$1 AND group_id=$2 AND round_id=$3 AND NOT superseded AND state='open' AND moderation_state='visible'",[data.questionId,g.id,round.id])).rows[0];check(q&&now<new Date(q.locks_at),'This call is locked or unavailable.');check(q.subject_id!==user.id,'The tagged person can’t predict on this call.');check(validAnswer(q.market,data.answer||'',q.options),'Choose a valid answer for this market.');if(q.fixture_id){const f=(await tx.query<{status:string;kickoff:Date}>('SELECT status,kickoff FROM football_fixtures WHERE id=$1',[q.fixture_id])).rows[0];check(f?.status==='scheduled'&&now<new Date(f.kickoff),'This match has started or is unavailable.');}
@@ -99,9 +101,19 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const hidden=(await tx.query<{id:string;moderation_state:string}>("SELECT id,moderation_state FROM questions WHERE group_id=$1 AND moderation_state<>'visible'",[group.id])).rows;const hiddenIds=new Set(hidden.map(q=>q.id));
  for(const row of [...questions,...bets] as Record<string,unknown>[])if(hiddenIds.has(String(row.id))){row.text='Call hidden by moderation';row.creator_name='a group member';row.moderation_state=hidden.find(q=>q.id===row.id)!.moderation_state;}
  for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(hiddenIds.has(String(row.question_id))){row.text='Call hidden by moderation';if(row.details)row.details=null;}
+ // Calls about you stay secret from you until they're settled: you only learn that one exists.
+ const secret=new Set((await tx.query<{id:string}>("SELECT id FROM questions WHERE group_id=$1 AND subject_id=$2 AND NOT superseded AND state NOT IN ('settled','void')",[group.id,user!.id])).rows.map(r=>r.id));
+ const visible=<T extends Record<string,unknown>>(rows:T[],key='id')=>rows.filter(r=>!secret.has(String(r[key])));
+ const shownQuestions=visible(questions),shownBets=visible(bets as Record<string,unknown>[]),shownSnapshots=visible(snapshots as Record<string,unknown>[],'question_id');
+ for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(secret.has(String(row.question_id))){row.text='A secret call about you';if(row.details)row.details=null;}
+ // How the group is split, without names: shown once you've made your call (or once it locks).
+ const splitIds=(shownBets as {id:string;answer:string|null;locks_at:Date}[]).filter(b=>b.answer||new Date(b.locks_at)<=now).map(b=>b.id);
+ const splits=new Map<string,Record<string,number>>();
+ for(const r of (await tx.query<{question_id:string;answer:string;n:number}>('SELECT question_id,answer,count(*)::int n FROM predictions WHERE question_id=ANY($1::text[]) GROUP BY 1,2',[splitIds])).rows){const m=splits.get(r.question_id)||{};m[r.answer]=r.n;splits.set(r.question_id,m)}
+ for(const b of shownBets)if(splits.has(String(b.id)))b.split=splits.get(String(b.id));
  const suggestions=alerts.filter(a=>a.stage==='suggestion');
  const t=timingFor(group.practice);
- return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
+ return {timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
 /** Public preview of one shared bet for people opening an invite link before they join.
@@ -109,7 +121,7 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
 export async function betPreview(invite:string,questionId:string){
  if(!/^[0-9a-f-]{36}$/i.test(questionId))return null;
  const d=await db();
- const q=(await d.query<{id:string;text:string;options:string[]|null;locks_at:Date;event_at:Date|null;scope:string;state:string;picked:number;creator_name:string}>(`SELECT q.id,q.text,q.options,q.locks_at,q.event_at,q.scope,q.state,u.name creator_name,(SELECT count(*)::int FROM predictions p WHERE p.question_id=q.id) picked FROM questions q JOIN groups g ON g.id=q.group_id JOIN users u ON u.id=q.creator WHERE g.invite=$1 AND q.id=$2 AND q.moderation_state='visible' AND NOT q.superseded AND COALESCE(q.market,'custom')='custom'`,[invite,questionId])).rows[0];
+ const q=(await d.query<{id:string;text:string;options:string[]|null;locks_at:Date;event_at:Date|null;scope:string;state:string;picked:number;creator_name:string}>(`SELECT q.id,q.text,q.options,q.locks_at,q.event_at,q.scope,q.state,u.name creator_name,(SELECT count(*)::int FROM predictions p WHERE p.question_id=q.id) picked FROM questions q JOIN groups g ON g.id=q.group_id JOIN users u ON u.id=q.creator WHERE g.invite=$1 AND q.id=$2 AND q.moderation_state='visible' AND NOT q.superseded AND COALESCE(q.market,'custom')='custom' AND q.subject_id IS NULL`,[invite,questionId])).rows[0];
  return q||null;
 }
 

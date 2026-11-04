@@ -21,7 +21,7 @@ const PATHS:Record<string,string>={
  bell:'M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 20a2 2 0 0 0 3.4 0',crown:'M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8z',
  star:'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7L12 3z',lock:'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
  clock:'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',link:'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
- info:'M12 16v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',ball:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7l4 3-1.5 5h-5L8 10z',
+ info:'M12 16v-5M12 8h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',eyeoff:'M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-3 3.6M6.6 6.6A17 17 0 0 0 2.5 12s3.5 6 9.5 6a9.6 9.6 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2',ball:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7l4 3-1.5 5h-5L8 10z',
 };
 export function Icon({name,size=20,stroke=2,className}:{name:keyof typeof PATHS|string;size?:number;stroke?:number;className?:string}){
  return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={PATHS[name]||''}/></svg>;
@@ -36,3 +36,14 @@ export function Sheet({open,onClose,label,dark=false,children,full=false}:{open:
 }
 
 export function Badge({tone,children}:{tone:'soon'|'later'|'locked'|'done'|'neutral';children:React.ReactNode}){return <span className={'c-badge '+tone}>{children}</span>}
+
+const SPLIT_COLORS=['#6FB7FF','#FF8A5B','#A98BFF','#4FD39A'];
+/** How the group is split, without names: a stacked bar, then one row of dots per answer. */
+export function Split({answers,counts,mine,label,compact=false}:{answers:string[];counts:Record<string,number>;mine?:string|null;label:(a:string)=>string;compact?:boolean}){
+ const total=answers.reduce((n,a)=>n+(counts[a]||0),0);if(!total)return null;
+ return <div className={'c-split'+(compact?' compact':'')} aria-label={answers.map(a=>(counts[a]||0)+' said '+label(a)).join(', ')}>
+  <div className="c-split-bar" aria-hidden="true">{answers.map((a,i)=>counts[a]?<i key={a} style={{flexGrow:counts[a],background:SPLIT_COLORS[i%4]}}/>:null)}</div>
+  {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label">{label(a)}{a===mine&&<em>you</em>}</span><span className="c-split-dots">{Array.from({length:counts[a]||0},(_,k)=><i key={k} style={{background:SPLIT_COLORS[i%4]}} className={a===mine&&k===0?'me':''}/>)}</span><b>{counts[a]||0}</b></div>)}
+  {compact&&<span className="c-split-legend" aria-hidden="true">{answers.filter(a=>counts[a]).map(a=>(counts[a])+' '+label(a)).join(' · ')}</span>}
+ </div>;
+}

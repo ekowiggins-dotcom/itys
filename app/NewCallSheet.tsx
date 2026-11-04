@@ -39,7 +39,7 @@ export function NewCallSheet({open,now,practice,weeklyOpen,weeklyWhy,deadline,me
   {when!=='later'&&chosen.ok&&<button type="button" className="c-link small" onClick={()=>setShowCustom(!showCustom)}>{showCustom?'Use the suggested time':'Pick an exact time'}</button>}
   {showCustom&&when!=='later'&&<input className="c-input" type="datetime-local" aria-label="Picks close at" value={custom} onChange={e=>setCustom(e.target.value)}/>}
 
-  {members.length>0&&<><span className="c-label">About someone? <small>They sit it out.</small></span><div className="c-about">{members.map(m=><button type="button" key={m.id} className={subject===m.id?'on':''} aria-pressed={subject===m.id} onClick={()=>setSubject(subject===m.id?'':m.id)}><Face name={m.name} size={26}/>{m.name}</button>)}</div></>}
+  {members.length>0&&<><span className="c-label">About someone? <small>They get a heads-up, but can’t see it until it’s settled.</small></span><div className="c-about">{members.map(m=><button type="button" key={m.id} className={subject===m.id?'on':''} aria-pressed={subject===m.id} onClick={()=>setSubject(subject===m.id?'':m.id)}><Face name={m.name} size={26}/>{m.name}</button>)}</div></>}
 
   <div className="c-sheet-foot"><span className={'c-badge '+(when==='later'?'later':'soon')}>{badge}</span>
   <button className="c-btn" disabled={!valid||busy} onClick={submit}>Post it <Icon name="arrow"/></button></div>

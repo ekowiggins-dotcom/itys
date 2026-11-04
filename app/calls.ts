@@ -1,7 +1,9 @@
 // How the Calls screen sorts and describes calls. Pure functions, so they can be tested without a browser.
 export type Call={id:string;text:string;options?:string[]|null;scope:string;locks_at:string;event_at:string|null;state:string;creator:string;creator_name:string;subject_id?:string|null;
  answer:string|null;stake?:number|null;picked?:number;picker_ids?:string[];proposed_answer:string|null;proposed_at:string|null;proposed_by?:string|null;result_answer?:string|null;
- points_tenths:number|null;allocation?:string|null;moderation_state?:string;market?:string;fixture_id?:string|null;share_code?:string|null;round_id?:string|null;forfeited?:boolean;disputes?:number;settled_at?:string|null};
+ points_tenths:number|null;allocation?:string|null;moderation_state?:string;market?:string;fixture_id?:string|null;share_code?:string|null;round_id?:string|null;forfeited?:boolean;disputes?:number;settled_at?:string|null;
+ /** Anonymous counts per answer: only sent once you've made your call, or once it locks. */
+ split?:Record<string,number>};
 export type Snapshot={question_id:string;user_id?:string;name:string;answer:string;stake:number;total:number};
 export type Sections={yourTurn:Call[];locked:Call[];inIt:Call[];later:Call[];results:Call[];hidden:Call[]};
 
