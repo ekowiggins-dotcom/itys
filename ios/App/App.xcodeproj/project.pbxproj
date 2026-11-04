@@ -18,6 +18,7 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		8B4FF018659D4F1CB7D292F3 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03F5C3B776AA415A987CD2A0 /* MainViewController.swift */; };
 		FC598A868AB4403DA7E4F7D8 /* WidgetBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BEC1480164249C9973CA780 /* WidgetBridgePlugin.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* AppleSignInPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* AppleSignInPlugin.swift */; };
 		3F368300A26D489687B5D329 /* SidebetWidget.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = F58A55F21EC14BF38A259DE2 /* SidebetWidget.appex */; };
 		7D8B566327C1476EBF7DDCA3 /* SidebetWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FFCB300F0A4BBF88639FD1 /* SidebetWidget.swift */; };
 /* End PBXBuildFile section */
@@ -36,6 +37,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		03F5C3B776AA415A987CD2A0 /* MainViewController.swift */ = {isa = PBXFileReference; name = "MainViewController.swift"; path = "MainViewController.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 		4BEC1480164249C9973CA780 /* WidgetBridgePlugin.swift */ = {isa = PBXFileReference; name = "WidgetBridgePlugin.swift"; path = "WidgetBridgePlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		B2C3D4E5F60718293A4B5C6D /* AppleSignInPlugin.swift */ = {isa = PBXFileReference; name = "AppleSignInPlugin.swift"; path = "AppleSignInPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 		A3225D38115D4F349CB6A4AD /* App.entitlements */ = {isa = PBXFileReference; name = "App.entitlements"; path = "App.entitlements"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 		F58A55F21EC14BF38A259DE2 /* SidebetWidget.appex */ = {isa = PBXFileReference; name = "SidebetWidget.appex"; path = "SidebetWidget.appex"; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = undefined; lastKnownFileType = undefined; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; };
 		64FFCB300F0A4BBF88639FD1 /* SidebetWidget.swift */ = {isa = PBXFileReference; name = "SidebetWidget.swift"; path = "SidebetWidget.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
@@ -94,6 +96,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				03F5C3B776AA415A987CD2A0 /* MainViewController.swift */,
 				4BEC1480164249C9973CA780 /* WidgetBridgePlugin.swift */,
+				B2C3D4E5F60718293A4B5C6D /* AppleSignInPlugin.swift */,
 				A3225D38115D4F349CB6A4AD /* App.entitlements */,
 			);
 			path = App;
@@ -220,6 +223,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				8B4FF018659D4F1CB7D292F3 /* MainViewController.swift in Sources */,
 				FC598A868AB4403DA7E4F7D8 /* WidgetBridgePlugin.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* AppleSignInPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

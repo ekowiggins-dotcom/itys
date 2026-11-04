@@ -15,7 +15,7 @@ if(!appTarget)throw Error('App target not found');
 const appGroupKey=proj.findPBXGroupKey({name:'App'})||proj.findPBXGroupKey({path:'App'});
 const hasFile=name=>Object.values(proj.pbxFileReferenceSection()).some(f=>typeof f==='object'&&unquote(f.path)===name);
 // 1. Native app files in the App target.
-for(const f of ['MainViewController.swift','WidgetBridgePlugin.swift'])if(!hasFile(f))proj.addSourceFile(f,{target:appTarget[0]},appGroupKey);
+for(const f of ['MainViewController.swift','WidgetBridgePlugin.swift','AppleSignInPlugin.swift'])if(!hasFile(f))proj.addSourceFile(f,{target:appTarget[0]},appGroupKey);
 if(!hasFile('App.entitlements'))proj.addFile('App.entitlements',appGroupKey);
 // 2. Widget extension target.
 let widget=targets().find(([,t])=>unquote(t.name)==='SidebetWidget');
