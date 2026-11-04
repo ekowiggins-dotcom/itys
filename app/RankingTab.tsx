@@ -22,7 +22,7 @@ export function Podium({rows,me,onProfile}:{rows:Row[];me?:string;onProfile?:(id
 export function callOfTheWeek(calls:Call[],snaps:Snapshot[]){
  let best:{name:string;answer:string;score:number;alone:boolean;text:string}|null=null;
  for(const c of calls){if(c.state!=='settled'||c.scope!=='weekly'||!c.result_answer)continue;const mine=snaps.filter(s=>s.question_id===c.id);const right=mine.filter(s=>s.answer===c.result_answer);
-  for(const s of right){const score=potential(s.stake,right.length,mine.length);if(!best||score>best.score)best={name:s.name,answer:label(c.result_answer,c),score,alone:right.length===1&&mine.length>1,text:c.text}}}
+  for(const s of right){const score=potential(c,right.length,mine.length);if(!best||score>best.score)best={name:s.name,answer:label(c.result_answer,c),score,alone:right.length===1&&mine.length>1,text:c.text}}}
  return best;
 }
 

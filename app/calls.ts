@@ -1,3 +1,4 @@
+import {callPoints} from '../lib/rules';
 // How the Calls screen sorts and describes calls. Pure functions, so they can be tested without a browser.
 export type Call={id:string;text:string;options?:string[]|null;scope:string;locks_at:string;event_at:string|null;state:string;creator:string;creator_name:string;subject_id?:string|null;
  answer:string|null;stake?:number|null;picked?:number;picker_ids?:string[];proposed_answer:string|null;proposed_at:string|null;proposed_by?:string|null;result_answer?:string|null;
@@ -60,8 +61,8 @@ export function reveal(call:Call,snaps:Snapshot[]):Group[]{
  const answers=call.market==='exact_score'?[...new Set(mine.map(s=>s.answer))]:answersOf(call);
  return answers.map(a=>({answer:a,names:mine.filter(s=>s.answer===a).map(s=>({name:s.name,id:s.user_id,stake:s.stake}))}));
 }
-/** The score a right pick earns: points × (2 − share who agreed). A lone right call is worth nearly double. */
-export function potential(stake:number,same:number,total:number){return total?Math.round(stake*(2-same/total)):stake}
+/** What an answer is worth if it's right, fixed when picks close: rarer answers score more (see lib/rules.ts). */
+export function potential(c:{market?:string;match?:Match|null},same:number,total:number){return callPoints({same,total,market:c.market,slot:c.match?.slot,exact:'exact'})}
 
 /** "Three of you went Nagelsmann. Arda went alone." */
 export function headline(groups:Group[],meName?:string,c?:Labelled){

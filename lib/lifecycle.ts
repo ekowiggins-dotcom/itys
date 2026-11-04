@@ -8,12 +8,12 @@ import {maintainSeasons} from './seasons';
 import {NORMAL,PRACTICE_ROUND,timingFor,type Timing} from './timing';
 import {emitNotification,lockReminders,weekendReminders} from './notifications';
 import {ensureRounds,snapshot,finalizeRounds} from './rounds';
-export {scoreTenths} from './rules';
+export {scoreTenths} from './rules';import {callPoints} from './rules';
 import {disputeCutoff} from './rules';
 const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
-type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null};
+type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
 export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null,t:Timing=NORMAL){return q.event_at?new Date(q.event_at).getTime()+t.resolutionMs:new Date(opens!).getTime()+(t.practice?PRACTICE_ROUND.lockByMs+t.resolutionMs:14*DAY-60000)}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
@@ -28,13 +28,17 @@ async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,proc
  await snapshot(tx,q,now);
  const predictions=(await tx.query<{user_id:string;answer:string;stake:number;forfeited:boolean}>('SELECT lp.*,COALESCE(p.forfeited,false) forfeited FROM locked_predictions lp LEFT JOIN predictions p ON p.question_id=lp.question_id AND p.user_id=lp.user_id WHERE lp.question_id=$1',[q.id])).rows;
  const long=q.scope==='longterm';
+ // Match of the week doubles every question on that match, the result included.
+ const slot=q.fixture_id&&(await tx.query('SELECT 1 FROM questions WHERE fixture_id=$1 AND round_id IS NOT DISTINCT FROM $2 AND slot=$3 AND NOT superseded LIMIT 1',[q.fixture_id,q.round_id,'motw'])).rows.length?'motw':q.slot;
  const scoreDate=long?now:(await tx.query<{opens_at:Date}>('SELECT opens_at FROM rounds WHERE id=$1',[q.round_id])).rows[0]?.opens_at||now;
  const season=(await tx.query<{id:string}>('SELECT id FROM seasons WHERE group_id=$1 AND starts_at<=$2 AND ends_at>$2',[q.group_id,scoreDate])).rows[0];
  for(const p of predictions){
  const same=predictions.filter(x=>x.answer===p.answer).length;
  const voided=answer===null,correct=answer===p.answer;
  const exact=q.market==='exact_score'&&fixture&&fixture.home90!==null&&fixture.away90!==null?exactOutcome(p.answer,fixture.home90,fixture.away90):{exact:false,partial:false};
- const numeric=(await tx.query<{value:string;tenths:number}>(`SELECT v::text value,round(v*10)::int tenths FROM (SELECT CASE WHEN $1 THEN 0::numeric WHEN $2 THEN 0::numeric WHEN $8 AND $9 THEN $3::numeric*3 WHEN $8 AND $10 THEN $3::numeric*0.5 WHEN NOT $8 AND $4 THEN $5::numeric*(2::numeric-$6::numeric/$7::numeric) ELSE 0::numeric END v) x`,[p.forfeited,voided,p.stake,correct,long?20:p.stake,same,predictions.length,q.market==='exact_score',exact.exact,exact.partial])).rows[0];
+ // Points are set now, from how the group split at the lock. Wrong, called off or forfeited: 0.
+ const value=p.forfeited||voided?0:q.market==='exact_score'?callPoints({same,total:predictions.length,market:q.market,slot,exact:exact.exact?'exact':exact.partial?'partial':null}):correct?callPoints({same,total:predictions.length,market:q.market,slot}):0;
+ const numeric={value:String(value),tenths:value*10};
  if(fixture){const old=(await tx.query<{points_value:string}>('SELECT points_value FROM scores WHERE question_id=$1 AND user_id=$2',[q.id,p.user_id])).rows[0];await tx.query('INSERT INTO football_score_revisions VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING',[randomUUID(),q.id,p.user_id,fixture.revision,old?.points_value||null,numeric.value,processingNow]);}
  const sql='INSERT INTO scores(question_id,user_id,points_tenths,settled_at,season_id,allocation,expires_at,points_value,exact_correct) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) '+(fixture?'ON CONFLICT(question_id,user_id) DO UPDATE SET points_tenths=EXCLUDED.points_tenths,points_value=EXCLUDED.points_value,exact_correct=EXCLUDED.exact_correct,settled_at=EXCLUDED.settled_at':'ON CONFLICT DO NOTHING');
  await tx.query(sql,[q.id,p.user_id,numeric.tenths,now,season?.id||null,long?(season?'credited':'pending'):'weekly',long&&!season?new Date(now.getTime()+30*DAY):null,numeric.value,!voided&&!p.forfeited&&exact.exact?1:0]);

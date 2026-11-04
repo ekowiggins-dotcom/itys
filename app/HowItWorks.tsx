@@ -2,7 +2,7 @@
 export default function HowItWorks(){
  return <details className="card how"><summary>How it works</summary><ul>
   <li><b>Nothing to spend.</b> Make as many calls as you like. You only earn points, by being right.</li>
-  <li><b>Bold calls score more.</b> A right call scores 10 × (2 − the share who agreed): 10 if everyone said the same, nearly 20 if you were alone. An exact score is worth 30.</li>
+  <li><b>Points are set when picks close,</b> from how the group split: 10 if everyone said the same, up to 40 the fewer agreed, +10 if you were the only one. Exact score 30 (40 if nobody else had it). Match of the week counts double. Wrong just means 0.</li>
   <li><b>Who said what stays secret</b> until a call locks. Once you’ve made your call you see how the group is split (4 said Yes, 2 said No), with no names.</li>
   <li><b>Calls about you</b> stay hidden from you until they’re settled. You get a heads-up that one exists, and you see it once there’s a result.</li>
   <li><b>Results:</b> whoever made the call says what happened. Anyone has a day to say it’s not right, and then a friend who stayed out of it decides. Football settles itself.</li>

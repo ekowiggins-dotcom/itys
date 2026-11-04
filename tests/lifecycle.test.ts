@@ -28,7 +28,7 @@ test('leaving preserves locked weekly results and eligibility, withdraws unlocke
  assert.equal((await d.query('SELECT 1 FROM round_eligibility WHERE group_id=$1 AND user_id=$2',[f.g,f.ids[1]])).rows.length,1);
  await lifecycle({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.ids[0],now);
  await lifecycle({action:'tick',invite:f.invite},f.ids[0],new Date(now.getTime()+DAY));
- assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows[0].points_tenths,200);
+ assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows[0].points_tenths,100);
  await execute({action:'join',invite:f.invite},f.sessions[1]);
  assert.equal((await d.query('SELECT * FROM members WHERE group_id=$1 AND user_id=$2 AND active',[f.g,f.ids[1]])).rows.length,1);
  assert.equal((await d.query('SELECT 1 FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows.length,1);
@@ -60,7 +60,7 @@ test('pending long-term points credit once at 30-day cutoff; after cutoff points
  await lifecycle({action:'season',invite:f.invite,name:'Next',startsAt:cutoff.toISOString(),endsAt:new Date(cutoff.getTime()+10*DAY).toISOString()},f.ids[2],new Date(settled.getTime()+DAY));
  await lifecycle({action:'tick',invite:f.invite},f.ids[2],new Date(cutoff.getTime()+DAY));
  await lifecycle({action:'tick',invite:f.invite},f.ids[2],new Date(cutoff.getTime()+2*DAY));
- const score=(await d.query<{allocation:string;points_tenths:number}>('SELECT * FROM scores WHERE question_id=$1',[q])).rows[0];assert.equal(score.allocation,'credited');assert.equal(score.points_tenths,200);
+ const score=(await d.query<{allocation:string;points_tenths:number}>('SELECT * FROM scores WHERE question_id=$1',[q])).rows[0];assert.equal(score.allocation,'credited');assert.equal(score.points_tenths,100);
  const f2=await fixture(),q2=await question(f2.g,f2.ids[0],'longterm');await pick(q2,f2.ids[1],'yes',10);
  await lifecycle({action:'propose',invite:f2.invite,questionId:q2,answer:'yes'},f2.ids[0],now);
  await lifecycle({action:'tick',invite:f2.invite},f2.ids[2],new Date(cutoff.getTime()+1));

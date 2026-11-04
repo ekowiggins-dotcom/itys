@@ -27,6 +27,6 @@ Plan:
 - Category: Games → Trivia or Social, or Social Networking. Not Casino, not Sports betting.
 
 ## Notes for the reviewer (paste into App Review notes)
-> This is a free social prediction game for private friend groups. Players never spend or allocate points: they make predictions, and correct predictions earn points (more when fewer friends agreed). Points cannot be purchased, sold, transferred, redeemed or exchanged for anything, and there are no prizes. The app contains no in-app purchases and no real-money features. Groups are private and invite-only; custom predictions can be reported, blocked and removed by the group admin.
+> This is a free social prediction game for private friend groups. Players never spend or allocate points: they make predictions, and correct predictions earn points, set after predictions close (more when fewer friends agreed). Points cannot be purchased, sold, transferred, redeemed or exchanged for anything, and there are no prizes. The app contains no in-app purchases and no real-money features. Groups are private and invite-only; custom predictions can be reported, blocked and removed by the group admin.
 >
 > Demo group invite: <add a demo invite link and two test accounts>
