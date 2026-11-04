@@ -8,7 +8,7 @@ const apiBase=process.env.API_BASE;
 if(!apiBase||!/^(https:\/\/|http:\/\/localhost)/.test(apiBase)){console.error('Set API_BASE to your server, e.g. API_BASE=https://your-app.up.railway.app');process.exit(1);}
 rmSync(work,{recursive:true,force:true});mkdirSync(work);
 // Screens and shared client code only: API routes, share-image routes and the scheduler stay on the server.
-const skip=new Set(['api','share','.well-known']);
+const skip=new Set(['api','share','c','.well-known']);
 cpSync(path.join(root,'app'),path.join(work,'app'),{recursive:true,filter:src=>!skip.has(path.relative(path.join(root,'app'),src).split(path.sep)[0])});
 for(const f of ['lib','package.json','tsconfig.json'])cpSync(path.join(root,f),path.join(work,f),{recursive:true});
 symlinkSync(path.join(root,'node_modules'),path.join(work,'node_modules'),'dir');

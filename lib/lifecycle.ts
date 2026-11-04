@@ -20,7 +20,7 @@ async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,no
  // Essential competition alerts never consult blocks or group mute preferences.
  const recipients=await tx.query<{user_id:string}>(`INSERT INTO alerts SELECT gen_random_uuid()::text,$1,$2,p.user_id,$3,true,$4,$5 FROM predictions p WHERE p.question_id=$2 ON CONFLICT(question_id,user_id,stage) DO NOTHING RETURNING user_id`,[q.group_id,q.id,stage,actor,now]);
  const kind=stage==='proposed'?'proposal':stage==='disputed'?'dispute':'settlement';
- const text=(stage==='proposed'?'Result proposed: ':stage==='disputed'?'Result disputed: ':'Result settled or voided: ')+q.text;
+ const text=(stage==='proposed'?'The result’s in: ':stage==='disputed'?'Someone said that’s not right: ':'Final result: ')+q.text;
  for(const m of recipients.rows)await emitNotification(tx,{groupId:q.group_id,userId:m.user_id,key:'bet:'+q.id+':'+stage,kind,questionId:q.id,roundId:q.round_id||undefined,text,eventAt:now},processingNow);
 }
 async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,processingNow=now,fixture?:Fixture){
@@ -148,7 +148,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  await tx.query('INSERT INTO disputes VALUES($1,$2,$3)',[q.id,userId,now]);await tx.query("UPDATE questions SET state='disputed' WHERE id=$1",[q.id]);await alert(tx,q,'disputed',userId,now);
  const judge=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ($3::text IS NULL OR m.user_id<>$3) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes di WHERE di.question_id=$4 AND di.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id LIMIT 1`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows[0];
  if(!judge)await settle(tx,q,null,now);
- else{const inserted=await tx.query('INSERT INTO alerts VALUES($1,$2,$3,$4,$5,true,$6,$7) ON CONFLICT(question_id,user_id,stage) DO NOTHING RETURNING id',[randomUUID(),g.id,q.id,judge.user_id,'judgment requested',userId,now]);if(inserted.rows.length)await emitNotification(tx,{groupId:g.id,userId:judge.user_id,key:'bet:'+q.id+':judgment',kind:'judgment_request',questionId:q.id,roundId:q.round_id||undefined,text:'Your judgment is needed: '+q.text},now);}
+ else{const inserted=await tx.query('INSERT INTO alerts VALUES($1,$2,$3,$4,$5,true,$6,$7) ON CONFLICT(question_id,user_id,stage) DO NOTHING RETURNING id',[randomUUID(),g.id,q.id,judge.user_id,'judgment requested',userId,now]);if(inserted.rows.length)await emitNotification(tx,{groupId:g.id,userId:judge.user_id,key:'bet:'+q.id+':judgment',kind:'judgment_request',questionId:q.id,roundId:q.round_id||undefined,text:'You’re the judge: '+q.text},now);}
  }else if(data.action==='judge'){
  check(q.state==='disputed','No open dispute.');
  const judges=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ( $3::text IS NULL OR m.user_id<>$3 ) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes d WHERE d.question_id=$4 AND d.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows;

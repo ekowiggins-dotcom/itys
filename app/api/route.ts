@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 import { LifecycleError } from '../../lib/lifecycle';
 import { corsHeaders, isNativeOrigin, sessionToken } from '../../lib/native-client';
 import { practiceAllowed } from '../../lib/timing';
+import { resolveCode } from '../../lib/short-links';
 export const runtime='nodejs';
 async function token(req:NextRequest){return sessionToken((await cookies()).get('prediction_session')?.value,req.headers.get('authorization'));}
 export async function OPTIONS(req:NextRequest){const headers=corsHeaders(req.headers.get('origin'));return new NextResponse(null,{status:Object.keys(headers).length?204:403,headers});}
@@ -12,6 +13,8 @@ export async function GET(req:NextRequest) {
   const cors=corsHeaders(req.headers.get('origin'));
   try {
     if(req.nextUrl.searchParams.get('config')!==null)return NextResponse.json({practiceAllowed:practiceAllowed()},{headers:{'Cache-Control':'no-store',...cors}});
+    // The app opens short links (/c/<code>) itself, so it asks what a code points at.
+    const code=req.nextUrl.searchParams.get('code');if(code!==null){const target=await resolveCode(code);return NextResponse.json(target||{error:'This link has expired.'},{status:target?200:404,headers:{'Cache-Control':'no-store',...cors}});}
     const invite=req.nextUrl.searchParams.get('invite')||'',question=req.nextUrl.searchParams.get('question');
     const result=await view(invite,await token(req),req.nextUrl.searchParams.get('round')||undefined);
     const preview=question&&!result.joined?await betPreview(invite,question):null;
