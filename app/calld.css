@@ -410,3 +410,9 @@ main.app .c-btn.small-share{min-height:44px;font-size:14px;margin-top:8px}
 .c-stepper button{width:44px;height:44px;border-radius:14px;border:0;background:var(--paper);color:var(--ink);font:700 22px 'DM Sans',sans-serif;cursor:pointer}
 .c-stepper button:disabled{opacity:.35;cursor:default}
 .c-stepper b{min-width:36px;text-align:center;font:700 30px 'Space Grotesk',sans-serif}
+/* Going through the week's calls one after another */
+.c-steps{display:flex;gap:4px;flex:1;margin-right:10px;max-width:220px}
+.c-steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.c-steps i.done{background:var(--ink)}.c-steps i.now{background:var(--lime);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.c-link.center{align-self:center;margin:4px auto 0;color:var(--muted)}
+.c-btn svg{margin-left:6px}

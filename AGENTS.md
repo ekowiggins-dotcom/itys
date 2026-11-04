@@ -3,7 +3,7 @@
 This is a **free prediction game between friends**. It must never become, or look like, gambling. That protects the App Store listing, the age rating, and the app's legal position (including in Türkiye). `tests/policy.test.ts` enforces most of this: **never loosen those tests to make a change pass.** If a feature seems to need it, stop and ask the product owner.
 
 ## Hard rules for points
-- Confidence points are **free**. Everyone gets 100 per round; they reset every round.
+- Points are **only earned**, by being right. Nobody spends, chooses, allocates or risks points: every pick counts the same (`PICK_POINTS` = 10 in `lib/rules.ts`). A right call scores 10 × (2 − share who agreed), an exact score 30. A called-off call counts for nobody.
 - Points can **never** be bought, sold, gifted, traded, transferred between people, or cashed out.
 - **No prizes** of any kind, cash or otherwise, are tied to points or rankings.
 - No wallets, balances, top-ups, payments or in-app purchases connected to points.
@@ -11,14 +11,13 @@ This is a **free prediction game between friends**. It must never become, or loo
 - Every new server action must be added to the reviewed list in `tests/policy.test.ts` after confirming it cannot move points or exchange them for anything.
 
 ## Words
-Players read **calls, predictions, picks and confidence points**. Never use bet, betting, wager, stake, odds, payout, gamble, jackpot, casino or bookie in anything a player sees: UI, notifications, share cards, error messages, store listing.
+Players read **calls, predictions, picks and points**. Never use bet, betting, wager, stake, odds, payout, gamble, jackpot, casino or bookie in anything a player sees: UI, notifications, share cards, error messages, store listing.
 Internal code names (`bets`, `stake`, `removeBet`, `/share/bet`) may stay; they're never shown.
 
 | Instead of | Write |
 |---|---|
 | Add a bet | Add a call |
 | Long-term bets | Long-term calls |
-| Stake 20 | Lock in 20 pts / put 20 points on it |
 | Payout, odds | Score, "bold calls score more" |
 
 ## Visuals

@@ -45,7 +45,7 @@ export function Split({answers,counts,mine,label,compact=false}:{answers:string[
  return <div className={'c-split'+(compact?' compact':'')} aria-label={answers.map(a=>(counts[a]||0)+' said '+label(a)).join(', ')}>
   <div className="c-split-bar" aria-hidden="true">{answers.map((a,i)=>counts[a]?<i key={a} style={{flexGrow:counts[a],background:SPLIT_COLORS[i%4]}}/>:null)}</div>
   {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label">{label(a)}{a===mine&&<em>you</em>}</span><span className="c-split-dots">{Array.from({length:counts[a]||0},(_,k)=><i key={k} style={{background:SPLIT_COLORS[i%4]}} className={a===mine&&k===0?'me':''}/>)}</span><b>{counts[a]||0}</b></div>)}
-  {compact&&<span className="c-split-legend" aria-hidden="true">{answers.filter(a=>counts[a]).map(a=>(counts[a])+' '+label(a)).join(' · ')}</span>}
+  {compact&&<span className="c-split-legend" aria-hidden="true">{answers.filter(a=>counts[a]).map(a=>counts[a]+' said '+label(a)).join(' · ')}</span>}
  </div>;
 }
 

@@ -1,3 +1,5 @@
+/** Every pick is worth the same. Nobody spends or chooses points: a right call earns 10 to 20 (more when fewer friends agreed), an exact score 30. */
+export const PICK_POINTS=10;
 export const DAY_MS=86400000;
 export function disputeCutoff(proposedAt:number,resolutionAt:number,windowMs=DAY_MS){return Math.min(proposedAt+windowMs,resolutionAt)}
 export function pendingAllocation(settledAt:number,startsAt:number|null,now:number):'pending'|'credited'|'expired'{

@@ -77,7 +77,7 @@ const who=(name:string,me?:string,capital=false)=>name===me?(capital?'You':'you'
 
 /** Your result line on a settled call. */
 export function outcome(c:Call){
- if(c.state==='void')return {tone:'void' as const,text:'Called off · points back'};
+ if(c.state==='void')return {tone:'void' as const,text:'Called off · doesn’t count'};
  if(!c.answer)return {tone:'none' as const,text:label(c.result_answer||'',c)+' it was'};
  const right=c.answer===c.result_answer;
  return right?{tone:'win' as const,text:'You called it · +'+pts(c.points_tenths)}:{tone:'miss' as const,text:'You said '+label(c.answer,c)};

@@ -39,7 +39,7 @@ test('resolution deadline cuts short disputes; failed late judgment cannot roll 
  await lifecycle({action:'dispute',invite:f.invite,questionId:q},f.ids[1],new Date(now.getTime()+1000));
  await assert.rejects(lifecycle({action:'judge',invite:f.invite,questionId:q,answer:'yes'},f.ids[2],new Date(now.getTime()+3600000)),/settled|deadline/);
  assert.equal((await d.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[q])).rows[0].state,'void');
- assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1',[q])).rows[0].points_tenths,200);
+ assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1',[q])).rows[0].points_tenths,0);
 });
 test('blocking preserves essential proposal, dispute and settlement alerts with deduplication',async()=>{
  const f=await fixture(),q=await question(f.g,f.ids[0]);await pick(q,f.ids[1]);

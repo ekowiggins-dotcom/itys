@@ -47,10 +47,10 @@ export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
 }
 /** New-week message. Football weeks also say who won last week, so Thursday noon is one notification, not two. */
 async function openText(tx:Transaction,r:Round){
- if(r.group_type==='Friends')return 'A new week of calls. Your 100 points are ready.';
+ if(r.group_type==='Friends')return 'A new week of calls is open. Make yours.';
  const last=(await weeklyViews(tx,r.group_id)).find(v=>v.id!==r.id&&v.state==='final'&&new Date(v.opens_at)<new Date(r.opens_at));
  const winners=last?.winners.map(w=>w.name)||[];
- return (winners.length?'Last week: '+winners.slice(0,2).join(' & ')+(winners.length>1?' shared the win. ':' won. '):'')+'New matches are in. Your 100 points are ready.';
+ return (winners.length?'Last week: '+winners.slice(0,2).join(' & ')+(winners.length>1?' shared the win. ':' won. '):'')+'New matches are in. Make your calls.';
 }
 async function insertRound(tx:Transaction,g:string,at:Date){
  const settings=(await tx.query<{practice:boolean;group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[]}|null}>('SELECT practice,group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[g])).rows[0];
@@ -88,7 +88,7 @@ export async function weeklyViews(tx:Transaction,g:string){
  const rows=(await tx.query<Omit<Standing,'rank'>>(`SELECT rm.user_id,u.name,m.active,COALESCE(round(sum(s.points_value)*10),0)::int points_tenths,COALESCE(sum(s.exact_correct),0)::int exact_correct FROM round_members rm JOIN users u ON u.id=rm.user_id JOIN members m ON m.group_id=$2 AND m.user_id=rm.user_id LEFT JOIN questions q ON q.round_id=rm.round_id AND NOT q.superseded LEFT JOIN scores s ON s.question_id=q.id AND s.user_id=rm.user_id WHERE rm.round_id=$1 GROUP BY rm.user_id,u.name,m.active`,[r.id,g])).rows;
  const standings=rankStandings(rows);
  const pending=Number((await tx.query<{count:string}>("SELECT count(*) FROM questions WHERE round_id=$1 AND state NOT IN ('settled','void')",[r.id])).rows[0].count);
- views.push({...r,pending,standings,winners:r.state==='final'?standings.filter(s=>s.rank===1):[]});
+ views.push({...r,pending,standings,winners:r.state==='final'?standings.filter(s=>s.rank===1&&s.points_tenths>0):[]});
  }
  return views;
 }

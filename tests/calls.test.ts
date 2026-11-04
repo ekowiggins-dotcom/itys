@@ -62,3 +62,4 @@ test('a match call shows the teams, not Yes / No',()=>{
  assert.equal(outcome(c({...result,state:'settled',answer:'away',result_answer:'home'})).text,'You said Liverpool');
  assert.equal(label('yes'),'Yes','custom calls keep Yes / No');
 });
+
