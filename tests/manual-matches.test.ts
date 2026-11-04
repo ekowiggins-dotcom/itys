@@ -93,7 +93,7 @@ test('a shared match previews with team names and lets a newcomer join and pick'
  for(const n of ['Ege','Can'])await execute({action:'join',invite,name:n},undefined,new Date('2030-07-31T12:00:00Z'));
  await runScheduler(thu);const v=await view(invite,a.session,undefined,thu);
  const q=(v.questions as unknown as {id:string;market:string;text:string}[]).find(x=>x.market==='result'&&x.text.startsWith('Fenerbahçe'))!;
- const share=await publicShare(invite,{questionId:q.id},thu);assert.equal(share.card.title,'Fenerbahçe – Liverpool');assert.deepEqual(share.card.options,['Fenerbahçe','Draw','Liverpool']);assert.match(share.card.when!,/Kicks off/);
+ const share=await publicShare(invite,{questionId:q.id},thu);assert.equal(share.card.title,'Fenerbahçe – Liverpool');assert.deepEqual(share.card.options,['Fenerbahçe','Draw','Liverpool']);assert.match(share.card.when!,/^(Tonight|Today|Tomorrow) \d\d:\d\d$/);assert.deepEqual(share.card.teams,['Fenerbahçe','Liverpool']);
  const p=await betPreview(invite,q.id) as unknown as {text:string;answers:{value:string;label:string}[]};assert.equal(p.text,'Fenerbahçe – Liverpool');assert.deepEqual(p.answers.map(x=>x.label),['Fenerbahçe','Draw','Liverpool']);
  const joined=await execute({action:'join',invite,name:'Deniz'},undefined,thu);
  await execute({action:'predict',invite,questionId:q.id,answer:'home',stake:20},joined.session,thu);
