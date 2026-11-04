@@ -2,18 +2,14 @@
 export const PICK_POINTS=10;
 
 /**
- * What a right answer is worth, set the moment picks close from how the group split. Nothing is spent, so a wrong call just scores 0.
- * - 10 if everyone said the same, up to 40 the fewer friends agreed: 10 + 30 × (1 − share who said it)
- * - Exact score: 30. Right winner, wrong score: 5
- * - Match of the week: 1.5× (rounded)
- * Top of the range is 40, or 60 on the match of the week.
+ * What a right answer is worth, set the moment picks close from how the group split. The same rule for every call, football or not.
+ * 10 if everyone said the same, up to 40 the fewer friends agreed: 10 + 30 × (1 − share who said it). Wrong: 0. Nothing is spent.
  */
-export function callPoints(o:{same:number;total:number;market?:string|null;slot?:string|null;exact?:'exact'|'partial'|null}){
- const boost=o.slot==='motw'?1.5:1;
- if(o.market==='exact_score')return Math.round((o.exact==='exact'?30:o.exact==='partial'?5:0)*boost);
+export function callPoints(o:{same:number;total:number}){
  const share=o.total?o.same/o.total:1;
- return Math.round(Math.round(10+30*(1-share))*boost);
+ return Math.round(10+30*(1-share));
 }
+
 export const DAY_MS=86400000;
 export function disputeCutoff(proposedAt:number,resolutionAt:number,windowMs=DAY_MS){return Math.min(proposedAt+windowMs,resolutionAt)}
 export function pendingAllocation(settledAt:number,startsAt:number|null,now:number):'pending'|'credited'|'expired'{

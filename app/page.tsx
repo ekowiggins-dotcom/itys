@@ -190,7 +190,7 @@ export default function Home(){
 function ComingUp({c,zone,now}:{c:NonNullable<GroupView['comingUp']>;zone:string;now:number}){
  const fmt=(t:string)=>new Date(t).toLocaleString('en-GB',{timeZone:zone,weekday:'short',hour:'2-digit',minute:'2-digit'});
  return <section className="c-card coming"><div className="c-card-top"><span className="c-badge later">Picks open {when(c.opensAt,now,zone)}</span><span className="c-by">{c.matches.length} matches</span></div><h3>Matches coming up</h3>
-  <div className="c-coming">{c.matches.map(m=><div key={m.home+m.kickoff} className="c-coming-row"><span className="c-coming-time">{fmt(m.kickoff)}</span><span className="c-coming-teams"><b>{m.motw?'★ ':''}{m.home} – {m.away}</b><small>{m.reason}</small></span></div>)}</div></section>;
+  <div className="c-coming">{c.matches.map(m=><div key={m.home+m.kickoff} className="c-coming-row"><span className="c-coming-time">{fmt(m.kickoff)}</span><span className="c-coming-teams"><b>{m.home} – {m.away}</b><small>{m.reason}</small></span></div>)}</div></section>;
 }
 
 function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:boolean;clock:number;onJoin:(name:string,answer:string,p:Preview|null)=>void;error:string;notice:string}){
