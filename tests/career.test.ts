@@ -17,7 +17,7 @@ test('career points add up what you won, only go up, and earn badges',async()=>{
  const a=await execute({action:'create',name:'Arda',groupName:'Crew'},undefined,base),invite=a.invite!;
  const others=[];for(const n of ['Ege','Can','Deniz'])others.push(await execute({action:'join',invite,name:n},undefined,base));
  await runScheduler(monday);const admin=(await view(invite,a.session,undefined,monday)).user!.id!;
- // Three calls; Arda alone right on all three, with Certain on each.
+ // Three calls; Arda alone right on all three.
  for(let i=0;i<3;i++){
   const t=new Date(monday.getTime()+i*60000);
   const q=(await execute({action:'question',invite,text:'Call number '+(i+1)+'?',locksAt:new Date(monday.getTime()+3600000).toISOString()},a.session,t)).questionId!;
@@ -28,10 +28,10 @@ test('career points add up what you won, only go up, and earn badges',async()=>{
  const settled=new Date(monday.getTime()+3*86400000);await runScheduler(settled);
  const v=await view(invite,a.session,undefined,settled) as unknown as {careers:Career[]};
  const arda=v.careers.find(c=>c.user_id===admin)!;
- assert.equal(arda.points,Math.round(3*30*(2-1/4)),'30 × 1.75 per call, rounded once');assert.equal(arda.level.name,'Gut Feeling');
+ assert.equal(arda.points,Math.round(3*10*(2-1/4)),'10 × 1.75 per call, rounded once');assert.equal(arda.level.name,'Hunch Hunter');
  for(const b of ['lone_wolf','hat_trick'])assert.ok(arda.badges[b],b);
  // Houdini needs fewer than a quarter agreeing (alone in 4 is exactly a quarter); counters need their target first.
  for(const b of ['houdini','crowd','early_bird'])assert.equal(arda.badges[b],undefined,b);
- assert.equal(arda.badges.lone_wolf,3);assert.equal(arda.badges.rock_solid,undefined,'Rock Solid needs 5');
+ assert.equal(arda.badges.lone_wolf,3);assert.equal(arda.badges.rock_solid,undefined,'Spot On is only for exact scores');
  const ege=v.careers.find(c=>c.user_id!==admin)!;assert.equal(ege.points,0);assert.equal(ege.level.name,'Guesser');assert.equal(ege.earned,0);
 });

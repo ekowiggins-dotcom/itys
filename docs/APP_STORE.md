@@ -3,7 +3,7 @@
 Goal: get approved without the app being treated as gambling, and be fine even if Apple rates it 18+.
 
 ## What the app is (use these words everywhere)
-A free prediction game for friend groups. Each week friends make calls on football and on each other with 100 free confidence points. Being right scores more points; the weekly winner gets bragging rights. **No money, no purchases, no prizes, no cash-out.**
+A free prediction game for friend groups. Each week friends make calls on football and on each other. There is nothing to spend: being right earns points, and bold calls (fewer friends agreeing) earn more; the weekly winner gets bragging rights. **No money, no purchases, no prizes, no cash-out.**
 
 ## Age rating
 
@@ -27,6 +27,6 @@ Plan:
 - Category: Games → Trivia or Social, or Social Networking. Not Casino, not Sports betting.
 
 ## Notes for the reviewer (paste into App Review notes)
-> This is a free social prediction game for private friend groups. Every player receives 100 free confidence points each week to spread across predictions; points reset weekly. Points cannot be purchased, sold, transferred, redeemed or exchanged for anything, and there are no prizes. The app contains no in-app purchases and no real-money features. Groups are private and invite-only; custom predictions can be reported, blocked and removed by the group admin.
+> This is a free social prediction game for private friend groups. Players never spend or allocate points: they make predictions, and correct predictions earn points (more when fewer friends agreed). Points cannot be purchased, sold, transferred, redeemed or exchanged for anything, and there are no prizes. The app contains no in-app purchases and no real-money features. Groups are private and invite-only; custom predictions can be reported, blocked and removed by the group admin.
 >
 > Demo group invite: <add a demo invite link and two test accounts>

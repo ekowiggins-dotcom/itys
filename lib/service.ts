@@ -1,4 +1,4 @@
-import {touchMember,moderationView} from './moderation';
+import {PICK_POINTS} from './rules';import {touchMember,moderationView} from './moderation';
 import {footballAction} from './football/actions';
 import {nextStart,period,validAnswer,slotLimits,cleanOptions,type GroupType,type Fixture} from './football/rules';
 import {randomBytes,randomUUID} from 'node:crypto';
@@ -61,8 +61,8 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
  }
  check(round,'Competition starts next Monday after three members join, during an active season.');
  const q=(await tx.query<{locks_at:Date;subject_id:string|null;market:string;fixture_id:string|null;options:string[]|null}>("SELECT locks_at,subject_id,market,fixture_id,options FROM questions WHERE id=$1 AND group_id=$2 AND round_id=$3 AND NOT superseded AND state='open' AND moderation_state='visible'",[data.questionId,g.id,round.id])).rows[0];check(q&&now<new Date(q.locks_at),'This call is locked or unavailable.');check(q.subject_id!==user.id,'The tagged person can’t predict on this call.');check(validAnswer(q.market,data.answer||'',q.options),'Choose a valid answer for this market.');if(q.fixture_id){const f=(await tx.query<{status:string;kickoff:Date}>('SELECT status,kickoff FROM football_fixtures WHERE id=$1',[q.fixture_id])).rows[0];check(f?.status==='scheduled'&&now<new Date(f.kickoff),'This match has started or is unavailable.');}
- const stake=z.number().int().min(5).max(30).multipleOf(5).parse(data.stake),answer=z.string().parse(data.answer);
- const used=Number((await tx.query<{total:string}>('SELECT COALESCE(sum(p.stake),0) total FROM predictions p JOIN questions q ON q.id=p.question_id WHERE q.round_id=$1 AND p.user_id=$2 AND NOT q.superseded AND p.question_id<>$3',[round.id,user.id,data.questionId])).rows[0].total);check(used+stake<=100,'You do not have enough confidence points left.');
+ // Nothing to spend: every pick counts the same. You earn points only by being right, more when fewer friends agreed.
+ const stake=PICK_POINTS,answer=z.string().parse(data.answer);
  await tx.query('INSERT INTO predictions(question_id,user_id,answer,stake,submitted_at) VALUES($1,$2,$3,$4,$5) ON CONFLICT(question_id,user_id) DO UPDATE SET answer=EXCLUDED.answer,stake=EXCLUDED.stake,submitted_at=EXCLUDED.submitted_at',[data.questionId,user.id,answer,stake,now]);await tx.query('INSERT INTO round_members VALUES($1,$2) ON CONFLICT DO NOTHING',[round.id,user.id]);return {invite:data.invite};
  });
 }

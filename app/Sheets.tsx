@@ -8,29 +8,26 @@ import {shareMessage,copyText} from './share';
 import {whatsappLink} from '../lib/sharing';
 import {BRAND} from '../lib/brand';
 
-export const LEVELS=[{name:'Hunch',pts:10},{name:'Sure',pts:20},{name:'Certain',pts:30}] as const;
-
-/** Make (or change) your call: pick an answer, say how sure you are, lock it in. */
-export function PickSheet({call,preset,names,left,longCount,now,busy,onSave,onClose}:{call:Call|null;preset?:string;names:Record<string,string>;left:number;longCount:number;now:number;busy:boolean;onSave:(c:Call,answer:string,stake:number)=>Promise<boolean>;onClose:()=>void}){
- const [answer,setAnswer]=useState(''),[stake,setStake]=useState(20);
- useEffect(()=>{if(call){setAnswer(preset||call.answer||(call.market==='exact_score'?'1-1':''));setStake(call.stake&&LEVELS.some(l=>l.pts===call.stake)?call.stake:left+(call.stake||0)>=20?20:10)}},[call?.id,preset]);
+/** Make (or change) your call: tap an answer, lock it in. Nothing to spend. With `step`, it walks through every open call one after another. */
+export function PickSheet({call,preset,names,longCount,now,busy,step,onSkip,onSave,onClose}:{call:Call|null;preset?:string;names:Record<string,string>;longCount:number;now:number;busy:boolean;step?:{n:number;of:number};onSkip?:()=>void;onSave:(c:Call,answer:string)=>Promise<boolean>;onClose:()=>void}){
+ const [answer,setAnswer]=useState('');
+ useEffect(()=>{if(call)setAnswer(preset||call.answer||(call.market==='exact_score'?'1-1':''))},[call?.id,preset]);
  if(!call)return null;
- const long=call.scope==='longterm',budget=left+(call.answer?call.stake||0:0);
+ const long=call.scope==='longterm';
  const pickers=(call.picker_ids||[]).map(id=>names[id]).filter(Boolean);
  const fullLong=long&&!call.answer&&longCount>=3;
- const canSave=!!answer&&!busy&&!fullLong&&(long||stake<=budget);
+ const canSave=!!answer&&!busy&&!fullLong;
+ const more=!!step&&step.n<step.of;
  return <Sheet open label="Make your call" onClose={onClose}>
-  <div className="c-sheet-head">{long?<Badge tone="later">{call.event_at?'We’ll know in '+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):'Later'}</Badge>:<Badge tone="soon">Locks in {countdown(call.locks_at,now)}</Badge>}</div>
-  {call.match?<><MatchHead c={call}/><p className="c-sub center">{call.match.league||'Football'}{call.market==='over_under'?' · 3 or more goals?':call.market==='exact_score'?' · exact score after 90 minutes':' · result after 90 minutes'}{pickers.length?' · '+pickers.length+' in':''}</p></>
-  :<><h2 className="c-title">{call.text}</h2>
-  <p className="c-sub">{call.creator_name}’s call{pickers.length?' · '+pickers.length+' in':''} · {call.split?'who said what stays secret until it locks':'make your call to see how the group is split'}</p></>}
+  <div className="c-sheet-head">{step&&step.of>1&&<div className="c-steps" aria-label={'Call '+step.n+' of '+step.of}>{Array.from({length:Math.min(step.of,20)},(_,i)=><i key={i} className={i<step.n-1?'done':i===step.n-1?'now':''}/>)}</div>}{long?<Badge tone="later">{call.event_at?'We’ll know in '+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):'Later'}</Badge>:<Badge tone="soon">{call.match?'Kick-off in ':'Locks in '}{countdown(call.locks_at,now)}</Badge>}</div>
+  {call.match?<><MatchHead c={call}/><p className="c-sub center">{call.market==='over_under'?'3 or more goals?':call.market==='exact_score'?'Exact score after 90 minutes':'Who wins? (90 minutes)'}</p></>
+  :<><h2 className="c-title">{call.text}</h2><p className="c-sub">{call.creator_name}{pickers.length?' · '+pickers.length+' in':''}</p></>}
   {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={a=>label(a,call)}/></div>}
   {call.market==='exact_score'?<ScorePicker c={call} value={answer} onChange={setAnswer}/>
   :<div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a,call)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>}
-  {!long?<div className="c-levels-wrap"><span className="c-label">How sure are you?</span><div className="c-levels" role="radiogroup" aria-label="How sure are you">{LEVELS.map(l=><button key={l.name} role="radio" aria-checked={stake===l.pts} disabled={l.pts>budget} className={'c-level'+(stake===l.pts?' on':'')} onClick={()=>setStake(l.pts)}><b>{l.name}</b><small>{l.pts} pts</small></button>)}</div>
-   <p className="c-hint">{budget<10?'You’ve used all 100 points this week. Free up some by changing another call.':call.market==='exact_score'?'Exact score right = 3×. Right winner only = half back.':'Right = up to 2× back. The fewer friends with you, the more you score.'}</p></div>
-  :<p className="c-hint">Later calls are worth 10 pts each and count for the season.{fullLong?' You already have 3 going: wait for one to finish.':''}</p>}
-  <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer,long?10:stake))onClose()}}>{!answer?'Pick one first':call.answer?'Update: '+label(answer,call)+(long?'':' · '+stake+' pts'):'Lock in '+label(answer,call)+(long?'':' · '+stake+' pts')}</button>
+  <p className="c-hint">{long?'Later calls count for the season.'+(fullLong?' You already have 3 going: wait for one to finish.':''):call.market==='exact_score'?'Exact score right = 30 pts. Right winner only = 5.':'Right = 10 to 20 pts. The fewer friends with you, the more you score.'}</p>
+  <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer)&&!more)onClose()}}>{!answer?'Pick one first':(more?'Lock in & next':call.answer?'Update to ':'Lock in ')+(more?'':label(answer,call))}{more&&answer&&<Icon name="arrow" size={18}/>}</button>
+  {more&&onSkip&&<button className="c-link center" onClick={onSkip}>Skip for now</button>}
  </Sheet>;
 }
 
@@ -53,7 +50,7 @@ export function RevealSheet({call,snaps,me,meName,onClose}:{call:Call|null;snaps
   <div className="c-reveal">{[...groups].sort((a,b)=>b.names.length-a.names.length).map(g=>{const isMine=g===mine;const alone=g.names.length===1&&total>2;return <div key={g.answer} className={'c-group'+(isMine?' mine':'')+(g.names.length?'':' empty')}>
    <div className="c-group-head"><b>{label(g.answer,call)}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
    {g.names.length>0&&<><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><div className="c-names">{g.names.map(n=><span key={n.name}><Face name={n.name} size={26}/>{n.name===meName?'You':n.name}</span>)}</div></>}
-   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer,call)}, you score +{potential(myStake,g.names.length,total)}.</p>}
+   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer,call)}, you score +{potential(myStake||10,g.names.length,total)}.</p>}
   </div>})}</div>
  </Sheet>;
 }
@@ -63,7 +60,7 @@ export function ResultSheet({call,snaps,meName,onClose,onShare}:{call:Call|null;
  if(!call)return null;
  const groups=reveal(call,snaps),right=groups.find(g=>g.answer===call.result_answer)?.names||[],wrong=groups.filter(g=>g.answer!==call.result_answer).flatMap(g=>g.names);
  const won=!!call.answer&&call.answer===call.result_answer,score=pts(call.points_tenths);
- if(call.state==='void')return <Sheet open label="Result" onClose={onClose}><span className="c-kicker dark">{call.text}</span><h2 className="c-title big">Called off.</h2><p className="c-sub">Nobody could settle this one, so everyone gets their points back.</p><button className="c-btn" onClick={onClose}>OK</button></Sheet>;
+ if(call.state==='void')return <Sheet open label="Result" onClose={onClose}><span className="c-kicker dark">{call.text}</span><h2 className="c-title big">Called off.</h2><p className="c-sub">It couldn’t be settled, so it doesn’t count for anyone.</p><button className="c-btn" onClick={onClose}>OK</button></Sheet>;
  const others=right.filter(n=>n.name!==meName).map(n=>n.name);
  return <Sheet open label="Result" onClose={onClose} full><div className={'c-result'+(won?' won':'')}>
   {won&&<div className="c-confetti" aria-hidden="true">{Array.from({length:16},(_,i)=><i key={i}/>)}</div>}

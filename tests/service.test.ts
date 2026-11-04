@@ -27,13 +27,12 @@ test('invite, identity, capacity, privacy, concurrency, edits and lock enforceme
  await execute({action:'predict',invite,questionId:ids[0],answer:'yes',stake:30},owner.session);
  await execute({action:'predict',invite,questionId:ids[1],answer:'no',stake:30},owner.session);
  const concurrent=await Promise.allSettled([2,3].map(i=>execute({action:'predict',invite,questionId:ids[i],answer:'yes',stake:30},owner.session)));
- assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,1);
- assert.equal((await view(invite,owner.session)).used,90);
+ assert.equal(concurrent.filter(r=>r.status==='fulfilled').length,2,'nothing to spend, so no pick is ever refused for points');
+ assert.equal((await view(invite,owner.session)).used,40,'every pick counts 10, whatever the client sends');
  const friendView=await view(invite,friend.session);assert.equal(friendView.questions[0].answer,null);
  await execute({action:'predict',invite,questionId:ids[0],answer:'no',stake:10},owner.session);
- assert.equal((await view(invite,owner.session)).used,70);
- await assert.rejects(execute({action:'predict',invite,questionId:ids[4],answer:'yes',stake:7},owner.session));
+ assert.equal((await view(invite,owner.session)).used,40,'changing a pick doesn’t change what it counts');
  await d.query('UPDATE questions SET locks_at=$1 WHERE id=$2',[new Date(Date.now()-1000).toISOString(),ids[0]]);
  await assert.rejects(execute({action:'predict',invite,questionId:ids[0],answer:'yes',stake:5},owner.session),/locked/);
- assert.equal((await view(invite,owner.session)).used,70);
+ assert.equal((await view(invite,owner.session)).used,40);
 });

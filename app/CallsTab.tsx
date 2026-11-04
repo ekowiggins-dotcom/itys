@@ -44,7 +44,7 @@ function MatchTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boolean})
 export function InRow({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  const about=c.subject_id===ctx.me;const long=c.scope==='longterm';
  return <article className="c-row">
-  <div className="c-row-main">{c.match&&<span className="c-row-kick">{byLine(c,ctx)}</span>}<h3>{c.text}</h3>{c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} compact/>}<p>{about?'It’s about you, so you sit this one out':long?(c.answer?'You said '+label(c.answer,c):'')+' · '+(c.picked||0)+' in':'You said '+label(c.answer||'',c)+' · '+(c.stake||0)+' pts'}</p></div>
+  <div className="c-row-main">{c.match&&<span className="c-row-kick">{byLine(c,ctx)}</span>}<h3>{c.text}</h3>{c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} compact/>}<p>{about?'It’s about you, so you sit this one out':long?(c.answer?'You said '+label(c.answer,c):'')+' · '+(c.picked||0)+' in':'You said '+label(c.answer||'',c)+' · '+(c.picked||0)+' in'}</p></div>
   <div className="c-row-side">{long?<Badge tone="later">{knowIn(c)}</Badge>:<Badge tone="neutral">{c.match?'Kick-off '+when(c.locks_at,ctx.now):closes(c,ctx.now)}</Badge>}<div className="c-row-actions"><ShareButton c={c} act={act}/>{!about&&ctx.now<Date.parse(c.locks_at)&&<button className="c-chip" onClick={()=>act.pick(c)}>Change</button>}</div></div>
  </article>;
 }

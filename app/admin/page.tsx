@@ -33,7 +33,7 @@ export default function Admin(){
      {m.status==='finished'?<b>{m.home90}–{m.away90}</b>:m.status==='void'?<b>Postponed</b>:null}
      {manual&&m.status!=='void'&&<><input aria-label={m.home+' goals'} inputMode="numeric" style={{width:52,minHeight:40,margin:0,padding:'0 8px'}} value={s.h} onChange={e=>setScores({...scores,[m.id]:{...s,h:e.target.value}})}/><input aria-label={m.away+' goals'} inputMode="numeric" style={{width:52,minHeight:40,margin:0,padding:'0 8px'}} value={s.a} onChange={e=>setScores({...scores,[m.id]:{...s,a:e.target.value}})}/>
       <button className="c-chip" disabled={busy||s.h===''||s.a===''} onClick={()=>post({action:'adminResult',id:m.id,home:Number(s.h),away:Number(s.a)})}>Save score</button>
-      <button className="c-chip" disabled={busy} onClick={()=>{if(confirm('Mark '+m.home+' – '+m.away+' as postponed? Everyone gets their points back.'))void post({action:'adminVoid',id:m.id})}}>Postponed</button></>}
+      <button className="c-chip" disabled={busy} onClick={()=>{if(confirm('Mark '+m.home+' – '+m.away+' as postponed? Picks on it won’t count.'))void post({action:'adminVoid',id:m.id})}}>Postponed</button></>}
     </div>})}
   </section>
  </main>;

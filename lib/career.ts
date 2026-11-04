@@ -20,7 +20,7 @@ export const BADGES=[
  {id:'hat_trick',name:'Hat-trick',rule:'Three right in a row.',need:1},
  {id:'early_bird',name:'Early Bird',rule:'First in the group to make the call, 10 times.',need:10},
  {id:'crowd',name:'Against the Crowd',rule:'Went the other way from most of the group, and was right, 5 times.',need:5},
- {id:'rock_solid',name:'Rock Solid',rule:'Said Certain and was right, 5 times.',need:5},
+ {id:'rock_solid',name:'Spot On',rule:'Called the exact score.',need:1},
 ] as const;
 export type BadgeId=typeof BADGES[number]['id'];
 
@@ -48,7 +48,7 @@ export async function careerView(tx:Transaction,groupId:string,rounds:RoundView[
    if(total>=4&&agreeing/total<0.25)add(p.user_id,'houdini');
    if(total>=3&&agreeing===1)add(p.user_id,'lone_wolf');
    if(total>=3&&agreeing/total<0.5)add(p.user_id,'crowd');
-   if(p.stake===30)add(p.user_id,'rock_solid');
+   if(p.market==='exact_score')add(p.user_id,'rock_solid');
    const reason=(p.selection_reason||'').replace(/^Match of the week · /,'');if(p.market==='result'&&DERBIES.has(reason))add(p.user_id,'derby');
   }
   const streak=right?(run.get(p.user_id)||0)+1:0;run.set(p.user_id,streak);if(streak>0&&streak%3===0)add(p.user_id,'hat_trick');

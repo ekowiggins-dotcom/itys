@@ -43,7 +43,7 @@ export async function publishWeek(now=new Date()){
  return{from,to,leagues:leagues.size};
 }
 
-/** Final 90-minute score, or postponed/cancelled (void: everyone gets their points back). Manual matches only. */
+/** Final 90-minute score, or postponed/cancelled (void: picks on it don’t count). Manual matches only. */
 export async function setResult(id:string,result:{home:number;away:number}|'void',now=new Date()){
  const d=await db();const f=(await d.query<Fixture>("SELECT * FROM football_fixtures WHERE id=$1 AND provider='manual'",[id])).rows[0];if(!f)throw new Error('Match not found.');
  const next:Fixture={...f,kickoff:new Date(f.kickoff).toISOString(),...(result==='void'?{status:'void',home90:null,away90:null}:{status:'finished',home90:result.home,away90:result.away})};

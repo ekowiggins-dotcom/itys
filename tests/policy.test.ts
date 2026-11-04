@@ -67,10 +67,11 @@ test('no payments, wallets or prizes anywhere in the stack',()=>{
  assert.ok(!/in-app-payments|com\.apple\.developer\.in-app-payments/i.test(entitlements),'No in-app payments capability.');
 });
 
-test('confidence points reset every round and cannot exceed 100 per person',()=>{
+test('points are only earned by being right: nothing to spend, choose or move',()=>{
  const svc=readFileSync('lib/service.ts','utf8');
- assert.match(svc,/used\+stake<=100/);
- assert.match(svc,/q\.round_id=\$1 AND p\.user_id=\$2/,'the 100-point budget is per round and per person');
+ assert.match(svc,/const stake=PICK_POINTS,/,'every pick counts the same fixed amount, set by the server');
+ assert.ok(!/data\.stake/.test(svc),'players cannot choose how many points a pick is worth');
+ assert.match(readFileSync('lib/rules.ts','utf8'),/export const PICK_POINTS=10;/);
 });
 
 test('the old name never reaches players: the brand comes from lib/brand.ts',()=>{
