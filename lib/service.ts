@@ -85,7 +85,7 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const longTermCount=Number((await tx.query<{count:string}>("SELECT count(*) FROM predictions p JOIN questions q ON q.id=p.question_id WHERE q.group_id=$1 AND p.user_id=$2 AND q.scope='longterm' AND q.state NOT IN ('settled','void') AND NOT p.forfeited",[group.id,user!.id])).rows[0].count);
  const fixtureCatalog=(await tx.query('SELECT * FROM football_fixtures WHERE kickoff>$1 AND kickoff<$2 ORDER BY kickoff LIMIT 200',[now,selected?.fixture_end_at||new Date(now.getTime()+7*DAY)])).rows;
  const leagueCatalog=(await tx.query('SELECT * FROM football_leagues ORDER BY country,name')).rows;
- const feedStatus={...((await tx.query<{last_attempt:Date|null;last_success:Date|null;error:string|null}>("SELECT last_attempt,last_success,error FROM football_feed_status WHERE id='api-football'")).rows[0]||{error:'Live feed not connected'}),connected:!!process.env.API_FOOTBALL_KEY};
+ const feedStatus={...((await tx.query<{last_attempt:Date|null;last_success:Date|null;error:string|null}>("SELECT last_attempt,last_success,error FROM football_feed_status WHERE id='api-football'")).rows[0]||{error:'Live feed not connected'}),connected:!!process.env.API_FOOTBALL_KEY||process.env.FOOTBALL_FEED==='manual',manual:process.env.FOOTBALL_FEED==='manual'};
  const moderation=await moderationView(tx,group.id,user!.id,now);
  // Hidden content is redacted in every member-facing surface, including historical notifications and audit.
  const hidden=(await tx.query<{id:string;moderation_state:string}>("SELECT id,moderation_state FROM questions WHERE group_id=$1 AND moderation_state<>'visible'",[group.id])).rows;const hiddenIds=new Set(hidden.map(q=>q.id));

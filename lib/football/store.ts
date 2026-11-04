@@ -27,6 +27,8 @@ export async function syncLive(now:Date){
 export async function syncFootball(now=new Date()){
  const d=await db();const rows=(await d.query<{leagues:number[];pending_settings:{leagues?:number[];groupType?:string}|null}>("SELECT leagues,pending_settings FROM groups WHERE group_type IN ('Football','Mixed') OR pending_settings->>'groupType' IN ('Football','Mixed')")).rows;
  if(!rows.length)return{connected:!!process.env.API_FOOTBALL_KEY};
+ // Manual match list (lib/football/manual.ts): the operator enters matches and scores on /admin; never call the provider.
+ if(process.env.FOOTBALL_FEED==='manual')return{connected:true,manual:true};
  if(!process.env.API_FOOTBALL_KEY){await d.query("INSERT INTO football_feed_status(id,error) VALUES('api-football','Provider key not configured') ON CONFLICT(id) DO UPDATE SET error=EXCLUDED.error");return{connected:false};}
  const claim=await d.query("INSERT INTO football_feed_status(id,last_attempt,next_poll) VALUES('api-football',$1,$2) ON CONFLICT(id) DO UPDATE SET last_attempt=$1,next_poll=$2 WHERE football_feed_status.next_poll IS NULL OR football_feed_status.next_poll<=$1 RETURNING id",[now,new Date(now.getTime()+15*60000)]);if(!claim.rows.length)return{connected:true};
  try{

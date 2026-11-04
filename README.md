@@ -61,6 +61,8 @@ How a football week is picked (`lib/football/selection.ts`, tested in `tests/sel
 - **Match of the week** (exact score + over/under) is the biggest game overall; a derby between two favourite clubs wins it.
 - Groups follow their home league, the top four leagues and Europe by default (`leaguePack` in `lib/locale.ts`). Club tiers live in `selection.ts`; review them each summer.
 
+**Manual match list (MVP):** set `FOOTBALL_FEED=manual` and `ADMIN_KEY` (12+ random characters) in Railway. Then open `/admin`, paste the week's candidate matches (one per line: `2026-11-08 20:00 | SL | Galatasaray | Fenerbahçe`, Istanbul time), press **Publish week** before Thursday 12:00, and enter 90-minute scores (or Postponed) after the games. The same selection rules pick the featured matches; the admin page shows which ones they'd pick before you publish.
+
 **Requests:** each league's schedule is refreshed every 6 hours, and only featured matches that are about to start or being played are polled every 15 minutes (by id, 20 per request). That's about 50–90 requests a day for a Türkiye group (8 leagues). The free plan allows 100 a day but may not include the current season: if the Group tab says the provider rejected the request, upgrade to Pro.
 
 ## Practice groups (testing)

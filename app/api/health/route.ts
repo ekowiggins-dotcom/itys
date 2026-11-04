@@ -14,8 +14,9 @@ export async function GET() {
     // Football feed at a glance (never the key itself): open /api/health to check it after setting API_FOOTBALL_KEY.
     const feed = (await d.query<{ last_success: Date | null; error: string | null }>("SELECT last_success,error FROM football_feed_status WHERE id='api-football'")).rows[0];
     const counts = (await d.query<{ fixtures: number; leagues: number; groups: number }>("SELECT (SELECT count(*)::int FROM football_fixtures) fixtures,(SELECT count(DISTINCT league_id)::int FROM football_feed_windows) leagues,(SELECT count(*)::int FROM groups WHERE group_type IN ('Football','Mixed')) groups")).rows[0];
-    const football = { keySet: !!process.env.API_FOOTBALL_KEY, footballGroups: counts.groups, leaguesLoaded: counts.leagues, fixtures: counts.fixtures, lastSync: feed?.last_success || null, error: feed?.error || null,
-      note: !process.env.API_FOOTBALL_KEY ? 'Set API_FOOTBALL_KEY in Railway.' : !counts.groups ? 'Create a Football or Mixed group: the feed only syncs when one exists.' : feed?.error ? feed.error : counts.leagues < 8 ? 'Loading leagues: the free plan allows ~10 requests a minute, so this fills in over the next hour.' : 'Feed working.' };
+    const manual = process.env.FOOTBALL_FEED === 'manual';
+    const football = { mode: manual ? 'manual' : 'api-football', keySet: !!process.env.API_FOOTBALL_KEY, footballGroups: counts.groups, leaguesLoaded: counts.leagues, fixtures: counts.fixtures, lastSync: feed?.last_success || null, error: feed?.error || null,
+      note: manual ? (counts.fixtures ? 'Manual match list: '+counts.fixtures+' matches entered. Manage them at /admin.' : 'Manual match list is empty: add this week’s matches at /admin.') : !process.env.API_FOOTBALL_KEY ? 'Set API_FOOTBALL_KEY in Railway.' : !counts.groups ? 'Create a Football or Mixed group: the feed only syncs when one exists.' : feed?.error ? feed.error : counts.leagues < 8 ? 'Loading leagues: the free plan allows ~10 requests a minute, so this fills in over the next hour.' : 'Feed working.' };
     return NextResponse.json({ ok: true, storage: s.source, football }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     return NextResponse.json({ ok: false, error: 'Database unavailable' }, { status: 503 });
