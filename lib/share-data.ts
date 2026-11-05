@@ -1,4 +1,6 @@
-import {GROUP_COLORS,type Art,type Lang} from './share-art';
+import {type Art,type Lang} from './share-art';
+import {groupColor} from './colors';
+export {groupColor};
 import {momentTable} from './moment-table';
 import {db} from './db';import {reconcile} from './service';import {weeklyViews} from './rounds';import {betCard,inviteCard,winnerCard} from './sharing';import {when,kickLabel} from '../app/format';
 const MARKETS:Record<string,string[]>={result:['Home','Draw','Away']};
@@ -29,9 +31,6 @@ export async function publicShare(invite:string,target:{questionId?:string;round
 }
 
 // ── New cards (lib/share-art.tsx): the group's colour and language, friends' faces, the result ──
-const COLOR_LIST=Object.values(GROUP_COLORS);
-/** A group's colour: the one picked at setup, or one derived from its name for older groups. */
-export function groupColor(name:string,color?:string|null){if(color)return color;let h=0;for(const c of name)h=(h*31+c.codePointAt(0)!)>>>0;return COLOR_LIST[h%(COLOR_LIST.length-1)]}
 const YES_NO:Record<Lang,Record<string,string>>={en:{yes:'Yes',no:'No'},tr:{yes:'Evet',no:'Hayır'}};
 /** "Closes tonight 21:00" / "Bu akşam 21:00’de kapanıyor". */
 export function closesLabel(at:Date,now:Date,zone:string,lang:Lang){
