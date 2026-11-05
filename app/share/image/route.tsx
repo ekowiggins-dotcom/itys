@@ -1,5 +1,5 @@
 import {BRAND} from '../../../lib/brand';
-import satori from 'satori';import sharp from 'sharp';import {readFile} from 'node:fs/promises';import path from 'node:path';import {NextRequest} from 'next/server';import {publicShare,shareArt} from '../../../lib/share-data';import {renderArt} from '../../../lib/share-art';import {resolveCode,type ShareTarget} from '../../../lib/short-links';import {avatarColor,initials} from '../../../lib/avatar';import {teamColors,teamCode} from '../../../lib/team-colors';
+import satori from 'satori';import {emojiAsset} from '../../../lib/emoji';import sharp from 'sharp';import {readFile} from 'node:fs/promises';import path from 'node:path';import {NextRequest} from 'next/server';import {publicShare,shareArt} from '../../../lib/share-data';import {renderArt} from '../../../lib/share-art';import {resolveCode,type ShareTarget} from '../../../lib/short-links';import {avatarColor,initials} from '../../../lib/avatar';import {teamColors,teamCode} from '../../../lib/team-colors';
 import type {ShareCard} from '../../../lib/sharing';
 export const runtime='nodejs';
 // The 1200×630 picture chat apps show under a shared link. Everything sits inside a 1200×630 frame with no
@@ -87,7 +87,7 @@ export async function GET(req:NextRequest){
  const forName=p.get('for')?.slice(0,60)||undefined;const art=await shareArt(target.invite,{...target,forName});
  const {card}=art?{card:null}:await publicShare(target.invite,target);const f=await fonts;
  const body=art?renderArt(art):!card?null:card.kind==='bet'?(card.teams?<Match card={card}/>:<Call card={card}/>):card.kind==='invite'?<Invite card={card}/>:<Winner card={card}/>;
- const svg=await satori(body,{width:1200,height:630,fonts:[{name:'Space Grotesk',data:f[3],weight:700},{name:'Space Grotesk',data:f[4],weight:700},{name:'Noto Sans',data:f[0],weight:400},{name:'Noto Sans',data:f[1],weight:700},{name:'Noto Symbols',data:f[2],weight:400}]});
+ const svg=await satori(body,{width:1200,height:630,fonts:[{name:'Space Grotesk',data:f[3],weight:700},{name:'Space Grotesk',data:f[4],weight:700},{name:'Noto Sans',data:f[0],weight:400},{name:'Noto Sans',data:f[1],weight:700},{name:'Noto Symbols',data:f[2],weight:400}],loadAdditionalAsset:async(code,segment)=>code==='emoji'?emojiAsset(segment):''});
  const png=await sharp(Buffer.from(svg)).png().toBuffer();return new Response(new Uint8Array(png),{headers:{'Content-Type':'image/png','Cache-Control':'public, max-age=300'}});
  }catch(e){return new Response((e as Error).message,{status:(e as Error).message.includes('only after')?409:404,headers:{'Cache-Control':'no-store'}})}
 }

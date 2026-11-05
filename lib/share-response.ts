@@ -5,7 +5,11 @@ export function publicOrigin(req:NextRequest){return process.env.APP_ORIGIN||(pr
 /** The title and line WhatsApp shows under the picture, in the group's language. */
 function artText(a:Art):{title:string;description:string}{const tr=a.lang==='tr';
  switch(a.variant){
-  case 'friend':case 'choice':{const n=a.pickers.length,names=a.pickers.slice(0,2).join(', ')+(n>2?' +'+(n-2):'');return{title:a.question,description:n?(tr?`${names} seçti. Sıra sende: dokun, seç, bitti.`:`${names} ${n===1?'has':'have'} picked. Your turn: tap, pick, done.`):(tr?'İlk seçen sen ol. Ücretsiz, üyelik yok.':'Be the first to pick. Free, no sign-up.')}}
+  case 'friend':case 'choice':{
+   // Curiosity, not instructions: someone has answered, we don't say what.
+   const n=a.pickers.length,names=n>2?a.pickers.slice(0,2).join(', ')+(tr?' ve '+(n-2)+' kişi daha':' and '+(n-2)+' more'):a.pickers.join(tr?' ve ':' and '),friend=a.variant==='friend';
+   if(!n)return{title:a.question,description:tr?(friend?'Henüz kimse seçmedi. İlk ismi sen ver.':'Henüz kimse cevaplamadı. İlk sen söyle.'):(friend?'Nobody’s picked yet. Name someone first.':'Nobody’s answered yet. Go first.')};
+   return{title:a.question,description:tr?(friend?`${names} birini seçti, kimi söylemiyoruz. Sen kimi diyorsun?`:`${names} cevabını verdi, ne dediğini söylemiyoruz. Sen ne diyorsun?`):(friend?`${names} ${n===1?'has':'have'} picked someone. We’re not saying who. Who’s yours?`:`${names} ${n===1?'has':'have'} answered. We’re not saying what. What’s yours?`)}}
   case 'picked':return{title:tr?`${a.count} arkadaşın seni seçti`:`${a.count} ${a.count===1?'friend':'friends'} picked you`,description:tr?`${a.group.name}’da bir soru seni soruyor. Bak, sen de seç.`:`A call in ${a.group.name} is about you. Take a look, then make your own pick.`};
   case 'result':return{title:tr?`${a.winners.slice(0,2).join(' & ')} bildi: ${a.answer}`:`${a.winners.slice(0,2).join(' & ')} called it: ${a.answer}`,description:tr?`${a.total} kişiden ${a.right} kişi bildi.`:`${a.right} of ${a.total} saw it coming.`};
   case 'moment':if(a.sealed)return{title:a.title,description:a.sealed.closed?(tr?`Mühürlendi. ${a.sealed.opens}’de birlikte açıyoruz.`:`Sealed. We open it together on ${a.sealed.opens}.`):(tr?`Tahminlerini mühürle: ${a.sealed.opens}’e kadar kimse göremez.`:`Seal your calls: nobody sees them until ${a.sealed.opens}.`)};
