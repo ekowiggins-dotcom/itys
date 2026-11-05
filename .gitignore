@@ -54,3 +54,4 @@ Thumbs.db
 # iOS app build output
 .native-build/
 native-www/
+.scratch/

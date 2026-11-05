@@ -43,6 +43,8 @@ test('every server action is reviewed: none can buy, sell, gift, transfer or cas
   'footballSettings','footballExtra','footballSwap','footballSearch',
   // Sign in with Apple: only decides which account a device is (app/api/route.ts, lib/apple.ts). Reviewed: no points move.
   'appleSignIn',
+  // Friends' names before they join (lib/lifecycle.ts): only names, claimed on joining. Reviewed: no points move.
+  'addNames',
   // Delete my account: leaves groups and removes personal data; closed picks stay anonymised. Reviewed: no points move.
   'deleteAccount',
   // Operator-only (ADMIN_KEY): record real matches and their real scores. Reviewed: no points move between people.
