@@ -98,7 +98,8 @@ export default function Home(){
  function callText(c:Call,url:string,forName?:string){const tr=((data!.group as {lang?:string}).lang)==='tr';
   if(forName)return tr?`${forName}, bu soru seni soruyor 👀 ${url}`:`${forName}, this one's about you 👀 ${url}`;
   if(['settled','void'].includes(c.state))return tr?`${c.text} Sonuç belli 👀 ${url}`:`${c.text} The result is in 👀 ${url}`;
-  return tr?`${c.text}\nSen ne dersin? 👀 ${url}`:`${c.text}\nYour call? 👀 ${url}`}
+  // The preview already shows the question, so the message is just the nudge.
+  const who=c.answer_type==='friend';return tr?`${who?'Sen kimi diyorsun?':'Sen ne diyorsun?'} 👀 ${url}`:`${who?'Who’s your pick?':'What’s your call?'} 👀 ${url}`}
  /** Friend calls: send a friend who hasn't joined their own "you were picked" link. */
  function tagging(c:Call,url:string){if(c.answer_type!=='friend'||['settled','void'].includes(c.state))return {};const pending=((data!.group as {pending_names?:string[]}).pending_names)||[];const tags=(c.options||[]).filter(o=>pending.some(p=>p.toLowerCase()===o.toLowerCase()));if(!tags.length)return {};
   const retag=(name:string)=>setSharing(s=>{if(!s)return s;const next=s.tag===name?'':name;const u=next?url+'?for='+encodeURIComponent(next):url;return {...s,tag:next,url:u,text:callText(c,u,next||undefined),preview:cardImage(c,next||undefined)||s.preview}});
