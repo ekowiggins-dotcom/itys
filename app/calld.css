@@ -610,3 +610,6 @@ main.app .c-btn.dark-lime,.c-btn.dark-lime{background:transparent!important;colo
 .c-moment-top{align-items:flex-start;gap:12px}.c-moment-top .c-moment-emoji{font-size:30px;margin-top:2px}
 .c-moment-id{flex:1;min-width:0}.c-moment-id h3{margin:0}.c-moment-id p{margin-top:2px}
 .c-moment-top .c-badge{flex:none}
+.lifecycle .segmented{flex-wrap:wrap}
+.c-join-how li>span{flex:1}
+.lifecycle .segmented button{flex:0 0 auto}
