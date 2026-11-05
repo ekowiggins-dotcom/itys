@@ -47,6 +47,8 @@ test('every server action is reviewed: none can buy, sell, gift, transfer or cas
   'addNames',
   // Moments (lib/moments.ts): creates a few calls that close together. Same scoring as any call. Reviewed: no points move.
   'createMoment',
+  // Sealed predictions: anyone adds a call until the seal date (lib/moments.ts). Reviewed: no points move.
+  'addMomentCall',
   // Delete my account: leaves groups and removes personal data; closed picks stay anonymised. Reviewed: no points move.
   'deleteAccount',
   // Operator-only (ADMIN_KEY): record real matches and their real scores. Reviewed: no points move between people.

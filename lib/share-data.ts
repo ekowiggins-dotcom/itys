@@ -61,7 +61,8 @@ export async function shareArt(invite:string,target:{questionId?:string;roundId?
   return null;
  }
  if(q.state==='void')return null;
- if(friend&&target.forName){const n=(await d.query<{n:number}>('SELECT count(*)::int n FROM predictions WHERE question_id=$1 AND lower(answer)=lower($2)',[q.id,target.forName])).rows[0].n;
+ const sealedQ=(await d.query('SELECT 1 FROM moments m JOIN questions q ON q.moment_id=m.id WHERE q.id=$1 AND m.sealed AND m.opens_at>$2',[q.id,now])).rows.length>0;
+ if(friend&&target.forName&&!sealedQ){const n=(await d.query<{n:number}>('SELECT count(*)::int n FROM predictions WHERE question_id=$1 AND lower(answer)=lower($2)',[q.id,target.forName])).rows[0].n;
   if(n>0&&q.options?.some(o=>o.toLocaleLowerCase('tr')===target.forName!.toLocaleLowerCase('tr')))return{variant:'picked',lang,group,subject:target.forName,count:n,question:q.text};}
  // Who's in (names only, never what they picked), first to last.
  const pickers=(await d.query<{name:string}>('SELECT u.name FROM predictions p JOIN users u ON u.id=p.user_id WHERE p.question_id=$1 ORDER BY p.submitted_at',[q.id])).rows.map(r=>r.name);
@@ -72,7 +73,7 @@ export async function shareArt(invite:string,target:{questionId?:string;roundId?
 
 /** A Moment's card: before it's settled, its calls and who's in; once every call is settled, who called it best. */
 async function momentArt(g:{id:string;timezone:string},momentId:string,lang:Lang,group:{name:string;color:string},now:Date):Promise<Art|null>{
- const d=await db();const m=(await d.query<{id:string;title:string;kind:string;starts_at:Date}>('SELECT id,title,kind,starts_at FROM moments WHERE id=$1 AND group_id=$2',[momentId,g.id])).rows[0];if(!m)return null;
+ const d=await db();const m=(await d.query<{id:string;title:string;kind:string;starts_at:Date;sealed:boolean;opens_at:Date|null}>('SELECT id,title,kind,starts_at,sealed,opens_at FROM moments WHERE id=$1 AND group_id=$2',[momentId,g.id])).rows[0];if(!m)return null;
  const qs=(await d.query<{id:string;text:string;state:string}>("SELECT id,text,state FROM questions WHERE moment_id=$1 AND NOT superseded AND moderation_state='visible' ORDER BY moment_pos",[m.id])).rows;if(!qs.length)return null;
  const done=qs.every(q=>['settled','void'].includes(q.state))&&qs.some(q=>q.state==='settled');
  if(done){const t=momentTable(await d.query<{user_id:string;name:string;points:number;right:number}>(`SELECT s.user_id,u.name,sum(s.points_tenths)::int points,count(*) FILTER (WHERE s.points_tenths>0)::int "right" FROM scores s JOIN users u ON u.id=s.user_id JOIN questions q ON q.id=s.question_id WHERE q.moment_id=$1 AND q.state='settled' GROUP BY s.user_id,u.name`,[m.id]).then(r=>r.rows));
@@ -81,5 +82,6 @@ async function momentArt(g:{id:string;timezone:string},momentId:string,lang:Lang
  const at=new Date(m.starts_at),label=closesLabel(at,now,g.timezone,lang);
  const loc=lang==='tr'?'tr-TR':'en-GB',soon=at.getTime()-now.getTime()<6*86400000;
  const when=now>=at?label:at.toLocaleDateString(loc,soon?{timeZone:g.timezone,weekday:'long'}:{timeZone:g.timezone,day:'numeric',month:'long'})+' '+at.toLocaleTimeString('en-GB',{timeZone:g.timezone,hour:'2-digit',minute:'2-digit'});
- return{variant:'moment',lang,group,title:m.title,kind:m.kind,when,questions:qs.map(q=>q.text),pickers};
+ const sealed=m.sealed&&m.opens_at?{opens:new Date(m.opens_at).toLocaleDateString(loc,{timeZone:g.timezone,day:'numeric',month:'long',year:'numeric'}),closed:now>=at}:undefined;
+ return{variant:'moment',lang,group,title:m.title,kind:m.kind,when,questions:qs.map(q=>q.text),pickers,sealed};
 }

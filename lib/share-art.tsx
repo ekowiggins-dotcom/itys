@@ -10,7 +10,7 @@ export type Art=
  |{variant:'picked';lang:Lang;group:GroupLook;subject:string;count:number;question:string}
  |{variant:'result';lang:Lang;group:GroupLook;question:string;answer:string;winners:string[];right:number;total:number}
  |{variant:'invite';lang:Lang;group:GroupLook;members:string[]}
- |{variant:'moment';lang:Lang;group:GroupLook;title:string;kind:string;when:string;questions:string[];pickers:string[]}
+ |{variant:'moment';lang:Lang;group:GroupLook;title:string;kind:string;when:string;questions:string[];pickers:string[];sealed?:{opens:string;closed:boolean}}
  |{variant:'momentResult';lang:Lang;group:GroupLook;title:string;kind:string;winners:string[];right:number;of:number};
 export type GroupLook={name:string;color:string};
 
@@ -21,8 +21,8 @@ const DISPLAY='Space Grotesk, Noto Sans';
 const flex=(s:Record<string,unknown>={})=>({display:'flex',...s});
 
 const T={
- en:{calls:(n:number)=>`${n} ${n===1?'call':'calls'}`,more:(n:number)=>`+${n} more`,makeCalls:'Make your calls',oracleOf:(t:string)=>`Oracle of ${t}`,knew:(r:number,o:number)=>`${r} of ${o} right`,kinds:{birthday:'Birthday',trip:'Trip',wedding:'Wedding',night:'Night out',baby:'Baby',job:'New start',own:'Moment'} as Record<string,string>,answer:'Answer',pick:'Pick one',see:'See who',open:'Take a look',join:'Join',picked:(n:number)=>`${n} ${n===1?'friend':'friends'} picked`,you:'you',forSomething:'for something.',calledIt:'Called it.',sawIt:(r:number,t:number)=>`${r} of ${t} saw it coming`,invited:'You’re invited',waiting:(n:number)=>`${n} ${n===1?'friend is':'friends are'} making calls`,inAlready:(names:string[],more:number)=>`${names.join(', ')}${more?' +'+more:''} ${names.length+more===1?'has':'have'} picked`,beFirst:'Be the first to pick',free:'Free · no money'},
- tr:{calls:(n:number)=>`${n} soru`,more:(n:number)=>`+${n} soru daha`,makeCalls:'Tahminini yap',oracleOf:(t:string)=>`${t} kâhini`,knew:(r:number,o:number)=>`${o} sorudan ${r} doğru`,kinds:{birthday:'Doğum günü',trip:'Tatil',wedding:'Düğün',night:'Gece',baby:'Bebek',job:'Yeni başlangıç',own:'An'} as Record<string,string>,answer:'Cevap',pick:'Seç',see:'Kim ne dedi?',open:'Bak',join:'Katıl',picked:(n:number)=>`${n} arkadaşın`,you:'seni',forSomething:'seçti.',calledIt:'Bildi.',sawIt:(r:number,t:number)=>`${t} kişiden ${r} kişi bildi`,invited:'Davetlisin',waiting:(n:number)=>`${n} arkadaşın tahmin yapıyor`,inAlready:(names:string[],more:number)=>`${names.join(', ')}${more?' +'+more:''} seçti`,beFirst:'İlk seçen sen ol',free:'Ücretsiz · para yok'},
+ en:{sealBy:(w:string)=>`Seal yours by ${w}`,opensOn:(d:string)=>`Sealed · opens ${d}`,sealCta:'Seal your calls',waitCta:'See the capsule',calls:(n:number)=>`${n} ${n===1?'call':'calls'}`,more:(n:number)=>`+${n} more`,makeCalls:'Make your calls',oracleOf:(t:string)=>`Oracle of ${t}`,knew:(r:number,o:number)=>`${r} of ${o} right`,kinds:{birthday:'Birthday',trip:'Trip',wedding:'Wedding',night:'Night out',baby:'Baby',job:'New start',own:'Moment'} as Record<string,string>,answer:'Answer',pick:'Pick one',see:'See who',open:'Take a look',join:'Join',picked:(n:number)=>`${n} ${n===1?'friend':'friends'} picked`,you:'you',forSomething:'for something.',calledIt:'Called it.',sawIt:(r:number,t:number)=>`${r} of ${t} saw it coming`,invited:'You’re invited',waiting:(n:number)=>`${n} ${n===1?'friend is':'friends are'} making calls`,inAlready:(names:string[],more:number)=>`${names.join(', ')}${more?' +'+more:''} ${names.length+more===1?'has':'have'} picked`,beFirst:'Be the first to pick',free:'Free · no money'},
+ tr:{sealBy:(w:string)=>`Son mühür: ${w}`,opensOn:(d:string)=>`Mühürlü · ${d}’de açılıyor`,sealCta:'Tahminini mühürle',waitCta:'Kapsüle bak',calls:(n:number)=>`${n} soru`,more:(n:number)=>`+${n} soru daha`,makeCalls:'Tahminini yap',oracleOf:(t:string)=>`${t} kâhini`,knew:(r:number,o:number)=>`${o} sorudan ${r} doğru`,kinds:{birthday:'Doğum günü',trip:'Tatil',wedding:'Düğün',night:'Gece',baby:'Bebek',job:'Yeni başlangıç',own:'An'} as Record<string,string>,answer:'Cevap',pick:'Seç',see:'Kim ne dedi?',open:'Bak',join:'Katıl',picked:(n:number)=>`${n} arkadaşın`,you:'seni',forSomething:'seçti.',calledIt:'Bildi.',sawIt:(r:number,t:number)=>`${t} kişiden ${r} kişi bildi`,invited:'Davetlisin',waiting:(n:number)=>`${n} arkadaşın tahmin yapıyor`,inAlready:(names:string[],more:number)=>`${names.join(', ')}${more?' +'+more:''} seçti`,beFirst:'İlk seçen sen ol',free:'Ücretsiz · para yok'},
 };
 
 /** Face colours never match the card behind them. */
@@ -144,15 +144,15 @@ function Moment({a}:{a:Extract<Art,{variant:'moment'}>}){const t=T[a.lang];const
  return frame(a.group.color,<>
   {blob({right:-150,top:-170,width:470,height:470,background:'rgba(255,255,255,0.22)'})}
   <div style={flex({position:'absolute',left:56,right:56,top:46,bottom:46,flexDirection:'column'})}>
-   <div style={flex({justifyContent:'space-between',alignItems:'center'})}><Brand group={a.group}/><Chip>{t.kinds[a.kind]||t.kinds.own} · {a.when}</Chip></div>
+   <div style={flex({justifyContent:'space-between',alignItems:'center'})}><Brand group={a.group}/><Chip>{a.sealed?(a.sealed.closed?t.opensOn(a.sealed.opens):t.sealBy(a.when)):(t.kinds[a.kind]||t.kinds.own)+' · '+a.when}</Chip></div>
    <div style={flex({flexGrow:1,flexDirection:'column',justifyContent:'center'})}>
-    <div style={flex({fontFamily:DISPLAY,fontSize:a.title.length>26?62:78,fontWeight:700,lineHeight:1.02,letterSpacing:-2,marginBottom:18})}>{a.title}</div>
+    <div style={flex({alignItems:'center',marginBottom:18})}>{a.sealed&&<svg width="64" height="64" viewBox="0 0 24 24" style={{marginRight:18}}><rect x="4" y="10" width="16" height="11" rx="3" fill={INK}/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke={INK} strokeWidth="2.6" fill="none"/><circle cx="12" cy="15.5" r="1.8" fill={a.group.color}/></svg>}<div style={flex({fontFamily:DISPLAY,fontSize:a.title.length>26?62:78,fontWeight:700,lineHeight:1.02,letterSpacing:-2})}>{a.title}</div></div>
     {shown.map((q,i)=><div key={i} style={flex({alignItems:'center',marginTop:8})}><div style={flex({width:40,height:40,borderRadius:40,background:INK,color:a.group.color,alignItems:'center',justifyContent:'center',fontFamily:DISPLAY,fontSize:22,fontWeight:700,marginRight:16})}>{i+1}</div><div style={flex({fontSize:28,fontWeight:700,maxWidth:980,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'})}>{q}</div></div>)}
     {more>0&&<div style={flex({fontSize:24,fontWeight:700,opacity:0.7,marginTop:10,marginLeft:56})}>{t.more(more)}</div>}
    </div>
    <div style={flex({justifyContent:'space-between',alignItems:'center'})}>
     <div style={flex({alignItems:'center'})}>{a.pickers.slice(0,5).map((n,i)=><div key={n+i} style={flex({marginLeft:i?-16:0})}><Face name={n} size={60} ring={WHITE} i={i}/></div>)}<div style={flex({marginLeft:a.pickers.length?18:0,fontSize:26,fontWeight:700,opacity:0.8})}>{a.pickers.length?T[a.lang].inAlready(a.pickers.slice(0,2),Math.max(0,a.pickers.length-2)):t.calls(a.questions.length)}</div></div>
-    <Cta>{t.makeCalls}</Cta>
+    <Cta>{a.sealed?(a.sealed.closed?t.waitCta:t.sealCta):t.makeCalls}</Cta>
    </div>
   </div>
  </>);

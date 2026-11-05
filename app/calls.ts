@@ -76,13 +76,15 @@ export function outcome(c:Call){
 }
 
 // ── Moments ──
-export type Moment={id:string;kind:string;title:string;subject_name:string|null;starts_at:string;creator:string;share_code:string|null;created_at:string};
-export type MomentStatus='open'|'live'|'done';
+export type Moment={id:string;kind:string;title:string;subject_name:string|null;starts_at:string;creator:string;share_code:string|null;created_at:string;sealed?:boolean;opens_at?:string|null};
+/** open: picks (and, sealed, adding) still open · sealed: waiting for the opening · live: happening / opened · done: all settled. */
+export type MomentStatus='open'|'sealed'|'live'|'done';
 /** A Moment's calls in the order they were written, and where it stands. */
 export function momentView(m:Moment,calls:Call[],now:number,me?:string){
  const list=calls.filter(c=>c.moment_id===m.id&&(!c.moderation_state||c.moderation_state==='visible')).sort((a,b)=>(a.moment_pos??0)-(b.moment_pos??0));
  const settled=list.filter(c=>c.state==='settled'),open=now<Date.parse(m.starts_at);
- const status:MomentStatus=list.length&&list.every(c=>c.state==='settled'||c.state==='void')&&settled.length?'done':open?'open':'live';
+ const sealedNow=!!m.sealed&&!!m.opens_at&&now<Date.parse(m.opens_at);
+ const status:MomentStatus=list.length&&list.every(c=>c.state==='settled'||c.state==='void')&&settled.length?'done':open?'open':sealedNow?'sealed':'live';
  const toPick=open?list.filter(c=>c.state==='open'&&!c.answer&&c.subject_id!==me&&!c.forfeited):[];
  return{calls:list,status,toPick,settled:settled.length};
 }

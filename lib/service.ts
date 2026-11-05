@@ -113,10 +113,12 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  // Calls about you stay secret from you until they're settled: you only learn that one exists.
  const secret=new Set((await tx.query<{id:string}>("SELECT id FROM questions WHERE group_id=$1 AND subject_id=$2 AND NOT superseded AND state NOT IN ('settled','void')",[group.id,user!.id])).rows.map(r=>r.id));
  const visible=<T extends Record<string,unknown>>(rows:T[],key='id')=>rows.filter(r=>!secret.has(String(r[key])));
- const shownQuestions=visible(questions),shownBets=visible(bets as Record<string,unknown>[]),shownSnapshots=visible(snapshots as Record<string,unknown>[],'question_id');
+ // Sealed predictions: nobody sees how the group answered (not even the split) until the opening date.
+ const sealedIds=new Set((await tx.query<{id:string}>('SELECT q.id FROM questions q JOIN moments m ON m.id=q.moment_id WHERE m.group_id=$1 AND m.sealed AND m.opens_at>$2',[group.id,now])).rows.map(r=>r.id));
+ const shownQuestions=visible(questions),shownBets=visible(bets as Record<string,unknown>[]),shownSnapshots=visible(snapshots as Record<string,unknown>[],'question_id').filter(s=>!sealedIds.has(String(s.question_id)));
  for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(secret.has(String(row.question_id))){row.text='A secret call about you';if(row.details)row.details=null;}
  // How the group is split, without names: shown once you've made your call (or once it locks).
- const splitIds=(shownBets as {id:string;answer:string|null;locks_at:Date}[]).filter(b=>b.answer||new Date(b.locks_at)<=now).map(b=>b.id);
+ const splitIds=(shownBets as {id:string;answer:string|null;locks_at:Date}[]).filter(b=>(b.answer||new Date(b.locks_at)<=now)&&!sealedIds.has(b.id)).map(b=>b.id);
  const splits=new Map<string,Record<string,number>>();
  for(const r of (await tx.query<{question_id:string;answer:string;n:number}>('SELECT question_id,answer,count(*)::int n FROM predictions WHERE question_id=ANY($1::text[]) GROUP BY 1,2',[splitIds])).rows){const m=splits.get(r.question_id)||{};m[r.answer]=r.n;splits.set(r.question_id,m)}
  for(const b of shownBets)if(splits.has(String(b.id)))b.split=splits.get(String(b.id));
@@ -124,7 +126,7 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const suggestions=alerts.filter(a=>a.stage==='suggestion');
  const t=timingFor(group.practice);
  const linked=!!(await tx.query('SELECT 1 FROM users WHERE id=$1 AND apple_sub IS NOT NULL',[user!.id])).rows.length;
- const moments=(await tx.query('SELECT id,kind,title,subject_name,starts_at,creator,share_code,created_at FROM moments WHERE group_id=$1 ORDER BY starts_at DESC LIMIT 60',[group.id])).rows;
+ const moments=(await tx.query('SELECT id,kind,title,subject_name,starts_at,creator,share_code,created_at,sealed,opens_at FROM moments WHERE group_id=$1 ORDER BY starts_at DESC LIMIT 60',[group.id])).rows;
  return {moments,linked,timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,careers,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
@@ -138,7 +140,7 @@ export async function betPreview(invite:string,questionId:string){
  // A shared match: the answers carry team names, the call is "Home – Away".
  if(q.market==='result'&&q.home&&q.away)return {...q,text:q.home+' – '+q.away,answers:[{value:'home',label:q.home},{value:'draw',label:'Draw'},{value:'away',label:q.away}]};
  // Friends who haven't joined see how many already picked them: the reason to claim their name. Counts only, never who.
- if(q.answer_type==='friend'){const pending=((await d.query<{pending_names:string[]}>('SELECT pending_names FROM groups WHERE id=$1',[q.group_id])).rows[0]?.pending_names||[]).map(n=>n.toLocaleLowerCase('tr'));
+ if(q.answer_type==='friend'&&!(await d.query('SELECT 1 FROM moments m JOIN questions q ON q.moment_id=m.id WHERE q.id=$1 AND m.sealed AND m.opens_at>now()',[q.id])).rows.length){const pending=((await d.query<{pending_names:string[]}>('SELECT pending_names FROM groups WHERE id=$1',[q.group_id])).rows[0]?.pending_names||[]).map(n=>n.toLocaleLowerCase('tr'));
   const counts=(await d.query<{answer:string;n:number}>('SELECT answer,count(*)::int n FROM predictions WHERE question_id=$1 GROUP BY answer',[q.id])).rows;
   return {...q,group_id:undefined,pickedYou:Object.fromEntries(counts.filter(c=>pending.includes(c.answer.toLocaleLowerCase('tr'))).map(c=>[c.answer,c.n]))};}
  return {...q,group_id:undefined};
