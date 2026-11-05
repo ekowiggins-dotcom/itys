@@ -1,3 +1,4 @@
+import {L} from './i18n';
 import {callPoints} from '../lib/rules';
 // How the Calls screen sorts and describes calls. Pure functions, so they can be tested without a browser.
 export type Call={id:string;text:string;options?:string[]|null;scope:string;locks_at:string;event_at:string|null;state:string;creator:string;creator_name:string;subject_id?:string|null;resolver_id?:string|null;about_you?:boolean;
@@ -20,7 +21,7 @@ export function answersOf(c:Labelled):string[]{
 /** What an answer reads as: "Yes", "Fenerbahçe", "Over 2.5", "2–1". */
 export function label(a:string,c?:Labelled|null){
  if(c?.market==='result'){if(a==='home')return c.match?.home||'Home';if(a==='away')return c.match?.away||'Away';if(a==='draw')return 'Draw'}
- return a==='yes'?'Yes':a==='no'?'No':a;
+ return a==='yes'?L('Yes','Evet'):a==='no'?L('No','Hayır'):a;
 }
 /** "Fenerbahçe – Liverpool". */
 export function matchTitle(c:{match?:Match|null;text:string}){return c.match?c.match.home+' – '+c.match.away:c.text}

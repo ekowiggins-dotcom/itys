@@ -1,4 +1,5 @@
 'use client';
+import {t,L} from './i18n';
 import {Sheet,Icon} from './ui';
 import LevelArt from './LevelArt';
 import {BADGES} from '../lib/career';
@@ -24,29 +25,29 @@ export function BadgeMedal({id,earned,size=56}:{id:string;earned:boolean;size?:n
 /** Small "L7 Oracle · 1,240" pill with the level character. */
 export function LevelPill({c,onClick,dark=false}:{c:Career;onClick?:()=>void;dark?:boolean}){
  const inner=<><span className="c-pill-art"><LevelArt level={c.level.n} size={26}/></span>L{c.level.n} {c.level.name} · {c.points.toLocaleString('en-GB')}</>;
- return onClick?<button className={'c-level-pill'+(dark?' dark':'')} onClick={onClick} aria-label={'Your career: level '+c.level.n+' '+c.level.name+', '+c.points+' career points'}>{inner}</button>:<span className={'c-level-pill'+(dark?' dark':'')}>{inner}</span>;
+ return onClick?<button className={'c-level-pill'+(dark?' dark':'')} onClick={onClick} aria-label={t('Your career: level ')+c.level.n+' '+c.level.name+', '+c.points+' career points'}>{inner}</button>:<span className={'c-level-pill'+(dark?' dark':'')}>{inner}</span>;
 }
 
 /** A player's profile: level character, career points, streaks and badges. */
 export function ProfileSheet({c,name,me,onClose}:{c:Career|null;name:string;me:boolean;onClose:()=>void}){
  if(!c)return null;const l=c.level;
- return <Sheet open label={name+'’s career'} onClose={onClose} full>
+ return <Sheet open label={name+t('’s career')} onClose={onClose} full>
   <div className="c-profile-hero">
    <LevelArt level={l.n} size={132}/>
-   <div className="c-profile-id"><b>{me?'You':name}</b><span className="c-level-chip">Level {l.n} · {l.name}</span></div>
+   <div className="c-profile-id"><b>{me?t('You'):name}</b><span className="c-level-chip">{t('Level')} {l.n} · {l.name}</span></div>
    <span className="c-career-points">{c.points.toLocaleString('en-GB')}</span>
-   <span className="c-career-sub">career points · only ever go up</span>
-   {l.next?<div className="c-career-progress"><div className="c-bar"><i style={{width:Math.max(3,Math.round(l.progress*100))+'%'}}/></div><span>{l.next.toGo.toLocaleString('en-GB')} to {l.next.name}</span></div>:<span className="c-career-sub">Top level. Nothing gets past {me?'you':name}.</span>}
+   <span className="c-career-sub">{t('career points · only ever go up')}</span>
+   {l.next?<div className="c-career-progress"><div className="c-bar"><i style={{width:Math.max(3,Math.round(l.progress*100))+'%'}}/></div><span>{l.next.toGo.toLocaleString('en-GB')} to {l.next.name}</span></div>:<span className="c-career-sub">{t('Top level. Nothing gets past')} {me?'you':name}.</span>}
   </div>
   <div className="c-stats">
    <div><Icon name="crown" size={20}/><b>{c.weeklyWins}</b><span>weekly {c.weeklyWins===1?'win':'wins'}</span></div>
    <div><Icon name="star" size={20}/><b>{c.top3Streak}</b><span>{c.top3Streak===1?'week':'weeks'} in a row in the top 3</span></div>
    <div><Icon name="check" size={20}/><b>{c.earned}/{BADGES.length}</b><span>badges</span></div>
   </div>
-  <span className="c-label">Badges</span>
-  <div className="c-badges">{BADGES.map(b=>{const n=c.badges[b.id];return <div key={b.id} className={'c-badge-card'+(n?' on':'')}><div className="c-badge-top"><BadgeMedal id={b.id} earned={!!n}/><span className="c-badge-count">{n?'×'+n:'Not yet'}</span></div><b>{b.name}</b><small>{b.rule}</small></div>})}</div>
-  {c.history.length>0&&<><span className="c-label">Where it came from</span><div className="c-history">{c.history.map(h=><div key={h.opens_at}><span>{new Date(h.opens_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · {h.rank===1?(h.final?'won the week':'1st so far'):ordinal(h.rank)+(h.final?'':' so far')}</span><b>+{h.points}</b></div>)}</div></>}
-  <p className="c-hint">Career points are the points {me?'you’ve':name+' has'} won, added up forever. They’re never put on a call, so they can’t go down, and they can’t be spent, sent or swapped.</p>
+  <span className="c-label">{t('Badges')}</span>
+  <div className="c-badges">{BADGES.map(b=>{const n=c.badges[b.id];return <div key={b.id} className={'c-badge-card'+(n?' on':'')}><div className="c-badge-top"><BadgeMedal id={b.id} earned={!!n}/><span className="c-badge-count">{n?'×'+n:t('Not yet')}</span></div><b>{b.name}</b><small>{b.rule}</small></div>})}</div>
+  {c.history.length>0&&<><span className="c-label">{t('Where it came from')}</span><div className="c-history">{c.history.map(h=><div key={h.opens_at}><span>{new Date(h.opens_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · {h.rank===1?(h.final?'won the week':'1st so far'):ordinal(h.rank)+(h.final?'':' so far')}</span><b>+{h.points}</b></div>)}</div></>}
+  <p className="c-hint">{t('Career points are the points')} {me?t('you’ve'):name+' has'} {t('won, added up forever. They’re never put on a call, so they can’t go down, and they can’t be spent, sent or swapped.')}</p>
  </Sheet>;
 }
 const ordinal=(n:number)=>n+(n%10===1&&n%100!==11?'st':n%10===2&&n%100!==12?'nd':n%10===3&&n%100!==13?'rd':'th');
@@ -54,13 +55,13 @@ const ordinal=(n:number)=>n+(n%10===1&&n%100!==11?'st':n%10===2&&n%100!==12?'nd'
 /** Shown once, right after a result pushes you up a level. */
 export function LevelUpSheet({c,from,onClose,onShare}:{c:Career|null;from:string;onClose:()=>void;onShare:()=>void}){
  if(!c)return null;
- return <Sheet open dark full label="Level up" onClose={onClose}><div className="c-levelup">
-  <span className="c-kicker">Level up</span>
+ return <Sheet open dark full label={t("Level up")} onClose={onClose}><div className="c-levelup">
+  <span className="c-kicker">{t('Level up')}</span>
   <LevelArt level={c.level.n} size={180}/>
   <h2 className="c-huge light">{c.level.name}</h2>
-  <p className="c-sub light">You saw it coming. {from} → {c.level.name}</p>
-  {c.level.next&&<p className="c-sub light">{c.points.toLocaleString('en-GB')} career points · {c.level.next.toGo.toLocaleString('en-GB')} to {c.level.next.name}</p>}
-  <button className="c-btn" onClick={onShare}><Icon name="share"/> Tell the group</button>
-  <button className="c-link light" onClick={onClose}>Back to calls</button>
+  <p className="c-sub light">{t('You saw it coming.')} {from} → {c.level.name}</p>
+  {c.level.next&&<p className="c-sub light">{c.points.toLocaleString('en-GB')} {t('career points ·')} {c.level.next.toGo.toLocaleString('en-GB')} to {c.level.next.name}</p>}
+  <button className="c-btn" onClick={onShare}><Icon name="share"/> {t('Tell the group')}</button>
+  <button className="c-link light" onClick={onClose}>{t('Back to calls')}</button>
  </div></Sheet>;
 }

@@ -1,8 +1,9 @@
+import {lang,L} from './i18n';
 // Human-friendly times: "Today 22:00", "Tomorrow 12:00", "Sat 12:00", "12 Nov 14:00".
 const DAY = 86400000;
 
 function parts(ms: number, zone?: string) {
-  const f = new Intl.DateTimeFormat('en-GB', {
+  const f = new Intl.DateTimeFormat(lang()==='tr'?'tr-TR':'en-GB', {
     timeZone: zone, year: 'numeric', month: 'short', day: 'numeric',
     weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).formatToParts(new Date(ms));
@@ -20,9 +21,9 @@ export function when(value: string | number | Date | null | undefined, now = Dat
   const ms = new Date(value).getTime();
   if (Number.isNaN(ms)) return '';
   const p = parts(ms, zone);
-  if (dayKey(ms, zone) === dayKey(now, zone)) return 'Today ' + p.time;
-  if (dayKey(ms, zone) === dayKey(now + DAY, zone)) return 'Tomorrow ' + p.time;
-  if (dayKey(ms, zone) === dayKey(now - DAY, zone)) return 'Yesterday ' + p.time;
+  if (dayKey(ms, zone) === dayKey(now, zone)) return L('Today ','Bugün ') + p.time;
+  if (dayKey(ms, zone) === dayKey(now + DAY, zone)) return L('Tomorrow ','Yarın ') + p.time;
+  if (dayKey(ms, zone) === dayKey(now - DAY, zone)) return L('Yesterday ','Dün ') + p.time;
   if (Math.abs(ms - now) < 6 * DAY) return p.wd + ' ' + p.time;
   return p.d + ' ' + p.mon + (p.y !== parts(now, zone).y ? ' ' + p.y : '') + ' ' + p.time;
 }
@@ -30,14 +31,14 @@ export function when(value: string | number | Date | null | undefined, now = Dat
 /** "2d 4h", "3h 20m", "12m" — time left until a moment. */
 export function countdown(value: string | number | Date, now = Date.now()) {
   const left = new Date(value).getTime() - now;
-  if (left <= 0) return 'now';
+  if (left <= 0) return L('now','şimdi');
   const m = Math.floor(left / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
-  if (d > 0) return d + 'd ' + (h % 24) + 'h';
-  if (h > 0) return h + 'h ' + (m % 60) + 'm';
-  return Math.max(1, m) + 'm';
+  if (d > 0) return d + L('d ','g ') + (h % 24) + L('h','sa');
+  if (h > 0) return h + L('h ','sa ') + (m % 60) + L('m','dk');
+  return Math.max(1, m) + L('m','dk');
 }
 
-export const answerLabel = (a: string) => (a === 'yes' ? 'Yes' : a === 'no' ? 'No' : a);
+export const answerLabel = (a: string) => (a === 'yes' ? L('Yes','Evet') : a === 'no' ? L('No','Hayır') : a);
 
 /** "Tonight 20:45", "Tomorrow 19:00", "Sat 16:00". */
 export function kickLabel(at:Date|string,now:Date,zone:string){
