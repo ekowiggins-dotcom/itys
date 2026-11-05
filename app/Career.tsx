@@ -46,7 +46,7 @@ export function ProfileSheet({c,name,me,onClose}:{c:Career|null;name:string;me:b
   <span className="c-label">Badges</span>
   <div className="c-badges">{BADGES.map(b=>{const n=c.badges[b.id];return <div key={b.id} className={'c-badge-card'+(n?' on':'')}><div className="c-badge-top"><BadgeMedal id={b.id} earned={!!n}/><span className="c-badge-count">{n?'×'+n:'Not yet'}</span></div><b>{b.name}</b><small>{b.rule}</small></div>})}</div>
   {c.history.length>0&&<><span className="c-label">Where it came from</span><div className="c-history">{c.history.map(h=><div key={h.opens_at}><span>{new Date(h.opens_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · {h.rank===1?(h.final?'won the week':'1st so far'):ordinal(h.rank)+(h.final?'':' so far')}</span><b>+{h.points}</b></div>)}</div></>}
-  <p className="c-hint">Career points are the points {me?'you’ve':name+' has'} won, added up forever. They’re never put on a call, so they can’t go down, and they can’t be spent, sent or swapped. Every week still starts with a fresh 100.</p>
+  <p className="c-hint">Career points are the points {me?'you’ve':name+' has'} won, added up forever. They’re never put on a call, so they can’t go down, and they can’t be spent, sent or swapped.</p>
  </Sheet>;
 }
 const ordinal=(n:number)=>n+(n%10===1&&n%100!==11?'st':n%10===2&&n%100!==12?'nd':n%10===3&&n%100!==13?'rd':'th');

@@ -1,3 +1,4 @@
+import {timeBoards} from './rankings';
 import {friendOptions,assignResolver} from './friends';
 import {PICK_POINTS} from './rules';import {footballEnabled} from './features';import {touchMember,moderationView} from './moderation';
 import {footballAction} from './football/actions';
@@ -59,7 +60,7 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
  if(data.requestId){const old=(await tx.query<{question_id:string}>('SELECT question_id FROM question_requests WHERE group_id=$1 AND user_id=$2 AND request_id=$3',[g.id,user.id,data.requestId])).rows[0];if(old)return {invite:data.invite,questionId:old.question_id};}
  check(g.opens_at,'Invite at least three members before adding a call.');check(round,'Wait for the next weekly round to open.');check(slotLimits(round.group_type).custom>0,'Football groups use match picks only.');check(now<=period(new Date(round.opens_at),round.group_type,round.timezone,g.practice).customCutoff,'Adding calls has closed for this round.');
  const lock=new Date(z.iso.datetime().parse(data.locksAt));check(lock>now&&lock<=new Date(round.deadline_at),'Choose a future lock time no later than Sunday 23:59 in '+round.timezone+'.');
- const count=Number((await tx.query<{count:string}>("SELECT count(*) FROM questions WHERE round_id=$1 AND slot='custom' AND NOT superseded",[round.id])).rows[0].count);check(count<slotLimits(round.group_type).custom,round.group_type==='Friends'?'All six call slots are used.':'All three call slots are used.');
+ const count=Number((await tx.query<{count:string}>("SELECT count(*) FROM questions WHERE round_id=$1 AND slot='custom' AND NOT superseded",[round.id])).rows[0].count);check(count<((g as {instant?:boolean}).instant&&round.group_type==='Friends'?50:slotLimits(round.group_type).custom),(g as {instant?:boolean}).instant?'That’s a lot of calls for one week. Try Later.':round.group_type==='Friends'?'All six call slots are used.':'All three call slots are used.');
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
  let options:string[]|null;try{options=data.answerType==='friend'?await friendOptions(tx,g.id):cleanOptions(data.options)}catch(e){throw new RuleError((e as Error).message)}
  const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,round_id,event_at,subject_id,options,answer_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[id,g.id,user.id,z.string().trim().min(3).max(240).parse(data.text),lock,round.id,round.deadline_at,data.subjectId||null,options?JSON.stringify(options):null,data.answerType==='friend'?'friend':'choice']);
@@ -129,7 +130,8 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const t=timingFor(group.practice);
  const linked=!!(await tx.query('SELECT 1 FROM users WHERE id=$1 AND apple_sub IS NOT NULL',[user!.id])).rows.length;
  const moments=(await tx.query('SELECT id,kind,title,subject_name,starts_at,creator,share_code,created_at,sealed,opens_at FROM moments WHERE group_id=$1 ORDER BY starts_at DESC LIMIT 60',[group.id])).rows;
- return {moments,linked,timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,careers,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
+ const boards=await timeBoards(tx,group.id,(group as {timezone?:string}).timezone||'Europe/Istanbul',now);
+ return {boards,moments,linked,timing:{practice:t.practice,disputeMs:t.disputeMs,resolutionMs:t.resolutionMs},group:{...group,opens_at:selected?.opens_at||group.opens_at},members,joined,user,questions:shownQuestions,used:questions.reduce((sum,q)=>sum+Number(q.stake||0),0),bets:shownBets,secretCount:secret.size,careers,alerts,seasons,groupMembers,moderation,comingUp,audit,snapshots:shownSnapshots,...notificationData,rounds,selectedRound:selected,currentRoundId:current?.id,roundScores:selected?.standings||[],seasonStandings,suggestions,longTermCount,fixtureCatalog,leagueCatalog,feedStatus};
  });
 }
 /** Public preview of one shared bet for people opening an invite link before they join.
