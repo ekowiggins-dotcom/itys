@@ -7,6 +7,7 @@ import { corsHeaders, isNativeOrigin, sessionToken } from '../../lib/native-clie
 import { practiceAllowed } from '../../lib/timing';
 import { resolveCode } from '../../lib/short-links';
 import { identity } from '../../lib/service';
+import { footballEnabled } from '../../lib/features';
 import { verifyAppleToken, appleSignIn, deleteAccount, AppleError } from '../../lib/apple';
 export const runtime='nodejs';
 async function token(req:NextRequest){return sessionToken((await cookies()).get('prediction_session')?.value,req.headers.get('authorization'));}
@@ -14,7 +15,7 @@ export async function OPTIONS(req:NextRequest){const headers=corsHeaders(req.hea
 export async function GET(req:NextRequest) {
   const cors=corsHeaders(req.headers.get('origin'));
   try {
-    if(req.nextUrl.searchParams.get('config')!==null)return NextResponse.json({practiceAllowed:practiceAllowed(),appleServicesId:process.env.APPLE_SERVICES_ID||null,appStoreUrl:process.env.APP_STORE_URL||null},{headers:{'Cache-Control':'no-store',...cors}});
+    if(req.nextUrl.searchParams.get('config')!==null)return NextResponse.json({practiceAllowed:practiceAllowed(),appleServicesId:process.env.APPLE_SERVICES_ID||null,appStoreUrl:process.env.APP_STORE_URL||null,football:footballEnabled()},{headers:{'Cache-Control':'no-store',...cors}});
     // The app opens short links (/c/<code>) itself, so it asks what a code points at.
     const code=req.nextUrl.searchParams.get('code');if(code!==null){const target=await resolveCode(code);return NextResponse.json(target||{error:'This link has expired.'},{status:target?200:404,headers:{'Cache-Control':'no-store',...cors}});}
     const invite=req.nextUrl.searchParams.get('invite')||'',question=req.nextUrl.searchParams.get('question');

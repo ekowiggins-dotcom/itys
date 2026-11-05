@@ -5,7 +5,7 @@ test('WhatsApp messages preserve punctuation and link to the specific bet withou
 });
 test('only final winners receive a card; shared winners retain one-decimal scores',()=>{
  for(const state of ['live','planned','provisional','skipped'])assert.throws(()=>winnerCard('Crew',{state,opens_at:'2030-04-08T00:00:00Z',winners:[{name:'Alex',points_tenths:125}]}),/only after/);
- const card=winnerCard('Crew',{state:'final',opens_at:'2030-04-08T00:00:00Z',winners:[{name:'Alex',points_tenths:125},{name:'Maya',points_tenths:125}]});assert.equal(card.title,'Alex & Maya');assert.equal(card.detail,'12.5 points · Final');assert.equal(card.subtitle,'SHARED WEEKLY WIN');assert.ok(shareText(card,'https://example.com').includes('share the weekly win'));
+ const card=winnerCard('Crew',{state:'final',opens_at:'2030-04-08T00:00:00Z',winners:[{name:'Alex',points_tenths:125},{name:'Maya',points_tenths:125}]});assert.equal(card.title,'Alex & Maya');assert.equal(card.detail,'12.5 points · Final');assert.equal(card.subtitle,'SHARED WEEKLY WIN');assert.ok(shareText(card,'https://example.com').includes('are this week’s oracles'));
 });
 test('preview links keep question/round targeting and winner cards never claim an empty winner',()=>{
  const url=new URL(shareLink('https://preview.example','demo',{roundId:'r',winner:true},true));assert.equal(url.pathname,'/');assert.equal(url.searchParams.get('view'),'winner');assert.equal(url.searchParams.get('round'),'r');assert.throws(()=>winnerCard('Crew',{state:'final',opens_at:new Date(),winners:[]}));

@@ -38,12 +38,12 @@ export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
  const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
- const [apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
+ const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
 
  async function load(code:string){const r=await api('/api?invite='+encodeURIComponent(code)+(selectedRound.current?'&round='+encodeURIComponent(selectedRound.current):'')+(focusRef.current?'&question='+encodeURIComponent(focusRef.current):''));const d=await r.json();if(!r.ok)throw Error(d.error);setData(d);void rememberInvite(code);}
  const focusRef=useRef('');
- useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null})}).catch(()=>{})},[]);
+ useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null});setFootballOn(!!c.football)}).catch(()=>{})},[]);
  useEffect(()=>{setOrigin(webOrigin());void (async()=>{const params=new URLSearchParams(location.search);focusRef.current=params.get('question')||'';setFocusQuestion(focusRef.current);if(params.get('view')==='winner')setTab('ranking');const code=params.get('invite')||(await lastInvite())||'';selectedRound.current=params.get('round')||'';setInvite(code);if(code)await load(code).catch(e=>setError(e.message));setLoading(false);if(NATIVE)void initNative({onOpen:url=>{void openLink(url)}});})()},[]);
  async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
  useEffect(()=>{if(!invite)return;const timer=setInterval(()=>{void load(invite).catch(()=>{})},15000);return ()=>clearInterval(timer)},[invite]);
@@ -98,14 +98,14 @@ export default function Home(){
  // Landing: start a group.
  if(!invite)return <main className="c-landing">
   <div className="c-landing-top"><span className="c-brandmark big">{BRAND}</span><span className="c-pill">Free. No money. Ever.</span></div>
-  <h1>Big opinions.<br/><em>Zero money.</em></h1>
-  <p className="c-lead">Make calls on football and on each other. See who said what when it locks. Get bragging rights when you’re right.</p>
+  <h1>Your friends.<br/><em>Your calls.</em></h1>
+  <p className="c-lead">Make calls about your friends and your plans. See who said what when picks close. The fewer friends who saw it coming, the more you score.</p>
   <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice};if(!practice)payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void act(payload,'Your group is ready. Invite two friends to start.');}}>
    <h2>Start your group</h2>
    <label>Your name<input name="name" required maxLength={60} placeholder="What do your friends call you?" autoComplete="given-name"/></label>
-   <label>Group name<input name="groupName" required maxLength={60} placeholder="Sunday League Lads"/></label>
-   <label>What will you call?<select name="groupType" defaultValue="Friends"><option value="Friends">Our own calls</option><option value="Football">Football matches</option><option value="Mixed">Both</option></select></label>
-   {practiceAllowed&&<label className="c-check"><input type="checkbox" name="practice" value="1"/><span><b>Practice group</b><small>For testing: a whole week in an hour. Your own calls only: real football runs on the real calendar.</small></span></label>}
+   <label>Group name<input name="groupName" required maxLength={60} placeholder="Agalar, the flat, uni crew…"/></label>
+   {footballOn&&<label>What will you call?<select name="groupType" defaultValue="Friends"><option value="Friends">Our own calls</option><option value="Football">Football matches</option><option value="Mixed">Both</option></select></label>}
+   {practiceAllowed&&<label className="c-check"><input type="checkbox" name="practice" value="1"/><span><b>Practice group</b><small>For testing: a whole week in an hour.</small></span></label>}
    <button className="c-btn" disabled={busy}>Create group <Icon name="arrow"/></button>
    <small>The game starts once three friends join. Points are free and can’t be bought or cashed out. For players aged 18 and over.</small>
   </form>
@@ -121,13 +121,14 @@ export default function Home(){
 
  const practice=!!data.group.practice;
  const roundType=data.selectedRound?.group_type||data.group.group_type||'Friends',limits=slotLimits(roundType),zone=data.selectedRound?.timezone||data.group.timezone||'UTC';
- const football=roundType!=='Friends';
+ // Football is switched off (FOOTBALL=on brings it back); a running football week just shows its own calls.
+ const football=footballOn&&roundType!=='Friends';
  const start=data.group.opens_at?new Date(data.group.opens_at):null;
  const active=!!start&&clock>=start.getTime()&&(!data.selectedRound||(data.selectedRound.state==='live'&&data.selectedRound.content_ready!==false&&data.currentRoundId===data.selectedRound.id));
  const customUsed=data.questions.filter(q=>(q.market||'custom')==='custom').length;
  const cutoff=start?period(start,roundType,zone,practice).customCutoff.getTime():0;
  const weeklyOpen=active&&limits.custom>0&&customUsed<limits.custom&&clock<=cutoff;
- const weeklyWhy=data.members<3?'This week’s calls start once three friends are in. Later works now.':limits.custom===0?'Football groups pick matches. Later works for your own calls.':customUsed>=limits.custom?`This week already has ${limits.custom} calls. Try Later.`:!active?(start&&clock<start.getTime()?'This week opens '+when(start,clock,zone)+'. Later works now.':'This week has wrapped up. Later works now.'):'Adding calls has closed for this week. Try Later.';
+ const weeklyWhy=data.members<3?'This week’s calls start once three friends are in. Later works now.':customUsed>=limits.custom?`This week already has ${limits.custom} calls. Try Later.`:!active?(start&&clock<start.getTime()?'This week opens '+when(start,clock,zone)+'. Later works now.':'This week has wrapped up. Later works now.'):'Adding calls has closed for this week. Try Later.';
  const canPickFootball=!!data.selectedRound&&['live','provisional'].includes(data.selectedRound.state)&&data.selectedRound.content_ready!==false&&clock<=Date.parse(data.selectedRound.pick_end_at||'');
  const unread=data.notifications?.filter(n=>!n.read_at).length||0;
  const myRow=data.selectedRound?.standings.find(s=>s.user_id===me);const anyPoints=!!data.selectedRound?.standings.some(s=>s.points_tenths>0);
@@ -151,7 +152,7 @@ export default function Home(){
  return <div className="c-shell">
   <header className="c-top">
    <div className="c-top-row">
-    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:roundType==='Friends'?'Friends':roundType}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
+    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members+(data.members===1?' friend':' friends')}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':'Notifications'} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
      <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this week</span></>:<><b>{sections.yourTurn.length}</b><span>to call</span></>}</button></div>
    </div>
@@ -175,7 +176,7 @@ export default function Home(){
    <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>
     <button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>
    {canApple&&data.linked===false&&<section className="c-card save"><span className="c-kicker dark">Your account</span><h3>Don’t lose your calls</h3><p className="c-sub">Sign in with Apple to keep your calls, points and level on any phone, and to pick up where you left off in the app.</p><AppleButton busy={busy} onClick={()=>void signInApple()}/></section>}
-   <FootballPanel data={data} act={p=>act(p)} busy={busy}/>
+   {footballOn&&<FootballPanel data={data} act={p=>act(p)} busy={busy}/>}
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
    <HowItWorks/>
    <LegalLinks/>

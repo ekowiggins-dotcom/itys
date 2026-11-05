@@ -457,5 +457,5 @@ main.app .c-apple,.c-apple{width:100%;min-height:54px;border-radius:18px;backgro
 .c-legal-date{color:var(--muted);font-size:13px}
 .c-footer-links{display:flex;justify-content:center;gap:16px;margin:18px 0 6px;font-size:13px}
 .c-footer-links a,.c-footer-links button{color:var(--muted);font:600 13px 'DM Sans',sans-serif;text-decoration:none;background:none;border:0;cursor:pointer;padding:0}
-.c-landing .c-footer-links a{color:var(--soft)}
+.c-landing .c-footer-links a{color:var(--muted)}
 main.app .c-danger-link,.c-danger-link{display:flex;width:fit-content;margin:4px auto 0;align-self:center;color:#A1300F !important}

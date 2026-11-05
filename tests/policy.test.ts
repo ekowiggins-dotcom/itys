@@ -84,3 +84,8 @@ test('the old name never reaches players: the brand comes from lib/brand.ts',()=
   .flatMap(f=>{const src=readFileSync(f,'utf8');return (f.endsWith('.ts')||f.endsWith('.tsx')?visibleText(src,f):src.split('\n')).filter(t=>old.test(t)&&!/SidebetAppGroup|SidebetWidget|SIDEBET_|x-sidebet-client/i.test(t)).map(t=>f+': '+t.trim().slice(0,80))});
  assert.deepEqual(hits,[]);
 });
+
+test('Calld is social: football stays off unless switched on, and points never sit next to answers',async()=>{
+ const {footballEnabled}=await import('../lib/features');assert.equal(footballEnabled({}),false);
+ for(const f of ['app/CallsTab.tsx','app/Sheets.tsx'])assert.ok(!/potential\(/.test(readFileSync(f,'utf8')),f+' shows points per answer: that reads like odds');
+});

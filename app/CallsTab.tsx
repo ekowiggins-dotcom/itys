@@ -1,6 +1,6 @@
 'use client';
 import {Faces,Icon,Badge,Split,Crest} from './ui';
-import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome,potential} from './calls';
+import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome} from './calls';
 import {countdown,when} from './format';
 
 type Act={pick:(c:Call,answer?:string)=>void;reveal:(c:Call)=>void;result:(c:Call)=>void;resolve:(c:Call,mode:'set'|'judge')=>void;dispute:(c:Call)=>void;share:(c:Call)=>void};
@@ -57,7 +57,7 @@ export function LockedCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  return <article className="c-card locked">
   <div className="c-card-top"><span className="c-kick">{c.match?(Date.parse(c.locks_at)+2.5*3600000>ctx.now?'Playing now':'Full time soon'):c.state==='proposed'?'Result’s in':c.state==='disputed'?'Being checked':'Locked'}</span><span className="c-by light">{total} {total===1?'pick':'picks'}</span></div>
   {c.match?<><MatchHead c={c} dark/><p className="c-market light">Who wins?</p></>:<h3>{c.text}</h3>}
-  {total>0&&<div className="c-bars">{groups.filter(g=>g.names.length).sort((a,b)=>b.names.length-a.names.length).slice(0,4).map(g=><div key={g.answer} className={'c-bar-row'+(c.proposed_answer===g.answer?' hit':'')}><span>{label(g.answer,c)} <em className="c-worth">+{potential(g.names.length,total)}</em></span><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><Faces names={g.names.map(n=>n.name)} size={20} ring="#17201B" max={3}/></div>)}</div>}
+  {total>0&&<div className="c-bars">{groups.filter(g=>g.names.length).sort((a,b)=>b.names.length-a.names.length).slice(0,4).map(g=><div key={g.answer} className={'c-bar-row'+(c.proposed_answer===g.answer?' hit':'')}><span>{label(g.answer,c)}</span><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><Faces names={g.names.map(n=>n.name)} size={20} ring="#17201B" max={3}/></div>)}</div>}
   {c.match&&c.state==='open'&&<p className="c-status">Scores itself at full time (90 minutes).</p>}
   {!c.match&&c.state==='open'&&(canSet?<button className="c-btn small" onClick={()=>act.resolve(c,'set')}>What happened?</button>:<p className="c-status">Waiting for {c.creator_name} to say what happened.</p>)}
   {c.state==='proposed'&&<p className="c-status"><b>{proposer==='You'?'You said':proposer+' says'}: {label(c.proposed_answer||'',c)}.</b> {canDispute?<>Counts in {countdown(windowEnds,ctx.now)}. <button className="c-inline" disabled={ctx.busy} onClick={()=>act.dispute(c)}>Not right? Say so</button></>:'Counts soon.'}</p>}
