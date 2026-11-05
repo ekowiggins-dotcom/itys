@@ -1,4 +1,4 @@
-import {friendOptions} from './friends';
+import {friendOptions,assignResolver} from './friends';
 import {PICK_POINTS} from './rules';import {footballEnabled} from './features';import {touchMember,moderationView} from './moderation';
 import {footballAction} from './football/actions';
 import {nextStart,period,validAnswer,slotLimits,cleanOptions,type GroupType,type Fixture} from './football/rules';
@@ -26,7 +26,7 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
  if(action?.startsWith('football')){const user=await identity(token);check(user,'Join the group first.');return footballAction(input,user.id,now)}
  if(action==='registerDevice'||action==='unregisterDevice'){const user=await identity(token);check(user,'Join a group first.');return deviceAction(input,user.id,now)}
  if(action&&!['create','join','question','predict'].includes(action)){const user=await identity(token);check(user,'Join the group first.');return lifecycle(input,user.id,now)}
- const data=z.object({action:z.enum(['create','join','question','predict']),groupType:z.enum(['Friends','Football','Mixed']).optional(),practice:z.boolean().optional(),timezone:z.string().optional(),country:z.string().optional(),requestId:z.uuid().optional(),name:name.optional(),groupName:name.optional(),invite:z.string().max(100).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),questionId:z.uuid().optional(),subjectId:z.uuid().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),friends:z.array(name).max(29).optional(),color:z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),lang:z.enum(['tr','en']).optional(),startNow:z.boolean().optional(),stake:z.number().int().min(5).max(30).multipleOf(5).optional()}).parse(input);
+ const data=z.object({action:z.enum(['create','join','question','predict']),groupType:z.enum(['Friends','Football','Mixed']).optional(),practice:z.boolean().optional(),timezone:z.string().optional(),country:z.string().optional(),requestId:z.uuid().optional(),name:name.optional(),groupName:name.optional(),invite:z.string().max(100).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),questionId:z.uuid().optional(),subjectId:z.uuid().optional(),resolverId:z.uuid().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),friends:z.array(name).max(29).optional(),color:z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),lang:z.enum(['tr','en']).optional(),startNow:z.boolean().optional(),stake:z.number().int().min(5).max(30).multipleOf(5).optional()}).parse(input);
  const d=await db(),existing=await identity(token);
  if(data.invite){if(existing)await d.query('UPDATE members SET last_active_at=GREATEST(last_active_at,$3) WHERE user_id=$1 AND group_id IN(SELECT id FROM groups WHERE invite=$2) AND active',[existing.id,data.invite,now]);await reconcile(data.invite,now);}
  return d.transaction(async tx=>{
@@ -63,8 +63,9 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
  let options:string[]|null;try{options=data.answerType==='friend'?await friendOptions(tx,g.id):cleanOptions(data.options)}catch(e){throw new RuleError((e as Error).message)}
  const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,round_id,event_at,subject_id,options,answer_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[id,g.id,user.id,z.string().trim().min(3).max(240).parse(data.text),lock,round.id,round.deadline_at,data.subjectId||null,options?JSON.stringify(options):null,data.answerType==='friend'?'friend':'choice']);
+ await assignResolver(tx,g.id,user.id,id,data.resolverId);
  if(data.requestId)await tx.query('INSERT INTO question_requests VALUES($1,$2,$3,$4)',[g.id,user.id,data.requestId,id]);
- if(data.subjectId)await emitNotification(tx,{groupId:g.id,userId:data.subjectId,key:'about:'+id,kind:'about_you',text:'Your friends just made a call about you. You’ll see it once it’s settled.'},now);
+ if(data.subjectId)await emitNotification(tx,{groupId:g.id,userId:data.subjectId,key:'about:'+id,kind:'about_you',text:'Your friends made a call about you. You can see it, but not their answers until it’s settled.'},now);
  return {invite:data.invite,questionId:id};
  }
  check(round,'Competition starts next Monday after three members join, during an active season.');
@@ -110,15 +111,16 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const hidden=(await tx.query<{id:string;moderation_state:string}>("SELECT id,moderation_state FROM questions WHERE group_id=$1 AND moderation_state<>'visible'",[group.id])).rows;const hiddenIds=new Set(hidden.map(q=>q.id));
  for(const row of [...questions,...bets] as Record<string,unknown>[])if(hiddenIds.has(String(row.id))){row.text='Call hidden by moderation';row.creator_name='a group member';row.moderation_state=hidden.find(q=>q.id===row.id)!.moderation_state;}
  for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(hiddenIds.has(String(row.question_id))){row.text='Call hidden by moderation';if(row.details)row.details=null;}
- // Calls about you stay secret from you until they're settled: you only learn that one exists.
+ // Calls about you: you see the call, but not how anyone answered (no split, no who-said-what, no proposed result) until it's settled.
  const secret=new Set((await tx.query<{id:string}>("SELECT id FROM questions WHERE group_id=$1 AND subject_id=$2 AND NOT superseded AND state NOT IN ('settled','void')",[group.id,user!.id])).rows.map(r=>r.id));
  const visible=<T extends Record<string,unknown>>(rows:T[],key='id')=>rows.filter(r=>!secret.has(String(r[key])));
+ for(const row of [...questions,...bets] as Record<string,unknown>[])if(secret.has(String(row.id))){row.about_you=true;if(row.proposed_by!==user!.id)row.proposed_answer=null}
  // Sealed predictions: nobody sees how the group answered (not even the split) until the opening date.
  const sealedIds=new Set((await tx.query<{id:string}>('SELECT q.id FROM questions q JOIN moments m ON m.id=q.moment_id WHERE m.group_id=$1 AND m.sealed AND m.opens_at>$2',[group.id,now])).rows.map(r=>r.id));
- const shownQuestions=visible(questions),shownBets=visible(bets as Record<string,unknown>[]),shownSnapshots=visible(snapshots as Record<string,unknown>[],'question_id').filter(s=>!sealedIds.has(String(s.question_id)));
- for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(secret.has(String(row.question_id))){row.text='A secret call about you';if(row.details)row.details=null;}
+ const shownQuestions=questions,shownBets=bets as Record<string,unknown>[],shownSnapshots=visible(snapshots as Record<string,unknown>[],'question_id').filter(s=>!sealedIds.has(String(s.question_id)));
+ for(const row of [...alerts,...audit,...notificationData.notifications] as Record<string,unknown>[])if(secret.has(String(row.question_id))&&row.details)row.details=null;
  // How the group is split, without names: shown once you've made your call (or once it locks).
- const splitIds=(shownBets as {id:string;answer:string|null;locks_at:Date}[]).filter(b=>(b.answer||new Date(b.locks_at)<=now)&&!sealedIds.has(b.id)).map(b=>b.id);
+ const splitIds=(shownBets as {id:string;answer:string|null;locks_at:Date}[]).filter(b=>(b.answer||new Date(b.locks_at)<=now)&&!sealedIds.has(b.id)&&!secret.has(b.id)).map(b=>b.id);
  const splits=new Map<string,Record<string,number>>();
  for(const r of (await tx.query<{question_id:string;answer:string;n:number}>('SELECT question_id,answer,count(*)::int n FROM predictions WHERE question_id=ANY($1::text[]) GROUP BY 1,2',[splitIds])).rows){const m=splits.get(r.question_id)||{};m[r.answer]=r.n;splits.set(r.question_id,m)}
  for(const b of shownBets)if(splits.has(String(b.id)))b.split=splits.get(String(b.id));

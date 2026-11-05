@@ -16,7 +16,8 @@ async function fixture(){
 }
 async function question(g:string,creator:string,scope='weekly',event=new Date(now.getTime()-DAY)){
  const d=await db(),id=randomUUID();
- await d.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at) VALUES($1,$2,$3,$4,$5,$6,$7)',[id,g,creator,'Will it happen?',new Date(now.getTime()-2*DAY),scope,event]);return id;
+ // The admin hands these calls to their creator to settle.
+ await d.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at,resolver_id) VALUES($1,$2,$3,$4,$5,$6,$7,$3)',[id,g,creator,'Will it happen?',new Date(now.getTime()-2*DAY),scope,event]);return id;
 }
 async function pick(q:string,u:string,answer='yes',stake=20){await(await db()).query('INSERT INTO predictions(question_id,user_id,answer,stake) VALUES($1,$2,$3,$4)',[q,u,answer,stake]);}
 test('leaving preserves locked weekly results and eligibility, withdraws unlocked bets, rejoin restores record',async()=>{

@@ -577,3 +577,10 @@ main.app .c-btn.dark-lime,.c-btn.dark-lime{background:transparent!important;colo
 .c-idea-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .c-idea-chips button{display:inline-flex;align-items:center;gap:5px;padding:6px 11px!important;border-radius:999px!important;background:#fff;border:1.5px solid var(--line2);font:700 12px 'DM Sans',sans-serif;color:var(--ink);cursor:pointer}
 .c-idea-chips button.on{background:var(--lime);border-color:var(--ink)}
+.c-settler{margin-top:6px;font:600 12px 'DM Sans',sans-serif;color:var(--muted)}.c-settler.light{color:var(--soft)}
+.c-settler .c-inline{font:700 12px 'DM Sans',sans-serif}.c-settler.light .c-inline{color:var(--lime)}
+.c-settler .c-about.small{margin-top:8px}.c-settler .c-about.small button{font-size:12px;padding:4px 10px 4px 4px}
+.c-row{flex-wrap:wrap}.c-row>.c-settler{flex-basis:100%;margin-top:0}
+.c-settler:not(.light) .c-inline.c-inline{color:var(--ink);text-underline-offset:2px}
+.c-row>.c-row-main{flex:1 1 0;min-width:0}.c-row>.c-row-side{flex:none}
+.c-settler .c-about.small{display:flex;flex-wrap:wrap;gap:6px}
