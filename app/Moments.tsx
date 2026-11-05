@@ -27,46 +27,47 @@ function yearDates(now:number){const d=new Date(now),y=d.getMonth()>=9?d.getFull
 /** Tomorrow at 20:00 local, as a datetime-local value. */
 function defaultStart(now:number){const d=new Date(now+86400000);d.setHours(20,0,0,0);const p=(n:number)=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T20:00`}
 
-type Draft={text:string;answerType:'friend'|'choice';options?:string[];on:boolean};
+type Draft={text:string;answerType:'friend'|'choice';options?:string[];on:boolean;idea?:boolean};
 export type NewMoment={kind:MomentKind;title:string;subject?:string;startsAt:string;sealed?:boolean;opensAt?:string;calls:{text:string;answerType:'friend'|'choice';options?:string[]}[]};
 
 /** Start a Moment: the occasion, one or two details, three suggested calls. */
 export function NewMomentSheet({open,now,lang,friends,busy,preset,onCreate,onClose}:{open:boolean;now:number;lang:Lang;friends:string[];busy:boolean;preset?:MomentKind;onCreate:(m:NewMoment)=>Promise<boolean>;onClose:()=>void}){
  const [sealed,setSealed]=useState(false),[opensOn,setOpensOn]=useState('');
- const [kind,setKind]=useState<MomentKind|null>(null),[who,setWho]=useState(''),[place,setPlace]=useState(''),[typed,setTyped]=useState(''),[start,setStart]=useState(''),[drafts,setDrafts]=useState<Draft[]>([]),[extra,setExtra]=useState('');
- useEffect(()=>{if(open){setKind(preset||null);setWho('');setPlace('');setTyped('');setStart(defaultStart(now));setDrafts([]);setExtra('');setSealed(false);setOpensOn('')}},[open]);
+ const [ideas,setIdeas]=useState(false),[kind,setKind]=useState<MomentKind>('own'),[who,setWho]=useState(''),[place,setPlace]=useState(''),[typed,setTyped]=useState(''),[start,setStart]=useState(''),[drafts,setDrafts]=useState<Draft[]>([]),[extra,setExtra]=useState('');
+ useEffect(()=>{if(open){setKind(preset||'own');setIdeas(!!preset&&preset!=='own');setWho('');setPlace('');setTyped('');setStart(defaultStart(now));setDrafts([]);setExtra('');setSealed(false);setOpensOn('')}},[open]);
  // The year ahead is sealed by default: seal on New Year's Eve, open on the next one. A birthday can be sealed until the next birthday.
  useEffect(()=>{if(kind==='year'){const d=yearDates(now);setSealed(true);setStart(d.seal);setOpensOn(d.open)}else if(sealed&&!opensOn&&start){setOpensOn(local(new Date(new Date(start).getTime()+365*86400000)))}},[kind]);
- useEffect(()=>{if(kind)setDrafts(starters(kind,lang,who).map(s=>({...s,on:true})))},[kind,who,lang]);
+ useEffect(()=>{const ex=kind==='own'?[]:starters(kind,lang,who).map(s=>({...s,on:true,idea:true}));setDrafts(d=>[...ex,...d.filter(x=>!x.idea)])},[kind,who,lang]);
+ const addExtra=()=>{const q=extra.trim();if(q.length<3)return;const friend=/^(who|kim)\b|\bkim\b/i.test(q)&&friends.length>=2;setDrafts([...drafts,{text:q,answerType:friend?'friend':'choice',on:true}]);setExtra('')};
  if(!open)return null;
- const k=kind?KIND[kind]:null,title=kind?autoTitle(kind,lang,who,place,typed):'';
+ const k=KIND[kind],auto=k.titled?'':autoTitle(kind,lang,who,place,typed),title=typed.trim()||auto;
  const chosen=drafts.filter(d=>d.on&&d.text.trim().length>=3);
  const startMs=start?new Date(start).getTime():0,needsFriends=chosen.some(d=>d.answerType==='friend')&&friends.length<2;
  const opensMs=sealed&&opensOn?new Date(opensOn).getTime():0;
- const valid=!!kind&&title.trim().length>=2&&(!k?.who||!!who)&&startMs>now+10*60000&&chosen.length>0&&!needsFriends&&(!sealed||opensMs>=startMs+86400000);
+ const valid=title.trim().length>=2&&(!k?.who||!!who)&&startMs>now+10*60000&&chosen.length>0&&!needsFriends&&(!sealed||opensMs>=startMs+86400000);
  return <Sheet open label="New Moment" onClose={onClose} full>
   <span className="c-kicker dark">New Moment</span>
-  <h2 className="c-title">What’s the occasion?</h2>
-  <div className="c-kinds">{MOMENT_KINDS.map(id=><button key={id} type="button" className={kind===id?'on':''} aria-pressed={kind===id} onClick={()=>setKind(id)}><span className="c-kind-emoji" aria-hidden="true">{KIND[id].emoji}</span>{KIND[id].en}</button>)}</div>
-  {k&&<>
-   {k.who&&<><span className="c-label">{kind==='birthday'?'Whose birthday?':kind==='wedding'?'Whose wedding?':kind==='baby'?'Whose baby?':'Who’s starting?'}</span><div className="c-about">{friends.map(n=><button type="button" key={n} className={who===n?'on':''} aria-pressed={who===n} onClick={()=>setWho(n)}><Face name={n} size={26}/>{n}</button>)}</div></>}
-   {k.place&&<label className="c-field">Where to?<input className="c-input" value={place} onChange={e=>setPlace(e.target.value)} maxLength={40} placeholder={lang==='tr'?'Kaş, Roma, kamp…':'Rome, the coast, camping…'}/></label>}
-   {k.titled&&<label className="c-field">Call it<input className="c-input" value={typed} onChange={e=>setTyped(e.target.value)} maxLength={60} placeholder={kind==='night'?(lang==='tr'?'Cumartesi gecesi':'Saturday night'):(lang==='tr'?'Cem’in bekarlığa vedası':'Cem’s stag do')}/></label>}
+  <h2 className="c-title">What’s happening?</h2>
+  <label className="c-field">Call it<input className="c-input" value={typed} onChange={e=>setTyped(e.target.value)} maxLength={60} placeholder={auto||(lang==='tr'?'Ece’nin doğum günü, Kaş tatili…':'Ece’s birthday, the Rome trip…')}/></label>
+  <button type="button" className="c-ideas-toggle" aria-expanded={ideas} onClick={()=>setIdeas(!ideas)}>💡 {ideas?'Hide ideas':'Need ideas?'}</button>
+  {ideas&&<div className="c-idea-chips">{MOMENT_KINDS.filter(id=>id!=='own'&&(id!=='year'||kind==='year')).map(id=><button key={id} type="button" className={kind===id?'on':''} aria-pressed={kind===id} onClick={()=>setKind(kind===id?'own':id)}><span aria-hidden="true">{KIND[id].emoji}</span>{KIND[id].en}</button>)}</div>}
+  {k.who&&<><span className="c-label">{kind==='birthday'?'Whose birthday?':kind==='wedding'?'Whose wedding?':kind==='baby'?'Whose baby?':'Who’s starting?'}</span><div className="c-about">{friends.map(n=><button type="button" key={n} className={who===n?'on':''} aria-pressed={who===n} onClick={()=>setWho(n)}><Face name={n} size={26}/>{n}</button>)}</div></>}
+  {k.place&&<label className="c-field">Where to?<input className="c-input" value={place} onChange={e=>setPlace(e.target.value)} maxLength={40} placeholder={lang==='tr'?'Kaş, Roma, kamp…':'Rome, the coast, camping…'}/></label>}
    <label className="c-check c-seal"><input type="checkbox" checked={sealed} onChange={e=>{setSealed(e.target.checked);if(e.target.checked&&!opensOn&&start)setOpensOn(local(new Date(new Date(start).getTime()+365*86400000)))}}/><span><b>🔒 Seal it</b><small>Nobody sees any answers, not even the split, until the opening date. Then you open them together. Anyone can add predictions until it’s sealed.</small></span></label>
    <label className="c-field">{sealed?'Seal date':'When does it start?'}<input className="c-input" type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/><small>{sealed?'Picks and new predictions close then.':'Picks close then.'}</small></label>
    {sealed&&<label className="c-field">Opens on<input className="c-input" type="datetime-local" value={opensOn} onChange={e=>setOpensOn(e.target.value)}/><small>Everyone gets the same push, and you open them one by one.</small></label>}
-   <span className="c-label">Calls <small>Keep, edit or untick. Up to 8.</small></span>
+   <span className="c-label">Your calls <small>{drafts.some(d=>d.idea)?'Keep, edit or untick the ideas. Up to 8.':'What should the group predict? Up to 8.'}</small></span>
    <div className="c-drafts">{drafts.map((d,i)=><div key={i} className={'c-draft'+(d.on?'':' off')}>
     <button type="button" className="c-tick" aria-pressed={d.on} aria-label={d.on?'Remove this call':'Keep this call'} onClick={()=>setDrafts(drafts.map((x,j)=>j===i?{...x,on:!x.on}:x))}>{d.on&&<Icon name="check" size={16} stroke={3}/>}</button>
     <div className="c-draft-main"><textarea rows={2} maxLength={240} value={d.text} onChange={e=>setDrafts(drafts.map((x,j)=>j===i?{...x,text:e.target.value}:x))} aria-label={'Call '+(i+1)}/>
      <small>{d.answerType==='friend'?'Pick a friend':d.options?.length?d.options.join(' · '):'Yes / No'}</small></div></div>)}
-    {drafts.length<8&&<div className="c-draft add"><input className="c-input" value={extra} onChange={e=>setExtra(e.target.value)} maxLength={240} placeholder="+ Add your own (a “who…?” question picks a friend)"/>
-     <button type="button" className="c-btn small" disabled={extra.trim().length<3} onClick={()=>{const q=extra.trim();const friend=/^(who|kim)\b|\bkim\b/i.test(q)&&friends.length>=2;setDrafts([...drafts,{text:q,answerType:friend?'friend':'choice',on:true}]);setExtra('')}}>Add</button></div>}
+    {drafts.length<8&&<div className="c-draft add"><input className="c-input" value={extra} onChange={e=>setExtra(e.target.value)} maxLength={240} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addExtra()}}} placeholder={drafts.length?'+ Add another':(lang==='tr'?'Örn. Kim ilk sarhoş olur?':'e.g. Who gets lost first?')}/>
+     <button type="button" className="c-btn small" disabled={extra.trim().length<3} onClick={addExtra}>Add</button></div>}
    </div>
+   {!drafts.length&&<p className="c-hint">A “who…?” question lets everyone pick a friend; anything else is yes or no.</p>}
    {needsFriends&&<p className="c-hint warn">Add friends in the Group tab first, for “who…?” calls.</p>}
    <div className="c-sheet-foot"><span className="c-badge later">{title||'…'}{sealed&&opensMs?' · opens '+new Date(opensMs).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):startMs?' · '+when(new Date(startMs).toISOString(),now):''}</span>
-    <button className="c-btn" disabled={!valid||busy} onClick={async()=>{if(await onCreate({kind:kind!,title:title.trim(),subject:who||undefined,startsAt:new Date(startMs).toISOString(),sealed:sealed||undefined,opensAt:sealed?new Date(opensMs).toISOString():undefined,calls:chosen.slice(0,8).map(d=>({text:d.text.trim(),answerType:d.answerType,options:d.options}))}))onClose()}}>Create & share <Icon name="arrow"/></button></div>
-  </>}
+    <button className="c-btn" disabled={!valid||busy} onClick={async()=>{if(await onCreate({kind,title:title.trim(),subject:who||undefined,startsAt:new Date(startMs).toISOString(),sealed:sealed||undefined,opensAt:sealed?new Date(opensMs).toISOString():undefined,calls:chosen.slice(0,8).map(d=>({text:d.text.trim(),answerType:d.answerType,options:d.options}))}))onClose()}}>Create & share <Icon name="arrow"/></button></div>
  </Sheet>;
 }
 
