@@ -461,8 +461,8 @@ main.app .c-apple,.c-apple{width:100%;min-height:54px;border-radius:18px;backgro
 main.app .c-danger-link,.c-danger-link{display:flex;width:fit-content;margin:4px auto 0;align-self:center;color:#A1300F !important}
 
 /* Setup: group colour, friends' names */
-.c-swatches{display:flex;gap:10px;flex-wrap:wrap;margin:-2px 0 2px}
-.c-swatches button{width:38px;height:38px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line2);cursor:pointer;padding:0}
+.c-swatches{display:flex;gap:6px;flex-wrap:nowrap;flex-wrap:wrap;margin:-2px 0 2px}
+.c-swatches button{width:36px;height:36px;flex:none;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line2);cursor:pointer;padding:0}
 .c-swatches button.on{box-shadow:0 0 0 3px var(--ink)}
 .c-friends{display:flex;flex-direction:column;gap:8px}
 .c-flabel{font-size:13px;font-weight:700}.c-flabel small{display:block;font-weight:500;color:var(--muted);margin-top:2px}
@@ -587,3 +587,26 @@ main.app .c-btn.dark-lime,.c-btn.dark-lime{background:transparent!important;colo
 .c-oracle-hall{margin:16px 4px 0;background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:12px 14px}
 .c-oracle-hall-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}.c-oracle-hall-row:first-of-type{border-top:0}
 .c-oracle-hall-row span{color:var(--muted);font-weight:600}
+/* Review pass: a lighter header off the Calls tab, room under the + button, one + with a small menu. */
+.c-top.compact{padding-bottom:12px}.c-top.compact .c-top-kicker{display:none}.c-top.compact h1{font-size:20px}
+.c-main{padding-bottom:calc(var(--tabbar) + 120px)!important}
+.c-plus-scrim{position:fixed;inset:0;background:rgba(23,32,27,.35);z-index:24}
+.c-plus-menu{position:absolute;right:0;bottom:66px;display:flex;flex-direction:column;gap:8px;width:280px}
+.c-plus-menu button{display:flex;align-items:center;gap:12px;text-align:left;background:#fff;border:2px solid var(--ink);border-radius:18px;padding:12px 14px;box-shadow:0 4px 0 var(--ink);cursor:pointer;font-family:inherit;color:var(--ink)}
+.c-plus-menu button>span:first-child{font-size:24px}.c-plus-menu b{display:block;font-size:15px}.c-plus-menu small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.c-fab-row{flex-direction:column;align-items:flex-end}
+.c-idea-row{display:flex;align-items:center;gap:12px;width:calc(100% - 8px);margin:14px 4px 0;padding:14px 16px;border-radius:18px;background:#fff;border:1.5px dashed var(--line2);cursor:pointer;text-align:left;font-family:inherit;color:var(--ink)}
+.c-idea-row>span:first-child{font-size:26px}.c-idea-row>span:nth-child(2){flex:1}.c-idea-row b{display:block;font-size:15px}.c-idea-row small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.c-notin{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.c-cotw .c-cotw-icon{color:var(--ink);display:flex}
+.lifecycle .segmented{overflow:visible}.lifecycle .segmented button{padding:0 12px;flex:1 1 auto}
+.c-join-form .c-claim{margin:0 0 6px}
+.c-group-line{display:flex;align-items:center;gap:12px;margin:8px 0 14px}.c-group-line p{margin:0}
+.lifecycle .segmented button{white-space:nowrap}
+.c-join-how{list-style:none;counter-reset:how;margin:28px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
+.c-join-how li{counter-increment:how;display:flex;gap:12px;color:#C9D1CB;font-size:14.5px;line-height:1.4}
+.c-join-how li:before{content:counter(how);flex:none;width:26px;height:26px;border-radius:50%;background:var(--lime);color:var(--ink);font:700 13px 'Space Grotesk',sans-serif;display:flex;align-items:center;justify-content:center}
+.c-join-how b{color:#fff}
+.c-moment-top{align-items:flex-start;gap:12px}.c-moment-top .c-moment-emoji{font-size:30px;margin-top:2px}
+.c-moment-id{flex:1;min-width:0}.c-moment-id h3{margin:0}.c-moment-id p{margin-top:2px}
+.c-moment-top .c-badge{flex:none}

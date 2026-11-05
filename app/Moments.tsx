@@ -81,9 +81,7 @@ export function MomentCard({m,calls,me,names,now,lang,onOpen,onPick}:{m:Moment;c
  const v=momentView(m,calls,now,me),k=KIND[m.kind as MomentKind]||KIND.own;
  const pickers=[...new Set(v.calls.flatMap(c=>c.picker_ids||[]))].map(id=>names[id]).filter(Boolean);
  return <article className={'c-moment '+v.status+(m.sealed?' capsule':'')} onClick={onOpen}>
-  <div className="c-moment-top"><span className="c-moment-emoji" aria-hidden="true">{m.sealed&&v.status==='sealed'?'🔒':k.emoji}</span><Badge tone={v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'soon':'neutral'):'later'}>{m.sealed?sealBadge(m,v.status,now):v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'Starts in '+countdown(m.starts_at,now):when(m.starts_at,now)):v.status==='live'?'Happening now':'All settled'}</Badge></div>
-  <h3>{m.title}</h3>
-  <p>{v.calls.length} {v.calls.length===1?'call':'calls'}{pickers.length?' · '+pickers.length+' in':''}{v.status==='live'&&v.settled?' · '+v.settled+' settled':''}</p>
+  <div className="c-moment-top"><span className="c-moment-emoji" aria-hidden="true">{m.sealed&&v.status==='sealed'?'🔒':k.emoji}</span><div className="c-moment-id"><h3>{m.title}</h3><p>{v.calls.length} {v.calls.length===1?'call':'calls'}{pickers.length?' · '+pickers.length+' in':''}{v.status==='live'&&v.settled?' · '+v.settled+' settled':''}</p></div><Badge tone={v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'soon':'neutral'):'later'}>{m.sealed?sealBadge(m,v.status,now):v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'Starts in '+countdown(m.starts_at,now):when(m.starts_at,now)):v.status==='live'?'Happening now':'All settled'}</Badge></div>
   <div className="c-moment-foot"><Faces names={pickers} size={24}/>{v.status==='open'&&v.toPick.length>0?<button className="c-btn small" onClick={e=>{e.stopPropagation();onPick()}}>{v.toPick.length===v.calls.length?'Make your picks':v.toPick.length+' left to pick'}</button>:<span className="c-link">{v.status==='done'?'See who called it':m.sealed&&v.status==='live'?'Open them':'Open'} <Icon name="arrow" size={16}/></span>}</div>
  </article>;
 }

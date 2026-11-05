@@ -20,7 +20,7 @@ import {CallsList,SectionTitle,canSettle,type CallsAct,type CallsCtx} from './Ca
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,FacePicker} from './Sheets';
 import {NewCallSheet,type NewCall} from './NewCallSheet';
 import RankingTab,{type Boards} from './RankingTab';
-import {ProfileSheet,LevelUpSheet,LevelPill} from './Career';
+import {ProfileSheet,LevelUpSheet} from './Career';
 import {LEVELS as CAREER_LEVELS,type Career} from '../lib/career';
 import {setGroupOrder} from '../lib/avatar';
 import type {SeasonView} from './SeasonsPanel';
@@ -41,7 +41,7 @@ export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
  const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode;tags?:string[];tag?:string;retag?:(name:string)=>void}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
- const [firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState<''|'any'|MomentKind>(''),[ceremony,setCeremony]=useState(''),[createdMoment,setCreatedMoment]=useState('');
+ const [plusOpen,setPlusOpen]=useState(false),[firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState<''|'any'|MomentKind>(''),[ceremony,setCeremony]=useState(''),[createdMoment,setCreatedMoment]=useState('');
  const [setupFriends,setSetupFriends]=useState<string[]>([]),[setupColor,setSetupColor]=useState<string>(GROUP_COLORS.coral),[firstCall,setFirstCall]=useState(false);
  const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
@@ -185,13 +185,13 @@ export default function Home(){
  const others=members.filter(m=>m.active&&m.user_id!==me).map(m=>({id:m.user_id,name:m.name}));
 
  return <div className="c-shell">
-  <header className="c-top">
+  <header className={'c-top'+(tab==='calls'?'':' compact')}>
    <div className="c-top-row">
-    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members===1?'Just you so far':data.members+' friends'}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
+    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members===1?'Just you so far':data.members+' friends'}</span><h1>{data.group.name}</h1>{tab==='calls'&&<Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':'Notifications'} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
      <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this month</span></>:<><b>{sections.yourTurn.length+momentPicks}</b><span>to call</span></>}</button></div>
    </div>
-   <p className="c-top-status">{status}</p>
+   {tab==='calls'&&<p className="c-top-status">{status}</p>}
   </header>
 
   <main className="app c-main">
@@ -199,23 +199,24 @@ export default function Home(){
    {data.members<3&&<section className="c-card invite"><h3>{(data.group as {instant?:boolean}).instant?'Now get them in':'Good calls need good company.'}</h3><p>{(data.group as {instant?:boolean}).instant?'Share a call in your group chat. Friends tap it, claim their name and pick, no sign-up.':`Get ${3-data.members} more ${data.members===2?'friend':'friends'} in and the week starts. Later calls work already.`}</p><button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>}
    {football&&!practice&&data.selectedRound?.state==='skipped'&&clock<Date.parse(data.selectedRound.pick_end_at||'')&&members.find(m=>m.user_id===me)?.admin&&<section className="c-card starter"><span className="c-kicker dark">This week</span><h3>No matches were published in time</h3><p>Added some since? Open this week now with them.</p><button className="c-btn" disabled={busy} onClick={()=>void act({action:'startFirstWeek'},'This week is on. Make your calls.')}>Open this week now</button></section>}
    {data.members>=3&&start&&clock<start.getTime()&&!practice&&<section className="c-card starter"><span className="c-kicker dark">First week</span><h3>Starts {when(start,clock,zone)}</h3>{members.find(m=>m.user_id===me)?.admin?<><p>Don’t want to wait? Start a short first week now. It runs until then, and the normal weeks follow.</p><button className="c-btn" disabled={busy} onClick={()=>{if(window.confirm('Start the first week now? Everyone can make their calls straight away.'))void act({action:'startFirstWeek'},'The first week is on. Make your calls.')}}>Start the first week now</button></>:<p>The admin can start it early. Until then, you can look around.</p>}</section>}
-   {yearCampaign&&<section className="c-card campaign" onClick={()=>setNewMoment('year')}><span className="c-campaign-emoji" aria-hidden="true">🔮</span><div><span className="c-kicker dark">New Year ritual</span><h3>Predictions for {new Date(clock).getFullYear()+1}</h3><p>Seal them before New Year’s Eve. Nobody sees a thing until next New Year, then you open them together.</p><button className="c-btn small">Start the capsule <Icon name="arrow"/></button></div></section>}
    {activeMoments.length>0&&<div className="c-moments">{activeMoments.map(m=><MomentCard key={m.id} m={m} calls={calls} me={me} names={names} now={clock} lang={groupLang} onOpen={()=>setMomentId(m.id)} onPick={()=>{const first=momentView(m,calls,clock,me).toPick[0];if(first)startFlow(first)}}/>)}</div>}
    <CallsList s={sections} ctx={ctx} act={a} football={footballBlock}/>
+   {yearCampaign&&<button className="c-idea-row" onClick={()=>setNewMoment('year')}><span aria-hidden="true">🔮</span><span><b>Predictions for {new Date(clock).getFullYear()+1}</b><small>Seal them now, open them together next New Year.</small></span><Icon name="arrow" size={18}/></button>}
    {nothing&&<div className="c-empty"><h2>Start the first “told you so”</h2><p>Make a call about anything: the weekend, the derby, who’s late. Right calls earn points; bold ones earn more. Free, always.</p><button className="c-btn" onClick={()=>setCreating(true)}><Icon name="plus"/> New call</button></div>}
-   <div className="c-fab-row"><button className="c-fab ghost" onClick={()=>setNewMoment('any')}><span aria-hidden="true">✨</span> Moment</button><button className="c-fab" onClick={()=>setCreating(true)}><Icon name="plus" stroke={2.6}/> New call</button></div>
+   {plusOpen&&<div className="c-plus-scrim" onClick={()=>setPlusOpen(false)}/>}
+   <div className={'c-fab-row'+(plusOpen?' open':'')}>{plusOpen&&<div className="c-plus-menu"><button onClick={()=>{setPlusOpen(false);setCreating(true)}}><span aria-hidden="true">💬</span><span><b>A call</b><small>One question for the group</small></span></button><button onClick={()=>{setPlusOpen(false);setNewMoment('any')}}><span aria-hidden="true">✨</span><span><b>A Moment</b><small>A few calls for a trip, birthday, night out</small></span></button></div>}<button className="c-fab" aria-expanded={plusOpen} aria-label="New" onClick={()=>setPlusOpen(!plusOpen)}><Icon name={plusOpen?'close':'plus'} stroke={2.6}/> {plusOpen?'Close':'New'}</button></div>
   </>}
 
   {tab==='ranking'&&<RankingTab boards={data.boards} me={me} meName={meName} calls={calls} snaps={snaps} careers={data.careers||[]} names={names} onProfile={setProfile} onShareOracle={(who,month)=>setSharing({title:'Share the Oracle',url:groupLink,text:`👑 ${who} called ${month} best in ${data.group.name}. Think you can do better?\n${groupLink}`})}/>}
 
   {tab==='group'&&<>
-   <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>
-    <button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>
-   <section className="c-card pending"><span className="c-kicker dark">Not in yet</span><h3>{pendingNames.length?'They’ll claim their name from your link':'Add friends by name'}</h3><p className="c-sub">Names only. “Who…?” calls can pick them before they join.</p><AddNames names={pendingNames} busy={busy} onAdd={names=>act({action:'addNames',names},'Added.')}/></section>
+   <section className="c-card group-invite"><span className="c-kicker dark">Your group</span><div className="c-group-line"><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p></div>
+    <button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button>
+    <div className="c-notin"><span className="c-label">Not in yet</span><p className="c-sub">They claim their name from your link. “Who…?” calls can pick them already.</p><AddNames names={pendingNames} busy={busy} onAdd={names=>act({action:'addNames',names},'Added.')}/></div></section>
    {canApple&&data.linked===false&&<section className="c-card save"><span className="c-kicker dark">Your account</span><h3>Don’t lose your calls</h3><p className="c-sub">Sign in with Apple to keep your calls, points and level on any phone, and to pick up where you left off in the app.</p><AppleButton busy={busy} onClick={()=>void signInApple()}/></section>}
    {footballOn&&<FootballPanel data={data} act={p=>act(p)} busy={busy}/>}
-   <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
    <PastMoments moments={moments} calls={calls} snaps={snaps} now={clock} meName={meName} onOpen={m=>setMomentId(m.id)}/>
+   <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
    <HowItWorks/>
    <LegalLinks/>
    <button className="c-link c-danger-link" disabled={busy} onClick={()=>void deleteMe()}>Delete my account</button>
@@ -223,7 +224,7 @@ export default function Home(){
   </main>
 
   {error&&<p className="c-toast error" role="alert" onClick={()=>setError('')}>{error}</p>}{notice&&<p className="c-toast" role="status">{notice}</p>}
-  <nav className="c-tabbar" aria-label="Sections">{TABS.map(t=><button key={t.id} className={tab===t.id?'on':''} aria-current={tab===t.id?'page':undefined} onClick={()=>go(t.id)}><span className="c-tab-icon"><Icon name={t.icon} size={22}/></span><span>{t.label}</span>{t.id==='group'&&unread>0&&<i className="c-dot">{unread}</i>}</button>)}</nav>
+  <nav className="c-tabbar" aria-label="Sections">{TABS.map(t=><button key={t.id} className={tab===t.id?'on':''} aria-current={tab===t.id?'page':undefined} onClick={()=>go(t.id)}><span className="c-tab-icon"><Icon name={t.icon} size={22}/></span><span>{t.label}</span></button>)}</nav>
 
   <MomentSheet m={openMoment} calls={calls} snaps={snaps} me={me} meName={meName} names={names} now={clock} lang={groupLang} onClose={()=>setMomentId('')} onPick={c=>{const v=openMoment&&momentView(openMoment,calls,clock,me);const first=c||v?.toPick[0];if(first)startFlow(first)}} onReveal={setRevealing} onResolve={c=>setResolving({call:c,mode:'set'})} onResult={c=>{markSeen(c.id);setResult(c)}} onShare={()=>{if(openMoment)openShareMoment(openMoment)}} friends={friendNames} busy={busy} onAdd={call=>act({action:'addMomentCall',momentId:openMoment!.id,call},'Added. Everyone can seal an answer now.')} onCeremony={()=>{if(openMoment)setCeremony(openMoment.id)}} canSet={c=>!!openMoment?.sealed||canSettle(c,ctx)}/>
   <OpeningSheet m={moments.find(x=>x.id===ceremony)||null} calls={calls} snaps={snaps} meName={meName} now={clock} onResolve={c=>setResolving({call:c,mode:'set'})} onClose={()=>setCeremony('')}/>
@@ -260,8 +261,6 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
  const opts=p?.answers||(p?answersOf(p).map(a=>({value:a,label:label(a,p)})):[]);
  return <main className="c-join">
   <div className="c-join-top"><span className="c-brandmark">{BRAND}</span><span>Free · no money, ever</span></div>
-  {pending.length>0&&!other&&<section className="c-claim"><p>Which one are you?</p><div className="c-chips">{pending.map(n=><button type="button" key={n} className={'c-chip-name'+(name===n?' on':'')} aria-pressed={name===n} onClick={()=>setName(n)}><Face name={n} size={28}/>{n}</button>)}<button type="button" className="c-chip-name ghost" onClick={()=>{setOther(true);setName('')}}>Someone else</button></div>
-   {pickedMe>0&&<div className="c-picked-you"><b>{pickedMe===1?'A friend picked you':pickedMe+' friends picked you'}</b> in this one. Make your own pick to see the rest when picks close.</div>}</section>}
   {p?<>
    <div className="c-join-from">{p.creator_name&&!p.answers&&<Face name={p.creator_name} size={48} ring="#FFFFFF"/>}<p>{p.answers?<>Your friends in <b>{data.group.name}</b> want your call</>:<><b>{p.creator_name||'A friend'}</b> wants your call in <b>{data.group.name}</b></>}</p></div>
    <section className="c-join-card">
@@ -272,12 +271,15 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
    </section>
   </>:<>
    <div className="c-join-from big"><p>You’re invited to</p><h1>{data.group.name}</h1><Faces names={people} size={40} ring="#17201B"/><p>{people.length?people.slice(0,3).join(', ')+(people.length>3?' and '+(people.length-3)+' more':'')+' '+(people.length===1?'is':'are')+' in.':''}</p></div>
+   <ol className="c-join-how"><li><b>Calls about you all.</b> Who’s late, who marries last, does the trip happen.</li><li><b>Pick before it closes.</b> Nobody sees answers until then.</li><li><b>Bold calls score more.</b> The fewer friends who saw it coming, the more you get.</li></ol>
   </>}
   <form className="c-join-form" onSubmit={e=>{e.preventDefault();onJoin(name.trim(),locked?'':answer,p)}}>
+   {pending.length>0&&!other&&<section className="c-claim"><p>Which one are you?</p><div className="c-chips">{pending.map(n=><button type="button" key={n} className={'c-chip-name'+(name===n?' on':'')} aria-pressed={name===n} onClick={()=>setName(n)}><Face name={n} size={28}/>{n}</button>)}<button type="button" className="c-chip-name ghost" onClick={()=>{setOther(true);setName('')}}>Someone else</button></div>
+   {pickedMe>0&&<div className="c-picked-you"><b>{pickedMe===1?'A friend picked you':pickedMe+' friends picked you'}</b> in this one. Make your own pick to see the rest when picks close.</div>}</section>}
    {(!pending.length||other)?<><label htmlFor="join-name">What do your friends call you?</label>
-   <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder="Your name" autoComplete="given-name"/></>:!claimed&&<p className="c-hint">Tap your name above.</p>}
-   <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?'I’m in: '+(opts.find(o=>o.value===answer)?.label||label(answer)):'Pick an answer first'):'Join the group'}</button>
-   <small>No sign-up form. Nothing to spend: you earn points by being right, just for bragging rights. Points can’t be bought or cashed out. 18+.</small>
+   <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder="Your name" autoComplete="given-name"/></>:null}
+   <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?'I’m in: '+(opts.find(o=>o.value===answer)?.label||label(answer)):'Pick an answer first'):name.trim()?'Join as '+name.trim():'Tap your name'}</button>
+   <small>No sign-up. Free: points are only for being right, never bought or cashed out. 18+.</small>
   </form>
   {error&&<p className="c-toast error" role="alert">{error}</p>}{notice&&<p className="c-toast" role="status">{notice}</p>}
  </main>;
