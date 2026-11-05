@@ -5,6 +5,9 @@ import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
 import {type Call,type Moment,type Snapshot,answersOf,label,momentView,momentLeaders,reveal} from './calls';
 import {countdown,when} from './format';
 import {starters,MOMENT_KINDS,type MomentKind} from '../lib/moment-starters';
+import {eventByKey,type EventDef} from '../lib/events';
+/** A Moment's emoji: its event's, or its occasion's. */
+export const momentEmoji=(m:{kind:string;event_key?:string|null})=>eventByKey(m.event_key)?.emoji||(KIND as Record<string,{emoji:string}>)[m.kind]?.emoji||'✨';
 
 type Lang='tr'|'en';
 export const KIND:Record<MomentKind,{emoji:string;en:string;tr:string;who?:'friend';place?:true;titled?:true;year?:true}>={
@@ -16,6 +19,7 @@ export const KIND:Record<MomentKind,{emoji:string;en:string;tr:string;who?:'frie
  baby:{emoji:'👶',en:'Baby',tr:'Bebek',who:'friend'},
  job:{emoji:'💼',en:'New job / exams',tr:'Yeni iş / sınav',who:'friend'},
  own:{emoji:'✏️',en:'Your own',tr:'Kendin yaz',titled:true},
+ event:{emoji:'📅',en:'Event',tr:'Etkinlik',titled:true},
 };
 function autoTitle(kind:MomentKind,lang:Lang,who:string,place:string,typed:string){
  const k=KIND[kind];if(k.year){const y=new Date().getMonth()>=9?new Date().getFullYear()+1:new Date().getFullYear();return lang==='tr'?y+' kehanetleri':'Predictions for '+y}if(k.titled)return typed;if(k.place)return place?(lang==='tr'?'Tatil: ':'Trip: ')+place:'';
@@ -28,16 +32,18 @@ function yearDates(now:number){const d=new Date(now),y=d.getMonth()>=9?d.getFull
 function defaultStart(now:number){const d=new Date(now+86400000);d.setHours(20,0,0,0);const p=(n:number)=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T20:00`}
 
 type Draft={text:string;answerType:'friend'|'choice';options?:string[];on:boolean};
-export type NewMoment={kind:MomentKind;title:string;subject?:string;startsAt:string;sealed?:boolean;opensAt?:string;calls:{text:string;answerType:'friend'|'choice';options?:string[]}[]};
+export type NewMoment={kind:MomentKind;title:string;subject?:string;startsAt:string;sealed?:boolean;opensAt?:string;eventKey?:string;calls:{text:string;answerType:'friend'|'choice';options?:string[]}[]};
 
 /** Start a Moment: the occasion, one or two details, three suggested calls. */
-export function NewMomentSheet({open,now,lang,friends,busy,preset,onCreate,onClose}:{open:boolean;now:number;lang:Lang;friends:string[];busy:boolean;preset?:MomentKind;onCreate:(m:NewMoment)=>Promise<boolean>;onClose:()=>void}){
- const [sealed,setSealed]=useState(false),[opensOn,setOpensOn]=useState('');
+export function NewMomentSheet({open,now,lang,friends,busy,preset,presetEvent,events=[],onCreate,onClose}:{open:boolean;now:number;lang:Lang;friends:string[];busy:boolean;preset?:MomentKind;presetEvent?:string;events?:EventDef[];onCreate:(m:NewMoment)=>Promise<boolean>;onClose:()=>void}){
+ const [sealed,setSealed]=useState(false),[opensOn,setOpensOn]=useState(''),[eventKey,setEventKey]=useState('');
  const [kind,setKind]=useState<MomentKind|null>(null),[who,setWho]=useState(''),[place,setPlace]=useState(''),[typed,setTyped]=useState(''),[start,setStart]=useState(''),[drafts,setDrafts]=useState<Draft[]>([]),[extra,setExtra]=useState('');
- useEffect(()=>{if(open){setKind(preset||null);setWho('');setPlace('');setTyped('');setStart(defaultStart(now));setDrafts([]);setExtra('');setSealed(false);setOpensOn('')}},[open]);
+ useEffect(()=>{if(open){setKind(preset||null);setWho('');setPlace('');setTyped('');setStart(defaultStart(now));setDrafts([]);setExtra('');setSealed(false);setOpensOn('');setEventKey('');const e=presetEvent?eventByKey(presetEvent):null;if(e)pickEvent(e)}},[open]);
+ /** A calendar event: its name, date and suggested calls, all editable. */
+ function pickEvent(e:EventDef){setEventKey(e.key);setKind('event');setTyped(lang==='tr'?e.tr:e.en);setStart(local(new Date(e.starts)));setDrafts(e.calls[lang].map(c=>({...c,on:true})));if(e.sealed){setSealed(true);setOpensOn(local(new Date(e.sealed.opens)))}else{setSealed(false);setOpensOn('')}}
  // The year ahead is sealed by default: seal on New Year's Eve, open on the next one. A birthday can be sealed until the next birthday.
  useEffect(()=>{if(kind==='year'){const d=yearDates(now);setSealed(true);setStart(d.seal);setOpensOn(d.open)}else if(sealed&&!opensOn&&start){setOpensOn(local(new Date(new Date(start).getTime()+365*86400000)))}},[kind]);
- useEffect(()=>{if(kind)setDrafts(starters(kind,lang,who).map(s=>({...s,on:true})))},[kind,who,lang]);
+ useEffect(()=>{if(kind&&kind!=='event')setDrafts(starters(kind,lang,who).map(s=>({...s,on:true})))},[kind,who,lang]);
  if(!open)return null;
  const k=kind?KIND[kind]:null,title=kind?autoTitle(kind,lang,who,place,typed):'';
  const chosen=drafts.filter(d=>d.on&&d.text.trim().length>=3);
@@ -47,7 +53,8 @@ export function NewMomentSheet({open,now,lang,friends,busy,preset,onCreate,onClo
  return <Sheet open label="New Moment" onClose={onClose} full>
   <span className="c-kicker dark">New Moment</span>
   <h2 className="c-title">What’s the occasion?</h2>
-  <div className="c-kinds">{MOMENT_KINDS.map(id=><button key={id} type="button" className={kind===id?'on':''} aria-pressed={kind===id} onClick={()=>setKind(id)}><span className="c-kind-emoji" aria-hidden="true">{KIND[id].emoji}</span>{KIND[id].en}</button>)}</div>
+  {events.length>0&&<><span className="c-label">Coming up</span><div className="c-events">{events.map(e=><button key={e.key} type="button" className={eventKey===e.key?'on':''} aria-pressed={eventKey===e.key} onClick={()=>pickEvent(e)}><span aria-hidden="true">{e.emoji}</span><b>{lang==='tr'?e.tr:e.en}</b><small>{new Date(e.starts).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</small></button>)}</div><span className="c-label">Or your own occasion</span></>}
+  <div className="c-kinds">{MOMENT_KINDS.filter(id=>id!=='event').map(id=><button key={id} type="button" className={kind===id&&!eventKey?'on':''} aria-pressed={kind===id} onClick={()=>{setEventKey('');setKind(id)}}><span className="c-kind-emoji" aria-hidden="true">{KIND[id].emoji}</span>{KIND[id].en}</button>)}</div>
   {k&&<>
    {k.who&&<><span className="c-label">{kind==='birthday'?'Whose birthday?':kind==='wedding'?'Whose wedding?':kind==='baby'?'Whose baby?':'Who’s starting?'}</span><div className="c-about">{friends.map(n=><button type="button" key={n} className={who===n?'on':''} aria-pressed={who===n} onClick={()=>setWho(n)}><Face name={n} size={26}/>{n}</button>)}</div></>}
    {k.place&&<label className="c-field">Where to?<input className="c-input" value={place} onChange={e=>setPlace(e.target.value)} maxLength={40} placeholder={lang==='tr'?'Kaş, Roma, kamp…':'Rome, the coast, camping…'}/></label>}
@@ -65,7 +72,7 @@ export function NewMomentSheet({open,now,lang,friends,busy,preset,onCreate,onClo
    </div>
    {needsFriends&&<p className="c-hint warn">Add friends in the Group tab first, for “who…?” calls.</p>}
    <div className="c-sheet-foot"><span className="c-badge later">{title||'…'}{sealed&&opensMs?' · opens '+new Date(opensMs).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):startMs?' · '+when(new Date(startMs).toISOString(),now):''}</span>
-    <button className="c-btn" disabled={!valid||busy} onClick={async()=>{if(await onCreate({kind:kind!,title:title.trim(),subject:who||undefined,startsAt:new Date(startMs).toISOString(),sealed:sealed||undefined,opensAt:sealed?new Date(opensMs).toISOString():undefined,calls:chosen.slice(0,8).map(d=>({text:d.text.trim(),answerType:d.answerType,options:d.options}))}))onClose()}}>Create & share <Icon name="arrow"/></button></div>
+    <button className="c-btn" disabled={!valid||busy} onClick={async()=>{if(await onCreate({kind:kind!,title:title.trim(),subject:who||undefined,startsAt:new Date(startMs).toISOString(),sealed:sealed||undefined,opensAt:sealed?new Date(opensMs).toISOString():undefined,eventKey:eventKey||undefined,calls:chosen.slice(0,8).map(d=>({text:d.text.trim(),answerType:d.answerType,options:d.options}))}))onClose()}}>Create & share <Icon name="arrow"/></button></div>
   </>}
  </Sheet>;
 }
@@ -80,7 +87,7 @@ export function MomentCard({m,calls,me,names,now,lang,onOpen,onPick}:{m:Moment;c
  const v=momentView(m,calls,now,me),k=KIND[m.kind as MomentKind]||KIND.own;
  const pickers=[...new Set(v.calls.flatMap(c=>c.picker_ids||[]))].map(id=>names[id]).filter(Boolean);
  return <article className={'c-moment '+v.status+(m.sealed?' capsule':'')} onClick={onOpen}>
-  <div className="c-moment-top"><span className="c-moment-emoji" aria-hidden="true">{m.sealed&&v.status==='sealed'?'🔒':k.emoji}</span><Badge tone={v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'soon':'neutral'):'later'}>{m.sealed?sealBadge(m,v.status,now):v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'Starts in '+countdown(m.starts_at,now):when(m.starts_at,now)):v.status==='live'?'Happening now':'All settled'}</Badge></div>
+  <div className="c-moment-top"><span className="c-moment-emoji" aria-hidden="true">{m.sealed&&v.status==='sealed'?'🔒':momentEmoji(m)}</span><Badge tone={v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'soon':'neutral'):'later'}>{m.sealed?sealBadge(m,v.status,now):v.status==='open'?(Date.parse(m.starts_at)-now<6*3600000?'Starts in '+countdown(m.starts_at,now):when(m.starts_at,now)):v.status==='live'?'Happening now':'All settled'}</Badge></div>
   <h3>{m.title}</h3>
   <p>{v.calls.length} {v.calls.length===1?'call':'calls'}{pickers.length?' · '+pickers.length+' in':''}{v.status==='live'&&v.settled?' · '+v.settled+' settled':''}</p>
   <div className="c-moment-foot"><Faces names={pickers} size={24}/>{v.status==='open'&&v.toPick.length>0?<button className="c-btn small" onClick={e=>{e.stopPropagation();onPick()}}>{v.toPick.length===v.calls.length?'Make your picks':v.toPick.length+' left to pick'}</button>:<span className="c-link">{v.status==='done'?'See who called it':m.sealed&&v.status==='live'?'Open them':'Open'} <Icon name="arrow" size={16}/></span>}</div>
@@ -94,9 +101,9 @@ export function MomentSheet({m,calls,snaps,me,meName,names,now,lang,friends=[],b
  const leaders=useMemo(()=>v?momentLeaders(v.calls,snaps):[],[v,snaps]);
  if(!m||!v)return null;
  const k=KIND[m.kind as MomentKind]||KIND.own,top=leaders[0],tied=top?leaders.filter(l=>l.points===top.points&&l.right===top.right):[];
- const kindName=(m.kind==='own'?'moment':m.kind==='job'?'new start':k.en).toLowerCase();
+ const kindName=(eventByKey(m.event_key)?.en||(m.kind==='own'?'moment':m.kind==='job'?'new start':k.en)).toLowerCase().replace(/^the /,'');
  return <Sheet open label={m.title} onClose={onClose} full>
-  <div className="c-moment-head"><span className="c-moment-emoji big" aria-hidden="true">{k.emoji}</span><div><span className="c-kicker dark">{m.sealed?(v.status==='open'?'Seal yours by '+dateLabel(m.starts_at)+' · opens '+dateLabel(m.opens_at!):v.status==='sealed'?'🔒 Sealed · opens '+dateLabel(m.opens_at!)+' ('+sealBadge(m,v.status,now).replace('Opens ','')+')':v.status==='live'?'Opened '+dateLabel(m.opens_at!):'All settled'):v.status==='open'?'Picks close '+when(m.starts_at,now):v.status==='live'?'Happening now':'All settled'}</span><h2 className="c-title">{m.title}</h2></div></div>
+  <div className="c-moment-head"><span className="c-moment-emoji big" aria-hidden="true">{momentEmoji(m)}</span><div><span className="c-kicker dark">{m.sealed?(v.status==='open'?'Seal yours by '+dateLabel(m.starts_at)+' · opens '+dateLabel(m.opens_at!):v.status==='sealed'?'🔒 Sealed · opens '+dateLabel(m.opens_at!)+' ('+sealBadge(m,v.status,now).replace('Opens ','')+')':v.status==='live'?'Opened '+dateLabel(m.opens_at!):'All settled'):v.status==='open'?'Picks close '+when(m.starts_at,now):v.status==='live'?'Happening now':'All settled'}</span><h2 className="c-title">{m.title}</h2></div></div>
   {v.status==='open'&&v.toPick.length>0&&<button className="c-btn" onClick={()=>onPick()}>{m.sealed?(v.toPick.length===v.calls.length?'Seal your picks':'Seal the last '+v.toPick.length):v.toPick.length===v.calls.length?'Make your picks':'Pick the last '+v.toPick.length} <Icon name="arrow"/></button>}
   {m.sealed&&v.status==='sealed'&&<div className="c-sealed-note"><span aria-hidden="true">🔒</span><p>Nobody can see any answers until {dateLabel(m.opens_at!)}, not even how the group split. Then everyone opens them together.</p></div>}
   {m.sealed&&v.status==='live'&&onCeremony&&<button className="c-btn" onClick={onCeremony}>Open them one by one <Icon name="arrow"/></button>}
@@ -128,8 +135,8 @@ export function MomentSheet({m,calls,snaps,me,meName,names,now,lang,friends=[],b
 export function PastMoments({moments,calls,snaps,now,meName,onOpen}:{moments:Moment[];calls:Call[];snaps:Snapshot[];now:number;meName?:string;onOpen:(m:Moment)=>void}){
  const past=moments.filter(m=>momentView(m,calls,now).status==='done');
  if(!past.length)return null;
- return <section className="c-card past"><span className="c-kicker dark">Past Moments</span><div className="c-past">{past.map(m=>{const v=momentView(m,calls,now),l=momentLeaders(v.calls,snaps),top=l[0];const k=KIND[m.kind as MomentKind]||KIND.own;
-  return <button key={m.id} className="c-past-row" onClick={()=>onOpen(m)}><span className="c-moment-emoji" aria-hidden="true">{k.emoji}</span><span className="c-past-main"><b>{m.title}</b><small>{new Date(m.starts_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}{top?' · '+(top.name===meName?'You':top.name)+' called '+top.right+'/'+v.settled:''}</small></span><Icon name="arrow" size={16}/></button>})}</div></section>;
+ return <section className="c-card past"><span className="c-kicker dark">Past Moments</span><div className="c-past">{past.map(m=>{const v=momentView(m,calls,now),l=momentLeaders(v.calls,snaps),top=l[0];
+  return <button key={m.id} className="c-past-row" onClick={()=>onOpen(m)}><span className="c-moment-emoji" aria-hidden="true">{momentEmoji(m)}</span><span className="c-past-main"><b>{m.title}</b><small>{new Date(m.starts_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}{top?' · '+(top.name===meName?'You':top.name)+' called '+top.right+'/'+v.settled:''}</small></span><Icon name="arrow" size={16}/></button>})}</div></section>;
 }
 
 /** Opening day: one prediction at a time, tap to see who said what, then say what happened. */

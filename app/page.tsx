@@ -15,6 +15,7 @@ import {appleIdToken} from './apple';
 import {GROUP_COLORS} from '../lib/share-art';
 import {MomentCard,MomentSheet,NewMomentSheet,PastMoments,OpeningSheet,type NewMoment} from './Moments';
 import type {MomentKind} from '../lib/moment-starters';
+import {upcomingEvents} from '../lib/events';
 import {type Call,type Snapshot,type Moment,sortCalls,answersOf,label,matchTitle,momentView} from './calls';
 import {CallsList,SectionTitle,type CallsAct,type CallsCtx} from './CallsTab';
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,FacePicker} from './Sheets';
@@ -41,7 +42,7 @@ export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
  const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode;tags?:string[];tag?:string;retag?:(name:string)=>void}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
- const [firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState<''|'any'|MomentKind>(''),[ceremony,setCeremony]=useState(''),[createdMoment,setCreatedMoment]=useState('');
+ const [firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState<string>(''),[ceremony,setCeremony]=useState(''),[createdMoment,setCreatedMoment]=useState('');
  const [setupFriends,setSetupFriends]=useState<string[]>([]),[setupColor,setSetupColor]=useState<string>(GROUP_COLORS.coral),[firstCall,setFirstCall]=useState(false);
  const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
@@ -179,6 +180,9 @@ export default function Home(){
  const openMoment=moments.find(m=>m.id===momentId)||null;
  const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football&&!activeMoments.length;
  const groupLang:'tr'|'en'=(data.group as {lang?:string}).lang==='tr'?'tr':'en';
+ // Calendar events for this group (Bayram only for Turkish groups); one gets a card in the week before it, until the group starts it.
+ const upcoming=upcomingEvents(clock,{country:(data.group as {country?:string}).country,lang:groupLang,days:120});
+ const soonEvent=upcoming.find(e=>Date.parse(e.starts)-clock<7*86400000&&!moments.some(m=>m.event_key===e.key));
  const pendingNames=((data.group as {pending_names?:string[]}).pending_names)||[];
  const friendNames=[...members.filter(m=>m.active).map(m=>m.name),...pendingNames.filter(n=>!members.some(m=>m.active&&m.name.toLowerCase()===n.toLowerCase()))];
  const others=members.filter(m=>m.active&&m.user_id!==me).map(m=>({id:m.user_id,name:m.name}));
@@ -199,6 +203,7 @@ export default function Home(){
    {football&&!practice&&data.selectedRound?.state==='skipped'&&clock<Date.parse(data.selectedRound.pick_end_at||'')&&members.find(m=>m.user_id===me)?.admin&&<section className="c-card starter"><span className="c-kicker dark">This week</span><h3>No matches were published in time</h3><p>Added some since? Open this week now with them.</p><button className="c-btn" disabled={busy} onClick={()=>void act({action:'startFirstWeek'},'This week is on. Make your calls.')}>Open this week now</button></section>}
    {data.members>=3&&start&&clock<start.getTime()&&!practice&&<section className="c-card starter"><span className="c-kicker dark">First week</span><h3>Starts {when(start,clock,zone)}</h3>{members.find(m=>m.user_id===me)?.admin?<><p>Don’t want to wait? Start a short first week now. It runs until then, and the normal weeks follow.</p><button className="c-btn" disabled={busy} onClick={()=>{if(window.confirm('Start the first week now? Everyone can make their calls straight away.'))void act({action:'startFirstWeek'},'The first week is on. Make your calls.')}}>Start the first week now</button></>:<p>The admin can start it early. Until then, you can look around.</p>}</section>}
    {!!data.secretCount&&<section className="c-secret"><span className="c-secret-icon"><Icon name="eyeoff" size={22}/></span><div><b>{data.secretCount===1?'There’s a secret call about you.':'There are '+data.secretCount+' secret calls about you.'}</b><p>Your friends are talking about you. You’ll see {data.secretCount===1?'it':'them'} once it’s settled.</p></div></section>}
+   {soonEvent&&<section className="c-card campaign event" onClick={()=>setNewMoment('event:'+soonEvent.key)}><span className="c-campaign-emoji" aria-hidden="true">{soonEvent.emoji}</span><div><span className="c-kicker dark">Coming up · {when(soonEvent.starts,clock,zone)}</span><h3>{groupLang==='tr'?soonEvent.tr:soonEvent.en}</h3><p>Start {data.group.name}’s Moment for it. A few calls are ready; add your own.</p><button className="c-btn small">Start it <Icon name="arrow"/></button></div></section>}
    {yearCampaign&&<section className="c-card campaign" onClick={()=>setNewMoment('year')}><span className="c-campaign-emoji" aria-hidden="true">🔮</span><div><span className="c-kicker dark">New Year ritual</span><h3>Predictions for {new Date(clock).getFullYear()+1}</h3><p>Seal them before New Year’s Eve. Nobody sees a thing until next New Year, then you open them together.</p><button className="c-btn small">Start the capsule <Icon name="arrow"/></button></div></section>}
    {activeMoments.length>0&&<div className="c-moments">{activeMoments.map(m=><MomentCard key={m.id} m={m} calls={calls} me={me} names={names} now={clock} lang={groupLang} onOpen={()=>setMomentId(m.id)} onPick={()=>{const first=momentView(m,calls,clock,me).toPick[0];if(first)startFlow(first)}}/>)}</div>}
    <CallsList s={sections} ctx={ctx} act={a} football={footballBlock}/>
@@ -237,7 +242,7 @@ export default function Home(){
    <AppleButton busy={busy} onClick={()=>void signInApple()}>{apple.storeUrl?'Sign in with Apple & get the app':'Sign in with Apple'}</AppleButton>
    <p className="c-hint">{apple.storeUrl?'In the app, sign in with Apple again: your call will be there.':'Later, sign in with Apple in the app and your call will be there.'}</p>
    <button className="c-link" onClick={()=>{setSaving(false);setNotice('You’re in, and your call is saved.')}}>Not now</button></div></Sheet>}
-  <NewMomentSheet open={!!newMoment} preset={newMoment&&newMoment!=='any'?newMoment:undefined} now={clock} lang={groupLang} friends={friendNames} busy={busy} onClose={()=>setNewMoment('')} onCreate={(m:NewMoment)=>act({action:'createMoment',moment:m})}/>
+  <NewMomentSheet open={!!newMoment} events={upcoming} presetEvent={newMoment.startsWith('event:')?newMoment.slice(6):undefined} preset={newMoment&&newMoment!=='any'&&!newMoment.startsWith('event:')?newMoment as MomentKind:undefined} now={clock} lang={groupLang} friends={friendNames} busy={busy} onClose={()=>setNewMoment('')} onCreate={(m:NewMoment)=>act({action:'createMoment',moment:m})}/>
   <ProfileSheet c={data.careers?.find(c=>c.user_id===profile)||null} name={names[profile]||''} me={profile===me} onClose={()=>setProfile('')}/>
   <LevelUpSheet c={levelUp&&myCareer?myCareer:null} from={levelUp} onClose={()=>setLevelUp('')} onShare={()=>{const url=groupLink;setLevelUp('');if(myCareer)setSharing({title:'Tell the group',url,text:`Just levelled up to ${myCareer.level.name} in ${data.group.name} (${myCareer.points.toLocaleString('en-GB')} career points). ${url}`})}}/>
   <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} tags={sharing?.tags} tag={sharing?.tag} onTag={sharing?.retag} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>

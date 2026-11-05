@@ -1,5 +1,5 @@
 // Moment kinds and their three suggested calls (pure: used by the server and the app).
-export const MOMENT_KINDS=['year','birthday','trip','wedding','night','baby','job','own'] as const;
+export const MOMENT_KINDS=['year','birthday','trip','wedding','night','baby','job','own','event'] as const;
 export type MomentKind=typeof MOMENT_KINDS[number];
 type Lang='tr'|'en';
 type Starter={text:string;answerType:'friend'|'choice';options?:string[]};
@@ -23,6 +23,7 @@ export function starters(kind:MomentKind,lang:Lang,who=''):Starter[]{
    en:[{text:'Girl or boy?',answerType:yes,options:['Girl','Boy']},{text:'Does the baby come before the due date?',answerType:yes},{text:'After the parents, who holds the baby first?',answerType:friend}]},
   job:{tr:[{text:`${n} ilk haftada “çok yoğunum” der mi?`,answerType:yes},{text:`${n} ilk ayın sonunda hâlâ mutlu mu?`,answerType:yes},{text:'Kutlamaya kim geç kalır?',answerType:friend}],
    en:[{text:`Does ${n} say “I’m so busy” in the first week?`,answerType:yes},{text:`Is ${n} still happy at the end of the first month?`,answerType:yes},{text:'Who’s late to the celebration?',answerType:friend}]},
+  event:{tr:[],en:[]},
   own:{tr:[{text:'Kim geç kalır?',answerType:friend},{text:'Her şey plana göre gider mi?',answerType:yes},{text:'Gecenin yıldızı kim olur?',answerType:friend}],
    en:[{text:'Who’s late?',answerType:friend},{text:'Does it all go to plan?',answerType:yes},{text:'Who steals the show?',answerType:friend}]},
  };

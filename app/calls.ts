@@ -76,7 +76,7 @@ export function outcome(c:Call){
 }
 
 // ── Moments ──
-export type Moment={id:string;kind:string;title:string;subject_name:string|null;starts_at:string;creator:string;share_code:string|null;created_at:string;sealed?:boolean;opens_at?:string|null};
+export type Moment={id:string;kind:string;title:string;subject_name:string|null;starts_at:string;creator:string;share_code:string|null;created_at:string;sealed?:boolean;opens_at?:string|null;event_key?:string|null};
 /** open: picks (and, sealed, adding) still open · sealed: waiting for the opening · live: happening / opened · done: all settled. */
 export type MomentStatus='open'|'sealed'|'live'|'done';
 /** A Moment's calls in the order they were written, and where it stands. */

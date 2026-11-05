@@ -1,3 +1,4 @@
+import {eventByKey} from './events';
 // Moments: a bundle of calls around one occasion. Same calls, same scoring; they just close together and end with one result.
 import {randomUUID} from 'node:crypto';
 import type {Transaction} from '@electric-sql/pglite';
@@ -9,7 +10,7 @@ import {newCode} from './short-links';
 import {MOMENT_KINDS} from './moment-starters';
 export {MOMENT_KINDS,starters,type MomentKind} from './moment-starters';
 
-export const momentInput=z.object({kind:z.enum(MOMENT_KINDS),title:z.string().trim().min(2).max(60),subject:z.string().trim().max(60).optional(),startsAt:z.iso.datetime(),sealed:z.boolean().optional(),opensAt:z.iso.datetime().optional(),
+export const momentInput=z.object({kind:z.enum(MOMENT_KINDS),title:z.string().trim().min(2).max(60),subject:z.string().trim().max(60).optional(),startsAt:z.iso.datetime(),sealed:z.boolean().optional(),opensAt:z.iso.datetime().optional(),eventKey:z.string().max(40).optional(),
  calls:z.array(z.object({text:z.string().trim().min(3).max(240),answerType:z.enum(['friend','choice']),options:z.array(z.string().max(60)).max(4).optional()})).min(1).max(8)});
 
 /**
@@ -19,6 +20,7 @@ export const momentInput=z.object({kind:z.enum(MOMENT_KINDS),title:z.string().tr
  */
 export async function createMoment(tx:Transaction,g:{id:string;timezone:string;practice:boolean},userId:string,input:unknown,now:Date,fail:(m:string)=>never){
  const m=momentInput.parse(input),starts=new Date(m.startsAt);
+ if(m.eventKey&&!eventByKey(m.eventKey))fail('That event isn’t on the calendar.');
  if(starts.getTime()<now.getTime()+10*60000)fail('Pick a start time at least 10 minutes from now.');
  if(starts.getTime()>now.getTime()+366*86400000)fail('Moments can be up to a year ahead.');
  // Sealed: picks close at the seal date; nothing is shown until the opening date, then the group opens them together.
@@ -28,7 +30,7 @@ export async function createMoment(tx:Transaction,g:{id:string;timezone:string;p
  const round=(await tx.query<{id:string;deadline_at:Date}>("SELECT id,deadline_at FROM rounds WHERE group_id=$1 AND state='live' AND opens_at<=$2 AND deadline_at>$2 ORDER BY opens_at DESC LIMIT 1",[g.id,now])).rows[0];
  const weekly=!opens&&!!round&&starts<=new Date(round.deadline_at);
  const id=randomUUID();
- await tx.query('INSERT INTO moments(id,group_id,creator,kind,title,subject_name,starts_at,created_at,share_code,sealed,opens_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',[id,g.id,userId,m.kind,m.title,m.subject||null,starts,now,newCode(),!!opens,opens]);
+ await tx.query('INSERT INTO moments(id,group_id,creator,kind,title,subject_name,starts_at,created_at,share_code,sealed,opens_at,event_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',[id,g.id,userId,m.kind,m.title,m.subject||null,starts,now,newCode(),!!opens,opens,m.eventKey||null]);
  const friends=m.calls.some(c=>c.answerType==='friend')?await friendOptions(tx,g.id).catch(()=>fail('Add at least one friend to the group first.')):[];
  const ids:string[]=[];
  for(const [pos,c] of m.calls.entries())ids.push(await insertCall(tx,{groupId:g.id,userId,momentId:id,starts,opens,round:weekly?round!:null,friends,pos},c,fail));

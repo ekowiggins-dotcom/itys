@@ -1,3 +1,4 @@
+import {upcomingEvents} from './events';
 import {createMoment,addMomentCall,sealedUntil} from './moments';
 import {friendOptions} from './friends';
 import {moderationAction,moderationActions,touchMember,maintainRecovery} from './moderation';
@@ -80,6 +81,12 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  else if(now.getTime()>=cutoff)await settle(tx,q,null,new Date(cutoff),now);
  }
  await lockReminders(tx,group.id,now,t);
+ // Calendar events: a week before, one nudge to the group's admin to start the group's own Moment for it.
+ {const gi=(await tx.query<{admin:string;country:string|null;lang:string;name:string}>('SELECT admin,country,lang,name FROM groups WHERE id=$1',[group.id])).rows[0];
+  if(gi&&!t.practice)for(const e of upcomingEvents(now.getTime(),{country:gi.country,lang:gi.lang,days:7})){
+   if((await tx.query('SELECT 1 FROM moments WHERE group_id=$1 AND event_key=$2',[group.id,e.key])).rows.length)continue;
+   const name=gi.lang==='tr'?e.tr:e.en;
+   await emitNotification(tx,{groupId:group.id,userId:gi.admin,key:'event:'+e.key,kind:'round_open',text:gi.lang==='tr'?`${name} yaklaşıyor. ${gi.name} için bir an başlat, soruları siz yazın.`:`${name} is coming up. Start ${gi.name}’s Moment for it: you write the calls.`,eventAt:new Date(e.starts)},now);}}
  // Sealed predictions: everyone hears at the same moment that they're open.
  for(const m of (await tx.query<{id:string;title:string;opens_at:Date}>("SELECT id,title,opens_at FROM moments WHERE group_id=$1 AND sealed AND opens_at<=$2 AND opens_at>$2::timestamptz-interval '7 days'",[group.id,now])).rows)
   for(const u of (await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active',[group.id])).rows)
