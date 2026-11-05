@@ -1,0 +1,108 @@
+/* The website. Same family as the app: Space Grotesk for what you'd say out loud, DM Sans for the rest.
+   The one loud thing is the hero: a real call in the group's colour. Everything after it stays quiet. */
+.s{--ink:#17201B;--paper:#F5F3EC;--lime:#D7F25A;--violet:#B9A2FF;--muted:#5E675F;--line:#E4E2D8;background:var(--paper);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+.s *{box-sizing:border-box}
+.s h1,.s h2,.s h3{font-family:'Space Grotesk',sans-serif;margin:0;letter-spacing:-.02em}
+.s button{font-family:inherit;cursor:pointer}
+.s a{color:inherit}
+.s :focus-visible{outline:3px solid var(--ink);outline-offset:3px;border-radius:6px}
+.s-wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+.s-hero{background:var(--violet);padding:0 20px 56px;position:relative;overflow:hidden}
+.s-hero:before{content:'';position:absolute;right:-180px;top:-220px;width:620px;height:620px;border-radius:50%;background:rgba(255,255,255,.2);pointer-events:none}
+.s-nav{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:18px 0;position:relative}
+.s-mark{font:700 22px 'Space Grotesk',sans-serif;letter-spacing:-.04em;text-decoration:none;background:var(--ink);color:var(--lime)!important;border-radius:99px;padding:4px 14px 6px}
+.s-mark.small{font-size:17px}
+.s-lang{background:transparent;border:1.5px solid rgba(23,32,27,.35);border-radius:99px;padding:7px 14px;font:600 14px 'DM Sans',sans-serif;color:var(--ink)}
+.s-hero-in{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:36px;position:relative;padding-top:24px}
+.s-group{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;margin:0 0 14px}.s-group i{width:12px;height:12px;border-radius:50%;background:var(--ink)}
+.s-call h1{font-size:clamp(52px,12vw,132px);line-height:.95;letter-spacing:-.045em;font-weight:700;max-width:11ch}
+.s-faces{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap}
+.s-faces button{background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:8px;font:700 15px 'DM Sans',sans-serif;color:var(--ink)}
+.s-face{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;border:4px solid #fff;font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--ink);transition:transform .15s}
+.s-faces button:hover .s-face{transform:translateY(-3px)}
+.s-faces button.on .s-face{border-color:var(--lime);box-shadow:0 0 0 3px var(--ink)}
+.s-after{min-height:96px;margin-top:22px;max-width:520px}
+.s-after p{margin:0 0 10px;font-weight:700;font-size:16px}
+.s-hint{opacity:.7}
+.s-split{display:flex;gap:4px;height:40px;border-radius:12px;overflow:hidden;border:2px solid var(--ink);animation:s-grow .45s ease-out}
+.s-split div{display:flex;align-items:center;padding:0 12px;font-size:14px;white-space:nowrap;overflow:hidden}
+.s-after small{display:block;margin-top:10px;font-size:14px;color:rgba(23,32,27,.75)}
+.s-again{background:none;border:0;padding:0;font-weight:700;text-decoration:underline;color:var(--ink)}
+@keyframes s-grow{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.s-lead{font-size:19px;line-height:1.5;margin:0 0 22px;max-width:34ch}
+.s-btn{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 28px;border-radius:16px;background:var(--ink);color:#fff!important;font:700 18px 'Space Grotesk',sans-serif;text-decoration:none;box-shadow:0 5px 0 rgba(23,32,27,.35)}
+.s-btn:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(23,32,27,.35)}
+.s-soon{margin:14px 0 0;font-size:14px;color:rgba(23,32,27,.7)}
+
+.s h2{font-size:clamp(32px,5vw,52px);line-height:1.02;letter-spacing:-.035em;margin-bottom:18px}
+.s-body{font-size:18px;line-height:1.55;color:var(--muted);max-width:52ch;margin:0}
+.s-how,.s-chat-sec,.s-moments,.s-oracle,.s-faq,.s-end{padding:72px 0}
+.s-how-grid{display:grid;gap:40px;align-items:center}
+.s-how ol{list-style:none;counter-reset:how;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:26px}
+.s-how li{counter-increment:how;display:grid;grid-template-columns:44px 1fr;column-gap:16px}
+.s-how li:before{content:counter(how);grid-row:span 2;width:44px;height:44px;border-radius:50%;background:var(--lime);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font:700 19px 'Space Grotesk',sans-serif}
+.s-how h3{font-size:22px;margin-top:8px}
+.s-how li p{margin:6px 0 0;font-size:17px;line-height:1.55;color:var(--muted);max-width:46ch}
+.s-phone{margin:0 auto;width:min(300px,78vw);border:9px solid var(--ink);border-radius:42px;overflow:hidden;background:var(--ink);box-shadow:0 30px 60px -30px rgba(23,32,27,.5)}
+.s-phone img{display:block;width:100%;height:auto}
+
+.s-chat-sec{background:#EFEAE2}
+.s-chat-grid{display:grid;gap:40px;align-items:center}
+.s-chat{display:flex;flex-direction:column;gap:8px;max-width:400px;width:100%;margin:0 auto}
+.s-bubble{border-radius:12px;padding:8px 10px 9px;font-size:15px;line-height:1.35;box-shadow:0 1px .5px rgba(0,0,0,.13);max-width:86%}
+.s-bubble b{display:block;font-size:13px;margin-bottom:2px}
+.s-bubble.in{background:#fff;align-self:flex-start;border-top-left-radius:3px}
+.s-bubble.out{background:#D9FDD3;align-self:flex-end;border-top-right-radius:3px;max-width:92%}
+.s-preview{background:rgba(0,0,0,.05);border-radius:8px;overflow:hidden;margin-bottom:6px}
+.s-preview img{display:block;width:100%;height:auto}
+.s-preview div{padding:7px 9px 8px}.s-preview div b{font-size:14px;margin:0}.s-preview span{display:block;font-size:13px;color:#555;margin-top:2px}.s-preview em{display:block;font-style:normal;font-size:12px;color:#888;margin-top:3px}
+
+.s-capsule{margin-top:34px;display:flex;gap:18px;align-items:flex-start;background:var(--ink);color:#fff;border-radius:24px;padding:26px 24px;max-width:640px}
+.s-capsule>span{font-size:34px;line-height:1}
+.s-capsule h3{font-size:24px;color:var(--lime)}
+.s-capsule p{margin:8px 0 0;font-size:16.5px;line-height:1.55;color:#C9D1CB}
+
+.s-oracle{border-top:1px solid var(--line)}
+.s-oracle-grid{display:grid;gap:32px;align-items:center}
+.s-crown{position:relative;width:132px;height:150px;display:flex;align-items:flex-end}
+.s-crown .s-face{box-shadow:0 0 0 4px var(--ink)}
+.s-crown>span:last-child{position:absolute;top:0;left:34px;font-size:54px;transform:rotate(-12deg)}
+
+.s-money{background:var(--ink);color:#fff;padding:72px 0}
+.s-money h2{color:var(--lime)}
+.s-money ul{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:14px;max-width:560px}
+.s-money li{font-size:19px;line-height:1.45;padding-left:30px;position:relative}
+.s-money li:before{content:'';position:absolute;left:0;top:9px;width:12px;height:12px;border-radius:50%;background:var(--lime)}
+
+.s-faq details{border-bottom:1px solid var(--line);padding:18px 0;max-width:720px}
+.s-faq summary{font:700 19px 'Space Grotesk',sans-serif;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+.s-faq summary::-webkit-details-marker{display:none}
+.s-faq summary:after{content:'+';font-size:24px;line-height:1;transition:transform .2s}
+.s-faq details[open] summary:after{transform:rotate(45deg)}
+.s-faq details p{margin:10px 0 0;font-size:16.5px;line-height:1.6;color:var(--muted);max-width:60ch}
+
+.s-end{background:var(--violet)}
+.s-end .s-body{color:var(--ink);margin-bottom:26px}
+.s-foot{padding:28px 0 40px}
+.s-foot .s-wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.s-foot nav{display:flex;gap:20px}.s-foot nav a{font-weight:600;color:var(--muted);text-decoration:none}
+
+@media (min-width:860px){
+ .s-hero{padding-bottom:84px}
+ .s-hero-in{grid-template-columns:1.5fr 1fr;align-items:end;padding-top:48px}
+ .s-hero-side{padding-bottom:110px}
+ .s-how-grid{grid-template-columns:1.2fr 1fr}
+ .s-chat-grid{grid-template-columns:1fr 1fr}.s-chat{margin:0}
+ .s-oracle-grid{grid-template-columns:auto 1fr;gap:56px}
+ .s-how,.s-chat-sec,.s-moments,.s-oracle,.s-faq,.s-end,.s-money{padding:104px 0}
+}
+@media (prefers-reduced-motion:reduce){.s-split{animation:none}.s-face{transition:none}}
+/* Keep the app's global element styles out of the site. */
+.s p{color:inherit}
+.s .s-body,.s .s-how li p,.s .s-faq details p{color:var(--muted)}
+.s-hero p,.s-hero .s-lead{color:var(--ink)}
+.s .s-capsule p{color:#C9D1CB}
+.s-faq details{background:none;border-radius:0;margin:0}
+.s-faq summary{background:none;padding:0;border:0;border-radius:0}
+.s-split div{gap:6px}
