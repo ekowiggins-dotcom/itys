@@ -14,6 +14,8 @@ const BADGE_ART:Record<string,{color:string;icon:string}>={
  early_bird:{color:'#FFC145',icon:'M3 18h18 M7 18a5 5 0 0 1 10 0 M12 5v3 M5 10l2 2 M19 10l-2 2'},
  crowd:{color:'#FF7EB6',icon:'M12 20V4 M6 10l6-6 6 6 M3 16h5 M16 16h5'},
  rock_solid:{color:'#7FD6E8',icon:'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z M9 12l2 2 4-4'},
+ ritual_maker:{color:'#B9A2FF',icon:'M4 10h16v10H4z M12 10v10 M4 14h16 M12 10c-2-4-6-4-6-1s6 1 6 1c0 0 6 2 6-1s-4-3-6 1'},
+ moment_oracle:{color:'#FFC94D',icon:'M8 21h8 M12 17v4 M7 4h10v5a5 5 0 0 1-10 0z M7 6H4v1a3 3 0 0 0 3 3 M17 6h3v1a3 3 0 0 1-3 3'},
 };
 export function BadgeMedal({id,earned,size=56}:{id:string;earned:boolean;size?:number}){
  const a=BADGE_ART[id];return <span className={'c-medal'+(earned?' on':'')} style={{width:size,height:size,background:earned?a.color:undefined}} aria-hidden="true"><svg width={size*0.56} height={size*0.56} viewBox="0 0 24 24" fill="none" stroke={earned?'#17201B':'#9AA096'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={a.icon}/></svg></span>;

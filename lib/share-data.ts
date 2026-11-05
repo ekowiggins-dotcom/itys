@@ -1,4 +1,5 @@
 import {GROUP_COLORS,type Art,type Lang} from './share-art';
+import {momentTable} from './moment-table';
 import {db} from './db';import {reconcile} from './service';import {weeklyViews} from './rounds';import {betCard,inviteCard,winnerCard} from './sharing';import {when,kickLabel} from '../app/format';
 const MARKETS:Record<string,string[]>={result:['Home','Draw','Away']};
 /** Month a long-running call resolves, e.g. "We'll know in March". */
@@ -43,10 +44,11 @@ export function closesLabel(at:Date,now:Date,zone:string,lang:Lang){
  return lang==='tr'?`${wd} kapanıyor`:`Closes ${wd}`;
 }
 /** The picture for a shared link, or null to fall back to the older cards (weekly winner, football, secret calls). */
-export async function shareArt(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean;forName?:string},now=new Date()):Promise<Art|null>{
+export async function shareArt(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean;forName?:string;momentId?:string},now=new Date()):Promise<Art|null>{
  if(target.winner)return null;const d=await db();
  const g=(await d.query<{id:string;name:string;color:string|null;lang:string;timezone:string}>('SELECT id,name,color,lang,timezone FROM groups WHERE invite=$1',[invite])).rows[0];if(!g)return null;
  const lang:Lang=g.lang==='tr'?'tr':'en',group={name:g.name,color:groupColor(g.name,g.color)};
+ if(target.momentId)return momentArt(g,target.momentId,lang,group,now);
  if(!target.questionId){const members=(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at LIMIT 30',[g.id])).rows.map(r=>r.name);return{variant:'invite',lang,group,members}}
  const q=(await d.query<{id:string;text:string;options:string[]|null;answer_type:string;market:string|null;locks_at:Date;state:string;result_answer:string|null;subject_id:string|null;moderation_state:string}>("SELECT id,text,options,answer_type,market,locks_at,state,result_answer,subject_id,moderation_state FROM questions WHERE id=$1 AND group_id=$2 AND NOT superseded",[target.questionId,g.id])).rows[0];
  if(!q||q.moderation_state!=='visible'||(q.market&&q.market!=='custom'))return null;
@@ -66,4 +68,18 @@ export async function shareArt(invite:string,target:{questionId?:string;roundId?
  const when=closesLabel(new Date(q.locks_at),now,g.timezone,lang);
  if(friend)return{variant:'friend',lang,group,question:q.text,answers:q.options||[],pickers,when};
  return{variant:'choice',lang,group,question:q.text,answers:(q.options?.length?q.options:['yes','no']).map(label),pickers,when};
+}
+
+/** A Moment's card: before it's settled, its calls and who's in; once every call is settled, who called it best. */
+async function momentArt(g:{id:string;timezone:string},momentId:string,lang:Lang,group:{name:string;color:string},now:Date):Promise<Art|null>{
+ const d=await db();const m=(await d.query<{id:string;title:string;kind:string;starts_at:Date}>('SELECT id,title,kind,starts_at FROM moments WHERE id=$1 AND group_id=$2',[momentId,g.id])).rows[0];if(!m)return null;
+ const qs=(await d.query<{id:string;text:string;state:string}>("SELECT id,text,state FROM questions WHERE moment_id=$1 AND NOT superseded AND moderation_state='visible' ORDER BY moment_pos",[m.id])).rows;if(!qs.length)return null;
+ const done=qs.every(q=>['settled','void'].includes(q.state))&&qs.some(q=>q.state==='settled');
+ if(done){const t=momentTable(await d.query<{user_id:string;name:string;points:number;right:number}>(`SELECT s.user_id,u.name,sum(s.points_tenths)::int points,count(*) FILTER (WHERE s.points_tenths>0)::int "right" FROM scores s JOIN users u ON u.id=s.user_id JOIN questions q ON q.id=s.question_id WHERE q.moment_id=$1 AND q.state='settled' GROUP BY s.user_id,u.name`,[m.id]).then(r=>r.rows));
+  if(t.winners.length)return{variant:'momentResult',lang,group,title:m.title,kind:m.kind,winners:t.winners.map(w=>w.name),right:t.winners[0].right,of:qs.filter(q=>q.state==='settled').length};return null;}
+ const pickers=(await d.query<{name:string}>('SELECT u.name FROM predictions p JOIN users u ON u.id=p.user_id JOIN questions q ON q.id=p.question_id WHERE q.moment_id=$1 GROUP BY u.name ORDER BY min(p.submitted_at)',[m.id])).rows.map(r=>r.name);
+ const at=new Date(m.starts_at),label=closesLabel(at,now,g.timezone,lang);
+ const loc=lang==='tr'?'tr-TR':'en-GB',soon=at.getTime()-now.getTime()<6*86400000;
+ const when=now>=at?label:at.toLocaleDateString(loc,soon?{timeZone:g.timezone,weekday:'long'}:{timeZone:g.timezone,day:'numeric',month:'long'})+' '+at.toLocaleTimeString('en-GB',{timeZone:g.timezone,hour:'2-digit',minute:'2-digit'});
+ return{variant:'moment',lang,group,title:m.title,kind:m.kind,when,questions:qs.map(q=>q.text),pickers};
 }

@@ -13,7 +13,8 @@ import {initNative,haptic,updateWidget} from './native';
 import {Face,Faces,Icon,Sheet,AppleButton} from './ui';
 import {appleIdToken} from './apple';
 import {GROUP_COLORS} from '../lib/share-art';
-import {type Call,type Snapshot,sortCalls,answersOf,label,matchTitle} from './calls';
+import {MomentCard,MomentSheet,NewMomentSheet,PastMoments,type NewMoment} from './Moments';
+import {type Call,type Snapshot,type Moment,sortCalls,answersOf,label,matchTitle,momentView} from './calls';
 import {CallsList,SectionTitle,type CallsAct,type CallsCtx} from './CallsTab';
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,FacePicker} from './Sheets';
 import {NewCallSheet,type NewCall} from './NewCallSheet';
@@ -39,7 +40,7 @@ export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
  const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode;tags?:string[];tag?:string;retag?:(name:string)=>void}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
- const [firstOpen,setFirstOpen]=useState(false);
+ const [firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState(false),[createdMoment,setCreatedMoment]=useState('');
  const [setupFriends,setSetupFriends]=useState<string[]>([]),[setupColor,setSetupColor]=useState<string>(GROUP_COLORS.coral),[firstCall,setFirstCall]=useState(false);
  const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
@@ -48,7 +49,7 @@ export default function Home(){
  const focusRef=useRef('');
  useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null});setFootballOn(!!c.football)}).catch(()=>{})},[]);
  useEffect(()=>{setOrigin(webOrigin());void (async()=>{const params=new URLSearchParams(location.search);focusRef.current=params.get('question')||'';setFocusQuestion(focusRef.current);if(params.get('view')==='winner')setTab('ranking');const code=params.get('invite')||(await lastInvite())||'';selectedRound.current=params.get('round')||'';setInvite(code);if(code)await load(code).catch(e=>setError(e.message));setLoading(false);if(NATIVE)void initNative({onOpen:url=>{void openLink(url)}});})()},[]);
- async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
+ async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(d.momentId)setCreatedMoment(d.momentId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
  useEffect(()=>{if(!invite)return;const timer=setInterval(()=>{void load(invite).catch(()=>{})},15000);return ()=>clearInterval(timer)},[invite]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),3200);return ()=>clearTimeout(t)},[notice]);
  useEffect(()=>{if(!error)return;const t=setTimeout(()=>setError(''),6000);return ()=>clearTimeout(t)},[error]);
@@ -64,12 +65,15 @@ export default function Home(){
   return {...c,market:c.market||q.market,match,text:matchTitle({match,text:c.text})}}),[data?.bets,data?.questions]);const snaps=(data?.snapshots||[]) as Snapshot[];
  const sections=useMemo(()=>sortCalls(calls,me,clock),[calls,me,clock]);
  const findCall=(id:string)=>calls.find(c=>c.id===id);
+ const moments=useMemo(()=>((data as {moments?:Moment[]}|null)?.moments||[]),[data]);
  const linkFor=(c:Call)=>origin?(c.share_code?shortLink(origin,c.share_code):shareLink(origin,invite,{questionId:c.id,roundId:c.round_id||undefined})):'';
  const groupLink=origin&&data?.group.share_code?shortLink(origin,data.group.share_code):origin?shareLink(origin,invite):'';
 
  // Open what a shared link or notification pointed at, once.
  useEffect(()=>{if(!data?.joined||!focusQuestion||focused.current===focusQuestion)return;const c=findCall(focusQuestion);if(!c)return;focused.current=focusQuestion;setTab('calls');
   if(['settled','void'].includes(c.state))setResult(c);else if(clock<Date.parse(c.locks_at)&&c.state==='open'){if(!c.answer&&c.subject_id!==me)startFlow(c)}else setRevealing(c);},[data?.joined,focusQuestion,data?.bets]);
+ // After starting a Moment: send it to the group.
+ useEffect(()=>{if(!createdMoment)return;const m=moments.find(x=>x.id===createdMoment);if(!m)return;setCreatedMoment('');openShareMoment(m)},[createdMoment,moments]);
  // Right after making a group: straight into the first call.
  useEffect(()=>{if(firstCall&&data?.joined){setFirstCall(false);setFirstOpen(true);setCreating(true)}},[firstCall,data?.joined]);
  // Show a fresh result once: the "called it" moment.
@@ -98,9 +102,11 @@ export default function Home(){
  function tagging(c:Call,url:string){if(c.answer_type!=='friend'||['settled','void'].includes(c.state))return {};const pending=((data!.group as {pending_names?:string[]}).pending_names)||[];const tags=(c.options||[]).filter(o=>pending.some(p=>p.toLowerCase()===o.toLowerCase()));if(!tags.length)return {};
   const retag=(name:string)=>setSharing(s=>{if(!s)return s;const next=s.tag===name?'':name;const u=next?url+'?for='+encodeURIComponent(next):url;return {...s,tag:next,url:u,text:callText(c,u,next||undefined),preview:cardImage(c,next||undefined)||s.preview}});
   return {tags,retag}}
- /** Go through every open call, one after another, starting from the one you tapped. */
- function startFlow(first:Call,preset?:string){const open=sortCalls(calls,me,Date.now()).yourTurn.map(c=>c.id).filter(id=>id!==first.id);const ids=!first.answer?[first.id,...open]:[first.id];setFlow(ids);setPick({call:first,preset})}
+ /** Go through every open call, one after another, starting from the one you tapped. A Moment's call walks through that Moment. */
+ function startFlow(first:Call,preset?:string){if(first.moment_id){const m=moments.find(x=>x.id===first.moment_id);if(m){const rest=momentView(m,calls,Date.now(),me).toPick.map(c=>c.id).filter(id=>id!==first.id);setFlow(first.answer?[first.id]:[first.id,...rest]);setPick({call:first,preset});return}}const open=sortCalls(calls,me,Date.now()).yourTurn.map(c=>c.id).filter(id=>id!==first.id);const ids=!first.answer?[first.id,...open]:[first.id];setFlow(ids);setPick({call:first,preset})}
  function advance(from:Call){const ids=flow||[];const i=ids.indexOf(from.id);const next=ids.slice(i+1).map(id=>findCall(id)).find(c=>c&&!c.answer&&c.state==='open'&&Date.now()<Date.parse(c.locks_at));if(next){setPick({call:next});return true}setPick(null);setFlow(null);return false}
+ function openShareMoment(m:Moment){if(!origin||!m.share_code)return;const url=shortLink(origin,m.share_code);const tr=((data!.group as {lang?:string}).lang)==='tr';const done=momentView(m,calls,Date.now(),me).status==='done';
+  setSharing({title:done?'Share the result':'Send it to the group',url,text:done?(tr?`${m.title}: kâhin belli oldu 🔮 ${url}`:`${m.title}: the oracle is in 🔮 ${url}`):(tr?`${m.title} 🎉 Tahminini yap 👀 ${url}`:`${m.title} 🎉 Make your calls 👀 ${url}`),preview:<img className="c-card-image" alt="" src={origin+'/share/image?c='+m.share_code+'&v='+Date.now()}/>})}
  function nextLockAt(){const t=[...calls.filter(c=>c.state==='open'&&!c.fixture_id).map(c=>Date.parse(c.locks_at)),...(data?.questions||[]).filter(q=>(q.market||'custom')!=='custom').map(q=>Date.parse(q.locks_at))].filter(x=>x>clock).sort((a,b)=>a-b);return t[0]}
  async function joinAndPick(name:string,answer:string,p:Preview|null){if(p)focused.current=p.id;const joined=await act({action:'join',name});if(!joined)return;if(!p||!answer){setNotice('You’re in. Let’s make it interesting.');return;}const ok=await act(p.scope==='longterm'?{action:'predictLongterm',questionId:p.id,answer}:{action:'predict',questionId:p.id,answer});if(ok&&!NATIVE&&canApple){setSaving(true);return}setNotice(ok?'You’re in, and your call is saved.':'You’re in. That call isn’t taking picks right now.');}
  const canApple=NATIVE||!!apple.servicesId;
@@ -151,8 +157,10 @@ export default function Home(){
  const unread=data.notifications?.filter(n=>!n.read_at).length||0;
  const myRow=data.selectedRound?.standings.find(s=>s.user_id===me);const anyPoints=!!data.selectedRound?.standings.some(s=>s.points_tenths>0);
  const nextLock=nextLockAt();
+ const activeMoments=moments.filter(m=>{const v=momentView(m,calls,clock,me);return v.status!=='done'||clock-Date.parse(m.starts_at)<3*86400000}).sort((x,y)=>{const dx=momentView(x,calls,clock,me).status==='done'?1:0,dy=momentView(y,calls,clock,me).status==='done'?1:0;return dx-dy||Date.parse(x.starts_at)-Date.parse(y.starts_at)});
+ const momentPicks=activeMoments.reduce((n,m)=>n+momentView(m,calls,clock,me).toPick.length,0);
  const instant=!!(data.group as {instant?:boolean}).instant;
- const status=data.members<3&&!instant?'Waiting for '+(3-data.members)+' more '+(3-data.members===1?'friend':'friends'):start&&clock<start.getTime()?'First week opens '+when(start,clock,zone):!active?'This week has wrapped up':(sections.yourTurn.length?sections.yourTurn.length+(sections.yourTurn.length===1?' call':' calls')+' waiting for you':'You’re all caught up')+(nextLock?' · next lock in '+countdown(nextLock,clock):'');
+ const status=data.members<3&&!instant?'Waiting for '+(3-data.members)+' more '+(3-data.members===1?'friend':'friends'):start&&clock<start.getTime()?'First week opens '+when(start,clock,zone):!active?'This week has wrapped up':(sections.yourTurn.length+momentPicks?(sections.yourTurn.length+momentPicks)+(sections.yourTurn.length+momentPicks===1?' call':' calls')+' waiting for you':'You’re all caught up')+(nextLock?' · next lock in '+countdown(nextLock,clock):'');
  const lastFinal=(data.rounds||[]).find(r=>r.state==='final'&&r.winners.length>0);
  const liveEmpty=!!data.selectedRound&&data.selectedRound.state!=='final'&&data.selectedRound.standings.every(x=>x.points_tenths===0);
  const board=(data.rounds||[]).find(r=>r.id===boardRound)||(liveEmpty&&lastFinal?lastFinal:data.selectedRound);
@@ -165,7 +173,8 @@ export default function Home(){
  // Matches are in the list above. Here: only "waiting for matches" and next week's preview.
  const waitingMatches=football&&!footballQs.length&&data.selectedRound?.state==='waiting_feed';
  const footballBlock=football&&(waitingMatches||data.comingUp)?<>{waitingMatches&&<section className="c-card coming"><span className="c-badge later">Matches</span><h3>This week’s matches are on their way</h3><p className="c-sub">They show up here as soon as they’re published.</p></section>}{data.comingUp&&<ComingUp c={data.comingUp} zone={zone} now={clock}/>}</>:null;
- const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football;
+ const openMoment=moments.find(m=>m.id===momentId)||null;
+ const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football&&!activeMoments.length;
  const groupLang:'tr'|'en'=(data.group as {lang?:string}).lang==='tr'?'tr':'en';
  const pendingNames=((data.group as {pending_names?:string[]}).pending_names)||[];
  const friendNames=[...members.filter(m=>m.active).map(m=>m.name),...pendingNames.filter(n=>!members.some(m=>m.active&&m.name.toLowerCase()===n.toLowerCase()))];
@@ -176,7 +185,7 @@ export default function Home(){
    <div className="c-top-row">
     <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members===1?'Just you so far':data.members+' friends'}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':'Notifications'} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
-     <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this week</span></>:<><b>{sections.yourTurn.length}</b><span>to call</span></>}</button></div>
+     <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this week</span></>:<><b>{sections.yourTurn.length+momentPicks}</b><span>to call</span></>}</button></div>
    </div>
    <p className="c-top-status">{status}</p>
   </header>
@@ -187,9 +196,10 @@ export default function Home(){
    {football&&!practice&&data.selectedRound?.state==='skipped'&&clock<Date.parse(data.selectedRound.pick_end_at||'')&&members.find(m=>m.user_id===me)?.admin&&<section className="c-card starter"><span className="c-kicker dark">This week</span><h3>No matches were published in time</h3><p>Added some since? Open this week now with them.</p><button className="c-btn" disabled={busy} onClick={()=>void act({action:'startFirstWeek'},'This week is on. Make your calls.')}>Open this week now</button></section>}
    {data.members>=3&&start&&clock<start.getTime()&&!practice&&<section className="c-card starter"><span className="c-kicker dark">First week</span><h3>Starts {when(start,clock,zone)}</h3>{members.find(m=>m.user_id===me)?.admin?<><p>Don’t want to wait? Start a short first week now. It runs until then, and the normal weeks follow.</p><button className="c-btn" disabled={busy} onClick={()=>{if(window.confirm('Start the first week now? Everyone can make their calls straight away.'))void act({action:'startFirstWeek'},'The first week is on. Make your calls.')}}>Start the first week now</button></>:<p>The admin can start it early. Until then, you can look around.</p>}</section>}
    {!!data.secretCount&&<section className="c-secret"><span className="c-secret-icon"><Icon name="eyeoff" size={22}/></span><div><b>{data.secretCount===1?'There’s a secret call about you.':'There are '+data.secretCount+' secret calls about you.'}</b><p>Your friends are talking about you. You’ll see {data.secretCount===1?'it':'them'} once it’s settled.</p></div></section>}
+   {activeMoments.length>0&&<div className="c-moments">{activeMoments.map(m=><MomentCard key={m.id} m={m} calls={calls} me={me} names={names} now={clock} lang={groupLang} onOpen={()=>setMomentId(m.id)} onPick={()=>{const first=momentView(m,calls,clock,me).toPick[0];if(first)startFlow(first)}}/>)}</div>}
    <CallsList s={sections} ctx={ctx} act={a} football={footballBlock}/>
    {nothing&&<div className="c-empty"><h2>Start the first “told you so”</h2><p>Make a call about anything: the weekend, the derby, who’s late. Right calls earn points; bold ones earn more. Free, every week.</p><button className="c-btn" onClick={()=>setCreating(true)}><Icon name="plus"/> New call</button></div>}
-   <button className="c-fab" onClick={()=>setCreating(true)}><Icon name="plus" stroke={2.6}/> New call</button>
+   <div className="c-fab-row"><button className="c-fab ghost" onClick={()=>setNewMoment(true)}><span aria-hidden="true">✨</span> Moment</button><button className="c-fab" onClick={()=>setCreating(true)}><Icon name="plus" stroke={2.6}/> New call</button></div>
   </>}
 
   {tab==='ranking'&&<RankingTab rounds={data.rounds||[]} board={board} onSelect={setBoardRound} me={me} meName={meName} calls={calls} snaps={snaps} seasons={data.seasons||[]} admin={!!members.find(m=>m.user_id===me)?.admin} busy={busy} act={p=>act(p)} clock={clock} careers={data.careers||[]} names={names} onProfile={setProfile} onShareWinner={r=>{const url=origin?r.share_code?shortLink(origin,r.share_code):shareLink(origin,invite,{roundId:r.id,winner:true}):'';setSharing({title:'Share the winner',url,text:shareText(winnerCard(data.group.name,r),url)})}}/>}
@@ -201,6 +211,7 @@ export default function Home(){
    {canApple&&data.linked===false&&<section className="c-card save"><span className="c-kicker dark">Your account</span><h3>Don’t lose your calls</h3><p className="c-sub">Sign in with Apple to keep your calls, points and level on any phone, and to pick up where you left off in the app.</p><AppleButton busy={busy} onClick={()=>void signInApple()}/></section>}
    {footballOn&&<FootballPanel data={data} act={p=>act(p)} busy={busy}/>}
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
+   <PastMoments moments={moments} calls={calls} snaps={snaps} now={clock} meName={meName} onOpen={m=>setMomentId(m.id)}/>
    <HowItWorks/>
    <LegalLinks/>
    <button className="c-link c-danger-link" disabled={busy} onClick={()=>void deleteMe()}>Delete my account</button>
@@ -210,6 +221,7 @@ export default function Home(){
   {error&&<p className="c-toast error" role="alert" onClick={()=>setError('')}>{error}</p>}{notice&&<p className="c-toast" role="status">{notice}</p>}
   <nav className="c-tabbar" aria-label="Sections">{TABS.map(t=><button key={t.id} className={tab===t.id?'on':''} aria-current={tab===t.id?'page':undefined} onClick={()=>go(t.id)}><span className="c-tab-icon"><Icon name={t.icon} size={22}/></span><span>{t.label}</span>{t.id==='group'&&unread>0&&<i className="c-dot">{unread}</i>}</button>)}</nav>
 
+  <MomentSheet m={openMoment} calls={calls} snaps={snaps} me={me} meName={meName} names={names} now={clock} lang={groupLang} onClose={()=>setMomentId('')} onPick={c=>{const v=openMoment&&momentView(openMoment,calls,clock,me);const first=c||v?.toPick[0];if(first)startFlow(first)}} onReveal={setRevealing} onResolve={c=>setResolving({call:c,mode:'set'})} onResult={c=>{markSeen(c.id);setResult(c)}} onShare={()=>{if(openMoment)openShareMoment(openMoment)}} canSet={c=>c.creator===me||!!members.find(x=>x.user_id===me)?.admin}/>
   <PickSheet call={pick?.call||null} preset={pick?.preset} step={stepOf} onSkip={()=>{if(pick)advance(pick.call)}} names={names} longCount={data.longTermCount||0} now={clock} busy={busy} onClose={()=>{setPick(null);setFlow(null)}} onSave={async(c,answer)=>{const inFlow=!!stepOf&&stepOf.n<stepOf.of;const ok=await act(c.scope==='longterm'?{action:'predictLongterm',questionId:c.id,answer}:{action:'predict',questionId:c.id,answer},inFlow?undefined:c.answer?'Updated.':stepOf?'All done. You’ll see how the group is split on each call.':'You’re in. Tap the call to see how the group is split.');if(ok&&inFlow)advance(c);return ok}}/>
   <RevealSheet call={revealing} snaps={snaps} me={me} meName={meName} onClose={()=>setRevealing(null)}/>
   <ResultSheet call={result} snaps={snaps} meName={meName} onClose={()=>setResult(null)} onShare={(c,text)=>{const url=linkFor(c);setResult(null);setSharing({title:'Rub it in',url,text:text+' '+url})}}/>
@@ -220,6 +232,7 @@ export default function Home(){
    <AppleButton busy={busy} onClick={()=>void signInApple()}>{apple.storeUrl?'Sign in with Apple & get the app':'Sign in with Apple'}</AppleButton>
    <p className="c-hint">{apple.storeUrl?'In the app, sign in with Apple again: your call will be there.':'Later, sign in with Apple in the app and your call will be there.'}</p>
    <button className="c-link" onClick={()=>{setSaving(false);setNotice('You’re in, and your call is saved.')}}>Not now</button></div></Sheet>}
+  <NewMomentSheet open={newMoment} now={clock} lang={groupLang} friends={friendNames} busy={busy} onClose={()=>setNewMoment(false)} onCreate={(m:NewMoment)=>act({action:'createMoment',moment:m})}/>
   <ProfileSheet c={data.careers?.find(c=>c.user_id===profile)||null} name={names[profile]||''} me={profile===me} onClose={()=>setProfile('')}/>
   <LevelUpSheet c={levelUp&&myCareer?myCareer:null} from={levelUp} onClose={()=>setLevelUp('')} onShare={()=>{const url=groupLink;setLevelUp('');if(myCareer)setSharing({title:'Tell the group',url,text:`Just levelled up to ${myCareer.level.name} in ${data.group.name} (${myCareer.points.toLocaleString('en-GB')} career points). ${url}`})}}/>
   <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} tags={sharing?.tags} tag={sharing?.tag} onTag={sharing?.retag} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>

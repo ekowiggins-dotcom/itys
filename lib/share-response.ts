@@ -8,6 +8,8 @@ function artText(a:Art):{title:string;description:string}{const tr=a.lang==='tr'
   case 'friend':case 'choice':{const n=a.pickers.length,names=a.pickers.slice(0,2).join(', ')+(n>2?' +'+(n-2):'');return{title:a.question,description:n?(tr?`${names} seçti. Sıra sende: dokun, seç, bitti.`:`${names} ${n===1?'has':'have'} picked. Your turn: tap, pick, done.`):(tr?'İlk seçen sen ol. Ücretsiz, üyelik yok.':'Be the first to pick. Free, no sign-up.')}}
   case 'picked':return{title:tr?`${a.count} arkadaşın seni seçti`:`${a.count} ${a.count===1?'friend':'friends'} picked you`,description:tr?`${a.group.name}’da bir soru seni soruyor. Bak, sen de seç.`:`A call in ${a.group.name} is about you. Take a look, then make your own pick.`};
   case 'result':return{title:tr?`${a.winners.slice(0,2).join(' & ')} bildi: ${a.answer}`:`${a.winners.slice(0,2).join(' & ')} called it: ${a.answer}`,description:tr?`${a.total} kişiden ${a.right} kişi bildi.`:`${a.right} of ${a.total} saw it coming.`};
+  case 'moment':return{title:a.title,description:tr?`${a.questions.length} soru · ${a.when}. Tahminini yap, sonucu birlikte görelim.`:`${a.questions.length} calls · ${a.when}. Make yours, see who called it.`};
+  case 'momentResult':return{title:tr?`${a.winners.slice(0,2).join(' & ')}: ${a.title} kâhini`:`${a.winners.slice(0,2).join(' & ')}: oracle of ${a.title}`,description:tr?`${a.of} sorudan ${a.right} doğru.`:`${a.right} of ${a.of} right.`};
   case 'invite':return{title:tr?`${a.group.name}’a katıl`:`Join ${a.group.name}`,description:tr?`${a.members.length} arkadaşın ${BRAND_NAME}’da tahmin yapıyor. Ücretsiz, para yok.`:`${a.members.length} friends are making calls on ${BRAND_NAME}. Free, no money.`};
  }
 }
