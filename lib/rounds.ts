@@ -11,7 +11,7 @@ export async function roundEvent(tx:Transaction,r:Round,kind:string,text:string,
  if(kind==='round-open'&&processingNow<new Date(r.deadline_at)||kind==='final'&&r.group_type==='Friends')for(const m of recipients.rows)await emitNotification(tx,{groupId:r.group_id,userId:m.user_id,key:'round:'+r.id+':'+kind,kind:kind==='final'?'weekly_final':'round_open',roundId:r.id,text,eventAt:at},processingNow);
 }
 export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
- let g=(await tx.query<{practice:boolean;opens_at:Date|null;next_round_at:Date|null;group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[];country:string}|null}>('SELECT practice,opens_at,next_round_at,group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[groupId])).rows[0];
+ let g=(await tx.query<{instant:boolean;practice:boolean;opens_at:Date|null;next_round_at:Date|null;group_type:GroupType;timezone:string;leagues:number[];pending_settings:{groupType:GroupType;timezone:string;leagues:number[];country:string}|null}>('SELECT instant,practice,opens_at,next_round_at,group_type,timezone,leagues,pending_settings FROM groups WHERE id=$1',[groupId])).rows[0];
  if(!g.opens_at)return;
  if(!(await tx.query('SELECT 1 FROM seasons WHERE group_id=$1',[groupId])).rows.length)await tx.query('INSERT INTO seasons(id,group_id,name,starts_at,ends_at) VALUES($1,$2,$3,$4,$5)',[randomUUID(),groupId,'Pilot season · 8 weeks',g.opens_at,new Date(new Date(g.opens_at).getTime()+56*DAY)]);
  let cursor=new Date(g.next_round_at||g.opens_at);
@@ -26,7 +26,9 @@ export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
  const count=Number((await tx.query<{count:string}>('SELECT count(DISTINCT user_id) FROM membership_periods WHERE group_id=$1 AND joined_at<=$2 AND (left_at IS NULL OR left_at>$2)',[groupId,cursor])).rows[0].count);
  const season=(await tx.query('SELECT id FROM seasons WHERE group_id=$1 AND starts_at<=$2 AND ends_at>$2',[groupId,cursor])).rows.length;
  const legacy=(await tx.query<Round>('SELECT * FROM rounds WHERE group_id=$1 AND opens_at=$2',[groupId,cursor])).rows[0];
- if((count>=3&&season)||(legacy&&legacy.state!=='planned')||(legacy&&legacy.id===first?.id&&unassigned>0)){
+ // Groups made with the new setup start straight away with whoever is in; older groups waited for three.
+ const min=g.instant?1:3;
+ if((count>=min&&season)||(legacy&&legacy.state!=='planned')||(legacy&&legacy.id===first?.id&&unassigned>0)){
  const r=legacy||await insertRound(tx,groupId,cursor);
  await tx.query('INSERT INTO round_members SELECT $1,user_id FROM membership_periods WHERE group_id=$2 AND joined_at<=$3 AND (left_at IS NULL OR left_at>$3) ON CONFLICT DO NOTHING',[r.id,groupId,cursor]);
  if(r.state==='planned')await tx.query("UPDATE rounds SET state=$2 WHERE id=$1",[r.id,r.group_type==='Friends'?'live':'waiting_feed']);
@@ -42,7 +44,7 @@ export async function ensureRounds(tx:Transaction,groupId:string,now:Date){
  // Show a scheduled first round without allowing bets until its opening.
  if(new Date(g.opens_at!)>now){
  const members=Number((await tx.query<{count:string}>('SELECT count(*) FROM members WHERE group_id=$1 AND active',[groupId])).rows[0].count);
- if(members>=3)await insertRound(tx,groupId,new Date(g.opens_at!));
+ if(members>=(g.instant?1:3))await insertRound(tx,groupId,new Date(g.opens_at!));
  }
 }
 /** New-week message. Football weeks also say who won last week, so Thursday noon is one notification, not two. */

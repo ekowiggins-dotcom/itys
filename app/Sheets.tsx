@@ -23,11 +23,17 @@ export function PickSheet({call,preset,names,longCount,now,busy,step,onSkip,onSa
   {call.match?<><MatchHead c={call}/><p className="c-sub center">Who wins? (90 minutes)</p></>
   :<><h2 className="c-title">{call.text}</h2><p className="c-sub">{call.creator_name}{pickers.length?' · '+pickers.length+' in':''}</p></>}
   {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={a=>label(a,call)}/></div>}
-  <div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a,call)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
+  {call.answer_type==='friend'?<FacePicker names={answersOf(call)} value={answer} onPick={setAnswer}/>
+  :<div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a,call)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>}
   <p className="c-hint">{long?'Later calls count for the season.'+(fullLong?' You already have 3 going: wait for one to finish.':''):'Right calls score 10 to 40: the fewer friends who see it coming, the more you get.'}</p>
   <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer)&&!more)onClose()}}>{!answer?'Pick one first':(more?'Lock in & next':call.answer?'Update to ':'Lock in ')+(more?'':label(answer,call))}{more&&answer&&<Icon name="arrow" size={18}/>}</button>
   {more&&onSkip&&<button className="c-link center" onClick={onSkip}>Skip for now</button>}
  </Sheet>;
+}
+
+/** "Who…?" calls: the answers are your friends' faces. */
+export function FacePicker({names,value,onPick,big=false}:{names:string[];value:string;onPick:(n:string)=>void;big?:boolean}){
+ return <div className={'c-face-opts'+(big?' big':'')} role="radiogroup" aria-label="Pick a friend">{names.map(n=><button key={n} type="button" role="radio" aria-checked={value===n} className={value===n?'on':''} onClick={()=>onPick(n)}><Face name={n} size={big?54:48} ring={value===n?'#17201B':'#FFFFFF'}/><span>{n}</span></button>)}</div>;
 }
 
 /** After the lock: who said what. */
@@ -80,10 +86,11 @@ export function ResolveSheet({call,mode,busy,onPick,onClose}:{call:Call|null;mod
 }
 
 /** Put a link in the group chat: one tidy message, the preview does the rest. */
-export function ShareSheet({open,title,text,url,preview,onClose,onDone}:{open:boolean;title:string;text:string;url:string;preview?:React.ReactNode;onClose:()=>void;onDone:(msg:string)=>void}){
+export function ShareSheet({open,title,text,url,preview,tags,tag,onTag,onClose,onDone}:{open:boolean;title:string;text:string;url:string;preview?:React.ReactNode;tags?:string[];tag?:string;onTag?:(n:string)=>void;onClose:()=>void;onDone:(msg:string)=>void}){
  return <Sheet open={open} label={title} onClose={onClose}>
   <span className="c-kicker dark">{title}</span>
   {preview}
+  {!!tags?.length&&onTag&&<div className="c-tag-row"><span>Not in yet? Send one their own link:</span><div className="c-chips">{tags.map(n=><button key={n} type="button" className={'c-chip-name'+(tag===n?' on':'')} aria-pressed={tag===n} onClick={()=>onTag(n)}><Face name={n} size={24}/>{n}</button>)}</div></div>}
   <div className="c-share-msg"><p>{text.replace(url,'').trim()}</p><span>{url.replace(/^https?:\/\//,'')}</span></div>
   <button className="c-btn" data-autofocus onClick={async()=>{const r=await shareMessage(text);if(r==='copied')onDone('Copied. Paste it in the group chat.');else if(r==='shared')onClose();else if(r==='failed')onDone('Couldn’t open sharing. Copy the link instead.')}}><Icon name="share"/> Share</button>
   <div className="c-row2"><a className="c-btn ghost" href={whatsappLink(text)} target="_blank" rel="noreferrer">WhatsApp</a><button className="c-btn ghost" onClick={async()=>onDone(await copyText(url)?'Link copied.':'Couldn’t copy the link.')}><Icon name="link"/> Copy link</button></div>

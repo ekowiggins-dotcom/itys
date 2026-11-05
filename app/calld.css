@@ -459,3 +459,44 @@ main.app .c-apple,.c-apple{width:100%;min-height:54px;border-radius:18px;backgro
 .c-footer-links a,.c-footer-links button{color:var(--muted);font:600 13px 'DM Sans',sans-serif;text-decoration:none;background:none;border:0;cursor:pointer;padding:0}
 .c-landing .c-footer-links a{color:var(--muted)}
 main.app .c-danger-link,.c-danger-link{display:flex;width:fit-content;margin:4px auto 0;align-self:center;color:#A1300F !important}
+
+/* Setup: group colour, friends' names */
+.c-swatches{display:flex;gap:10px;flex-wrap:wrap;margin:-2px 0 2px}
+.c-swatches button{width:38px;height:38px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--line2);cursor:pointer;padding:0}
+.c-swatches button.on{box-shadow:0 0 0 3px var(--ink)}
+.c-friends{display:flex;flex-direction:column;gap:8px}
+.c-flabel{font-size:13px;font-weight:700}.c-flabel small{display:block;font-weight:500;color:var(--muted);margin-top:2px}
+.c-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.c-chip-name{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px 0 6px;border-radius:99px;background:#fff;border:1.5px solid var(--line2);font:700 14px 'DM Sans',sans-serif;color:var(--ink);cursor:pointer}
+.c-chip-name i{font-style:normal;color:var(--muted);margin-left:2px}
+.c-chip-name.on{background:var(--lime);border:2px solid var(--ink)}
+.c-chip-name.ghost{border-style:dashed;padding:0 14px;color:var(--muted)}
+.c-chip-name.static{cursor:default}
+.c-chips input{flex:1 1 120px;min-height:40px;border:1.5px dashed var(--line2);border-radius:99px;padding:0 14px;font:500 15px 'DM Sans',sans-serif;margin:0;width:auto;background:#fff}
+.c-form .c-chips input{min-height:40px}
+.c-first{margin:0 0 4px;font:700 15px 'DM Sans',sans-serif;color:var(--muted)}
+
+/* Friend answers */
+.c-seg.three{grid-template-columns:1fr 1fr 1fr}.c-seg button:disabled{opacity:.4;cursor:default}
+.c-friend-preview{display:flex;flex-wrap:wrap;gap:10px}
+.c-friend-preview span{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600}
+.c-face-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.c-face-opts button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:18px;background:#fff;border:1.5px solid var(--line2);font:700 14px 'DM Sans',sans-serif;color:var(--ink);cursor:pointer;min-height:96px}
+.c-face-opts button.on{background:var(--lime);border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.c-face-opts span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-face-row{display:flex;gap:6px;flex-wrap:wrap}
+.c-face-row button{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;cursor:pointer;padding:4px;min-width:56px;font:600 12px 'DM Sans',sans-serif;color:var(--ink)}
+.c-more-faces{width:44px;height:44px;border-radius:50%;background:var(--paper);display:flex;align-items:center;justify-content:center;font-weight:700}
+
+/* Joining: claim your name */
+.c-claim{margin:4px 0 14px}.c-claim>p{font:700 15px 'DM Sans',sans-serif;margin:0 0 8px}
+.c-picked-you{margin-top:12px;background:var(--ink);color:#fff;border-radius:18px;padding:14px 16px;font-size:15px;line-height:1.4}
+.c-picked-you b{color:var(--lime)}
+
+/* Sharing: the real picture */
+.c-card-image{width:100%;aspect-ratio:1200/630;border-radius:16px;display:block;background:var(--paper);border:1px solid var(--line)}
+.c-tag-row{display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--muted);font-weight:600}
+.c-card.pending h3{margin:4px 0}
+
+.c-join .c-claim>p{color:#fff}
+.c-join .c-picked-you{border:2px solid var(--lime)}

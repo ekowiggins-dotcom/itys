@@ -17,7 +17,9 @@ export async function ensureShareCodes(tx:Transaction,groupId:string){
  }
 }
 
-export type ShareTarget={invite:string;questionId?:string;roundId?:string;winner?:boolean};
+export type ShareTarget={invite:string;questionId?:string;roundId?:string;winner?:boolean;
+ /** "For Ege": the card tells Ege how many friends picked him (friend calls only). */
+ forName?:string};
 /** What a short code points at. Unknown or malformed codes return null. */
 export async function resolveCode(code:string):Promise<ShareTarget|null>{
  if(!validCode(code))return null;

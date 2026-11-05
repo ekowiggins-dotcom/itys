@@ -1,3 +1,4 @@
+import {GROUP_COLORS,type Art,type Lang} from './share-art';
 import {db} from './db';import {reconcile} from './service';import {weeklyViews} from './rounds';import {betCard,inviteCard,winnerCard} from './sharing';import {when,kickLabel} from '../app/format';
 const MARKETS:Record<string,string[]>={result:['Home','Draw','Away']};
 /** Month a long-running call resolves, e.g. "We'll know in March". */
@@ -24,4 +25,45 @@ export async function publicShare(invite:string,target:{questionId?:string;round
  if(q.subject_id&&!['settled','void'].includes((await tx.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[q.id])).rows[0].state)){const card=betCard(group.name,'A secret call about a friend',q.picked,['Open it to see'],{creator:market==='custom'?q.creator_name:undefined,when:label});card.options=[];return{card,questionId:q.id,roundId:q.round_id||undefined};}
  return{card:betCard(group.name,q.text,q.picked,options,{creator:market==='custom'?q.creator_name:undefined,when:label}),questionId:q.id,roundId:q.round_id||undefined};
  });
+}
+
+// ── New cards (lib/share-art.tsx): the group's colour and language, friends' faces, the result ──
+const COLOR_LIST=Object.values(GROUP_COLORS);
+/** A group's colour: the one picked at setup, or one derived from its name for older groups. */
+export function groupColor(name:string,color?:string|null){if(color)return color;let h=0;for(const c of name)h=(h*31+c.codePointAt(0)!)>>>0;return COLOR_LIST[h%(COLOR_LIST.length-1)]}
+const YES_NO:Record<Lang,Record<string,string>>={en:{yes:'Yes',no:'No'},tr:{yes:'Evet',no:'Hayır'}};
+/** "Closes tonight 21:00" / "Bu akşam 21:00’de kapanıyor". */
+export function closesLabel(at:Date,now:Date,zone:string,lang:Lang){
+ if(now>=at)return lang==='tr'?'Seçimler kapandı':'Picks are closed';
+ const day=(d:Date)=>d.toLocaleDateString('en-CA',{timeZone:zone}),hm=at.toLocaleTimeString('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit'});
+ const tomorrow=new Date(now.getTime()+86400000);
+ if(day(at)===day(now))return lang==='tr'?(Number(hm.slice(0,2))>=17?`Bu akşam ${hm}’de kapanıyor`:`Bugün ${hm}’de kapanıyor`):(Number(hm.slice(0,2))>=17?`Closes tonight ${hm}`:`Closes today ${hm}`);
+ if(day(at)===day(tomorrow))return lang==='tr'?`Yarın ${hm}’de kapanıyor`:`Closes tomorrow ${hm}`;
+ const wd=at.toLocaleDateString(lang==='tr'?'tr-TR':'en-GB',{timeZone:zone,weekday:'long'});
+ return lang==='tr'?`${wd} kapanıyor`:`Closes ${wd}`;
+}
+/** The picture for a shared link, or null to fall back to the older cards (weekly winner, football, secret calls). */
+export async function shareArt(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean;forName?:string},now=new Date()):Promise<Art|null>{
+ if(target.winner)return null;const d=await db();
+ const g=(await d.query<{id:string;name:string;color:string|null;lang:string;timezone:string}>('SELECT id,name,color,lang,timezone FROM groups WHERE invite=$1',[invite])).rows[0];if(!g)return null;
+ const lang:Lang=g.lang==='tr'?'tr':'en',group={name:g.name,color:groupColor(g.name,g.color)};
+ if(!target.questionId){const members=(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at LIMIT 30',[g.id])).rows.map(r=>r.name);return{variant:'invite',lang,group,members}}
+ const q=(await d.query<{id:string;text:string;options:string[]|null;answer_type:string;market:string|null;locks_at:Date;state:string;result_answer:string|null;subject_id:string|null;moderation_state:string}>("SELECT id,text,options,answer_type,market,locks_at,state,result_answer,subject_id,moderation_state FROM questions WHERE id=$1 AND group_id=$2 AND NOT superseded",[target.questionId,g.id])).rows[0];
+ if(!q||q.moderation_state!=='visible'||(q.market&&q.market!=='custom'))return null;
+ if(q.subject_id&&!['settled','void'].includes(q.state))return null;// secret: the older card keeps it secret
+ const friend=q.answer_type==='friend',label=(a:string)=>friend||q.options?.length?a:YES_NO[lang][a]||a;
+ if(q.state==='settled'&&q.result_answer){
+  const locked=(await d.query<{name:string;answer:string}>('SELECT u.name,lp.answer FROM locked_predictions lp JOIN users u ON u.id=lp.user_id WHERE lp.question_id=$1',[q.id])).rows;
+  const winners=locked.filter(r=>r.answer===q.result_answer).map(r=>r.name);
+  if(winners.length)return{variant:'result',lang,group,question:q.text,answer:label(q.result_answer),winners,right:winners.length,total:locked.length};
+  return null;
+ }
+ if(q.state==='void')return null;
+ if(friend&&target.forName){const n=(await d.query<{n:number}>('SELECT count(*)::int n FROM predictions WHERE question_id=$1 AND lower(answer)=lower($2)',[q.id,target.forName])).rows[0].n;
+  if(n>0&&q.options?.some(o=>o.toLocaleLowerCase('tr')===target.forName!.toLocaleLowerCase('tr')))return{variant:'picked',lang,group,subject:target.forName,count:n,question:q.text};}
+ // Who's in (names only, never what they picked), first to last.
+ const pickers=(await d.query<{name:string}>('SELECT u.name FROM predictions p JOIN users u ON u.id=p.user_id WHERE p.question_id=$1 ORDER BY p.submitted_at',[q.id])).rows.map(r=>r.name);
+ const when=closesLabel(new Date(q.locks_at),now,g.timezone,lang);
+ if(friend)return{variant:'friend',lang,group,question:q.text,answers:q.options||[],pickers,when};
+ return{variant:'choice',lang,group,question:q.text,answers:(q.options?.length?q.options:['yes','no']).map(label),pickers,when};
 }

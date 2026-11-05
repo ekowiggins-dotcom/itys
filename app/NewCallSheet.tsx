@@ -3,33 +3,43 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 import {Sheet,Face,Icon} from './ui';
 import {whenChoices,laterMonths,type Choice} from './when-presets';
 
-const IDEAS=['Who’s late first on Saturday?','Will everyone actually show up?','Derby score?','Who cancels first?'];
-export type NewCall={action:'question'|'longterm';text:string;options?:string[];locksAt:string;eventAt?:string;subjectId?:string};
+/** Three starters, nothing more: they set the tone, then people write their own. */
+export const EXAMPLES={
+ tr:['Halı sahada en çok golü kim atar?','Akşamı kim eker?','En son kim evlenir?'],
+ en:['Who scores the most at five-a-side?','Who bails on tonight?','Who gets married last?'],
+};
+type Kind='friend'|'yesno'|'options';
+export type NewCall={action:'question'|'longterm';text:string;options?:string[];answerType?:'friend'|'choice';locksAt:string;eventAt?:string;subjectId?:string};
 
 /** Make a call: the question, the answers, and when we'll know. */
-export function NewCallSheet({open,now,practice,weeklyOpen,weeklyWhy,deadline,members,busy,onCreate,onClose}:{open:boolean;now:number;practice:boolean;weeklyOpen:boolean;weeklyWhy?:string;deadline:number|null;members:{id:string;name:string}[];busy:boolean;onCreate:(c:NewCall)=>Promise<boolean>;onClose:()=>void}){
- const [text,setText]=useState(''),[multi,setMulti]=useState(false),[opts,setOpts]=useState(['','']),[when,setWhen]=useState<Choice['id']>('week'),[month,setMonth]=useState<number|undefined>(),[subject,setSubject]=useState(''),[custom,setCustom]=useState(''),[showCustom,setShowCustom]=useState(false);
+export function NewCallSheet({open,now,practice,weeklyOpen,weeklyWhy,deadline,members,friendNames=[],lang='en',first=false,busy,onCreate,onClose}:{open:boolean;now:number;practice:boolean;weeklyOpen:boolean;weeklyWhy?:string;deadline:number|null;members:{id:string;name:string}[];friendNames?:string[];lang?:'tr'|'en';first?:boolean;busy:boolean;onCreate:(c:NewCall)=>Promise<boolean>;onClose:()=>void}){
+ const canFriend=friendNames.length>=2;
+ const [kind,setKind]=useState<Kind>(canFriend?'friend':'yesno');const multi=kind==='options',setMulti=(m:boolean)=>setKind(m?'options':'yesno');
+ const [text,setText]=useState(''),[opts,setOpts]=useState(['','']),[when,setWhen]=useState<Choice['id']>('week'),[month,setMonth]=useState<number|undefined>(),[subject,setSubject]=useState(''),[custom,setCustom]=useState(''),[showCustom,setShowCustom]=useState(false);
  const choices=useMemo(()=>whenChoices(now,{practice,weeklyOpen,weeklyWhy,deadline,month}),[now,practice,weeklyOpen,weeklyWhy,deadline,month]);
  const months=useMemo(()=>laterMonths(now),[now]);
  const started=useRef(false);
- useEffect(()=>{if(!open){started.current=false;return}if(started.current)return;started.current=true;setText('');setMulti(false);setOpts(['','']);setSubject('');setCustom('');setShowCustom(false);setMonth(undefined);const first=choices.find(c=>c.ok&&c.id!=='later');setWhen(first?first.id:'later')},[open]);
+ useEffect(()=>{if(!open){started.current=false;return}if(started.current)return;started.current=true;setText('');setKind(canFriend?'friend':'yesno');setOpts(['','']);setSubject('');setCustom('');setShowCustom(false);setMonth(undefined);const first=choices.find(c=>c.ok&&c.id!=='later');setWhen(first?first.id:'later')},[open]);
  const chosen=choices.find(c=>c.id===when)!;
  const options=multi?opts.map(o=>o.trim()).filter(Boolean):[];
  const customLock=showCustom&&custom&&when!=='later'?new Date(custom).getTime():null;
- const valid=text.trim().length>=3&&chosen.ok&&(!multi||options.length>=2)&&(!customLock||(customLock>now&&(!deadline||customLock<=deadline)));
+ const valid=text.trim().length>=3&&chosen.ok&&(!multi||options.length>=2)&&(kind!=='friend'||canFriend)&&(!customLock||(customLock>now&&(!deadline||customLock<=deadline)));
  async function submit(){
   const lock=customLock||chosen.lock;
-  const ok=await onCreate({action:when==='later'?'longterm':'question',text:text.trim(),options:options.length?options:undefined,locksAt:new Date(lock).toISOString(),eventAt:chosen.event?new Date(chosen.event).toISOString():undefined,subjectId:subject||undefined});
+  const ok=await onCreate({action:when==='later'?'longterm':'question',text:text.trim(),options:kind==='options'&&options.length?options:undefined,answerType:kind==='friend'?'friend':'choice',locksAt:new Date(lock).toISOString(),eventAt:chosen.event?new Date(chosen.event).toISOString():undefined,subjectId:subject||undefined});
   if(ok)onClose();
  }
  const badge=when==='later'?(practice?'We’ll know in 30 min':'We’ll know in '+(months.find(m=>m.index===month)||months[0])?.name):'Picks close '+new Date(customLock||chosen.lock).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'});
  return <Sheet open={open} label="New call" onClose={onClose} full>
+  {first&&<p className="c-first">Your group is ready. Ask the first one:</p>}
   <label className="c-big-label" htmlFor="call-text">What’s the call?</label>
-  <textarea id="call-text" className="c-question" rows={2} maxLength={240} value={text} onChange={e=>setText(e.target.value)} placeholder="Will Can bring up crypto at dinner?"/>
-  {!text&&<div className="c-ideas"><span>Ideas:</span>{IDEAS.map(i=><button key={i} type="button" onClick={()=>setText(i)}>{i}</button>)}</div>}
+  <textarea id="call-text" className="c-question" rows={2} maxLength={240} value={text} onChange={e=>setText(e.target.value)} placeholder={EXAMPLES[lang][0]}/>
+  {!text&&<div className="c-ideas">{EXAMPLES[lang].map(i=><button key={i} type="button" onClick={()=>{setText(i);if(canFriend)setKind('friend')}}>{i}</button>)}</div>}
 
   <span className="c-label">Answers</span>
-  <div className="c-seg"><button type="button" className={!multi?'on':''} onClick={()=>setMulti(false)}>Yes / No</button><button type="button" className={multi?'on':''} onClick={()=>setMulti(true)}>Options</button></div>
+  <div className="c-seg three"><button type="button" className={kind==='friend'?'on':''} disabled={!canFriend} onClick={()=>setKind('friend')}>A friend</button><button type="button" className={kind==='yesno'?'on':''} onClick={()=>setKind('yesno')}>Yes / No</button><button type="button" className={kind==='options'?'on':''} onClick={()=>setKind('options')}>Options</button></div>
+  {kind==='friend'&&<div className="c-friend-preview">{friendNames.slice(0,10).map(n=><span key={n}><Face name={n} size={34}/><small>{n}</small></span>)}{friendNames.length>10&&<span><b>+{friendNames.length-10}</b></span>}</div>}
+  {!canFriend&&<p className="c-hint">Add friends in the Group tab to ask “who…?” calls.</p>}
   {multi&&<div className="c-opt-inputs">{opts.map((o,i)=><input key={i} aria-label={'Option '+(i+1)} maxLength={40} value={o} placeholder={['Aykut','Nagelsmann','Someone else','Nobody'][i]} onChange={e=>setOpts(opts.map((x,j)=>j===i?e.target.value:x))}/>)}{opts.length<4&&<button type="button" className="c-add" onClick={()=>setOpts([...opts,''])}>+ Add</button>}</div>}
 
   <span className="c-label">When will we know?</span>

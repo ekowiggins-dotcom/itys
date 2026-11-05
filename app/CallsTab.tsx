@@ -1,5 +1,5 @@
 'use client';
-import {Faces,Icon,Badge,Split,Crest} from './ui';
+import {Face,Faces,Icon,Badge,Split,Crest} from './ui';
 import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome} from './calls';
 import {countdown,when} from './format';
 
@@ -24,7 +24,8 @@ export function YourTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boo
  return <article className={'c-card turn'+(first?' first':'')}>
   <div className="c-card-top">{long?<Badge tone="later">{knowIn(c)}</Badge>:<Badge tone={Date.parse(c.locks_at)-ctx.now<6*3600000?'soon':'neutral'}>{closes(c,ctx.now)}</Badge>}<span className="c-by">{byLine(c,ctx)}<ShareButton c={c} act={act}/></span></div>
   <h3>{c.text}</h3>
-  <div className={'c-options mini'+(answersOf(c).length>2?' grid':' pair')}>{answersOf(c).map(a=><button key={a} className="c-opt" onClick={()=>act.pick(c,a)}>{label(a,c)}</button>)}</div>
+  {c.answer_type==='friend'?<div className="c-face-row">{answersOf(c).slice(0,6).map(a=><button key={a} onClick={()=>act.pick(c,a)} aria-label={a}><Face name={a} size={44}/><small>{a}</small></button>)}{answersOf(c).length>6&&<button onClick={()=>act.pick(c)} aria-label="More friends"><span className="c-more-faces">+{answersOf(c).length-6}</span><small>more</small></button>}</div>
+  :<div className={'c-options mini'+(answersOf(c).length>2?' grid':' pair')}>{answersOf(c).map(a=><button key={a} className="c-opt" onClick={()=>act.pick(c,a)}>{label(a,c)}</button>)}</div>}
   <div className="c-who">{pickers.length?<><Faces names={pickers} size={22}/><span>{pickers.length===1?pickers[0]+' is in':pickers.length<=3?pickers.slice(0,-1).join(', ')+' and '+pickers.at(-1)+' are in':pickers.length+' friends are in'}. Make your call to see how they’re split.</span></>:<span>Nobody’s in yet. Be first.</span>}</div>
  </article>;
 }

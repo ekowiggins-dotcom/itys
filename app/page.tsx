@@ -12,9 +12,10 @@ import {api,webOrigin,setSession,lastInvite,rememberInvite,forgetAccount,NATIVE}
 import {initNative,haptic,updateWidget} from './native';
 import {Face,Faces,Icon,Sheet,AppleButton} from './ui';
 import {appleIdToken} from './apple';
+import {GROUP_COLORS} from '../lib/share-art';
 import {type Call,type Snapshot,sortCalls,answersOf,label,matchTitle} from './calls';
 import {CallsList,SectionTitle,type CallsAct,type CallsCtx} from './CallsTab';
-import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview} from './Sheets';
+import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,FacePicker} from './Sheets';
 import {NewCallSheet,type NewCall} from './NewCallSheet';
 import RankingTab from './RankingTab';
 import {ProfileSheet,LevelUpSheet,LevelPill} from './Career';
@@ -22,9 +23,9 @@ import {LEVELS as CAREER_LEVELS,type Career} from '../lib/career';
 import {setGroupOrder} from '../lib/avatar';
 import type {SeasonView} from './SeasonsPanel';
 
-type Preview={answers?:{value:string;label:string}[];kickoff?:string|null;id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
+type Preview={answer_type?:string;pickedYou?:Record<string,number>;answers?:{value:string;label:string}[];kickoff?:string|null;id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
 type Member={user_id:string;name:string;active:boolean;admin:boolean;fallback?:boolean};
-type GroupView=LifecycleData & FootballData & {linked?:boolean;timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
+type GroupView=LifecycleData & FootballData & {linked?:boolean;timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];pendingNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
 type Tab='calls'|'ranking'|'group';
 const TABS:{id:Tab;label:string;icon:string}[]=[{id:'calls',label:'Calls',icon:'calls'},{id:'ranking',label:'Ranking',icon:'ranking'},{id:'group',label:'Group',icon:'group'}];
 const SEEN='calld.seen.';
@@ -37,7 +38,9 @@ async function openLink(url:string){const u=new URL(url);if(u.searchParams.get('
 export default function Home(){
  const [invite,setInvite]=useState(''),[data,setData]=useState<GroupView|null>(null),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState<Tab>('calls'),[practiceAllowed,setPracticeAllowed]=useState(false),[boardRound,setBoardRound]=useState(''),[origin,setOrigin]=useState(''),[focusQuestion,setFocusQuestion]=useState(''),[notificationFocus,setNotificationFocus]=useState(0),[featureFocus,setFeatureFocus]=useState({name:'',tick:0});
- const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
+ const [pick,setPick]=useState<{call:Call;preset?:string}|null>(null),[flow,setFlow]=useState<string[]|null>(null),[revealing,setRevealing]=useState<Call|null>(null),[result,setResult]=useState<Call|null>(null),[resolving,setResolving]=useState<{call:Call;mode:'set'|'judge'}|null>(null),[creating,setCreating]=useState(false),[sharing,setSharing]=useState<{title:string;text:string;url:string;preview?:React.ReactNode;tags?:string[];tag?:string;retag?:(name:string)=>void}|null>(null),[createdId,setCreatedId]=useState(''),[profile,setProfile]=useState(''),[levelUp,setLevelUp]=useState('');
+ const [firstOpen,setFirstOpen]=useState(false);
+ const [setupFriends,setSetupFriends]=useState<string[]>([]),[setupColor,setSetupColor]=useState<string>(GROUP_COLORS.coral),[firstCall,setFirstCall]=useState(false);
  const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
 
@@ -67,6 +70,8 @@ export default function Home(){
  // Open what a shared link or notification pointed at, once.
  useEffect(()=>{if(!data?.joined||!focusQuestion||focused.current===focusQuestion)return;const c=findCall(focusQuestion);if(!c)return;focused.current=focusQuestion;setTab('calls');
   if(['settled','void'].includes(c.state))setResult(c);else if(clock<Date.parse(c.locks_at)&&c.state==='open'){if(!c.answer&&c.subject_id!==me)startFlow(c)}else setRevealing(c);},[data?.joined,focusQuestion,data?.bets]);
+ // Right after making a group: straight into the first call.
+ useEffect(()=>{if(firstCall&&data?.joined){setFirstCall(false);setFirstOpen(true);setCreating(true)}},[firstCall,data?.joined]);
  // Show a fresh result once: the "called it" moment.
  useEffect(()=>{if(!data?.joined||result||pick||creating)return;const fresh=sections.results.find(c=>c.answer&&c.state==='settled'&&!seen(c.id)&&clock-Date.parse(c.settled_at||c.locks_at)<3*86400000);if(fresh){markSeen(fresh.id);setResult(fresh);if(fresh.answer===fresh.result_answer)void haptic('win')}},[data?.bets]);
  // Level up: shown once, the first time the app sees you at a higher level.
@@ -81,7 +86,18 @@ export default function Home(){
 
  function openShare(c:Call,title='Share this call'){const url=linkFor(c);if(!url)return;
   const m=c.match;
-  if(m){const k=kickLabel(m.kickoff||c.locks_at,new Date(),zone);setSharing({title,url,text:`${m.home} – ${m.away}, ${k.charAt(0).toLowerCase()+k.slice(1)}.\n${c.answer?'I’ve made my call. Have you?':'Who wins? Make your call:'} ${url}`,preview:<CallPreview call={{...c,options:null,creator_name:BRAND_NAME}} groupName={data!.group.name} pickers={(c.picker_ids||[]).map(id=>names[id]).filter(Boolean)} foot={(m.league||'Football')+' · '+data!.group.name}/>});return}const pickers=(c.picker_ids||[]).map(id=>names[id]).filter(Boolean);const about=c.subject_id?names[c.subject_id]:'';setSharing({title,url,text:about&&!['settled','void'].includes(c.state)?`There’s a secret call about ${about} in ${data!.group.name}. ${about}, don’t look. ${url}`:shareText(betCard(data!.group.name,c.text,c.picked||0,answersOf(c).map(a=>label(a,c))),url),preview:<CallPreview call={c} groupName={data!.group.name} pickers={pickers}/>})}
+  if(m){const k=kickLabel(m.kickoff||c.locks_at,new Date(),zone);setSharing({title,url,text:`${m.home} – ${m.away}, ${k.charAt(0).toLowerCase()+k.slice(1)}.\n${c.answer?'I’ve made my call. Have you?':'Who wins? Make your call:'} ${url}`,preview:<CallPreview call={{...c,options:null,creator_name:BRAND_NAME}} groupName={data!.group.name} pickers={(c.picker_ids||[]).map(id=>names[id]).filter(Boolean)} foot={(m.league||'Football')+' · '+data!.group.name}/>});return}const pickers=(c.picker_ids||[]).map(id=>names[id]).filter(Boolean);const about=c.subject_id?names[c.subject_id]:'';setSharing({title,url,text:about&&!['settled','void'].includes(c.state)?`There’s a secret call about ${about} in ${data!.group.name}. ${about}, don’t look. ${url}`:callText(c,url),preview:cardImage(c)||<CallPreview call={c} groupName={data!.group.name} pickers={pickers}/>,...tagging(c,url)})}
+ /** The real WhatsApp picture, straight from the server, so what you see is what they get. */
+ function cardImage(c:Call,forName?:string){if(!origin||!c.share_code||(c.subject_id&&!['settled','void'].includes(c.state)))return null;return <img className="c-card-image" alt="" src={origin+'/share/image?c='+c.share_code+(forName?'&for='+encodeURIComponent(forName):'')+'&v='+(c.picked||0)}/>}
+ /** One short line in the group's language; the picture does the rest. */
+ function callText(c:Call,url:string,forName?:string){const tr=((data!.group as {lang?:string}).lang)==='tr';
+  if(forName)return tr?`${forName}, bu soru seni soruyor 👀 ${url}`:`${forName}, this one's about you 👀 ${url}`;
+  if(['settled','void'].includes(c.state))return tr?`${c.text} Sonuç belli 👀 ${url}`:`${c.text} The result is in 👀 ${url}`;
+  return tr?`${c.text}\nSen ne dersin? 👀 ${url}`:`${c.text}\nYour call? 👀 ${url}`}
+ /** Friend calls: send a friend who hasn't joined their own "you were picked" link. */
+ function tagging(c:Call,url:string){if(c.answer_type!=='friend'||['settled','void'].includes(c.state))return {};const pending=((data!.group as {pending_names?:string[]}).pending_names)||[];const tags=(c.options||[]).filter(o=>pending.some(p=>p.toLowerCase()===o.toLowerCase()));if(!tags.length)return {};
+  const retag=(name:string)=>setSharing(s=>{if(!s)return s;const next=s.tag===name?'':name;const u=next?url+'?for='+encodeURIComponent(next):url;return {...s,tag:next,url:u,text:callText(c,u,next||undefined),preview:cardImage(c,next||undefined)||s.preview}});
+  return {tags,retag}}
  /** Go through every open call, one after another, starting from the one you tapped. */
  function startFlow(first:Call,preset?:string){const open=sortCalls(calls,me,Date.now()).yourTurn.map(c=>c.id).filter(id=>id!==first.id);const ids=!first.answer?[first.id,...open]:[first.id];setFlow(ids);setPick({call:first,preset})}
  function advance(from:Call){const ids=flow||[];const i=ids.indexOf(from.id);const next=ids.slice(i+1).map(id=>findCall(id)).find(c=>c&&!c.answer&&c.state==='open'&&Date.now()<Date.parse(c.locks_at));if(next){setPick({call:next});return true}setPick(null);setFlow(null);return false}
@@ -100,14 +116,16 @@ export default function Home(){
   <div className="c-landing-top"><span className="c-brandmark big">{BRAND}</span><span className="c-pill">Free. No money. Ever.</span></div>
   <h1>Your friends.<br/><em>Your calls.</em></h1>
   <p className="c-lead">Make calls about your friends and your plans. See who said what when picks close. The fewer friends who saw it coming, the more you score.</p>
-  <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice};if(!practice)payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void act(payload,'Your group is ready. Invite two friends to start.');}}>
+  <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice,friends:setupFriends,color:setupColor,lang:uiLang(),startNow:!practice};if(!practice&&f.get('groupType'))payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void act(payload).then(ok=>{if(ok&&!practice)setFirstCall(true)});}}>
    <h2>Start your group</h2>
    <label>Your name<input name="name" required maxLength={60} placeholder="What do your friends call you?" autoComplete="given-name"/></label>
    <label>Group name<input name="groupName" required maxLength={60} placeholder="Agalar, the flat, uni crew…"/></label>
+   <div className="c-swatches" role="radiogroup" aria-label="Group colour">{Object.entries(GROUP_COLORS).map(([k,c])=><button type="button" key={k} role="radio" aria-checked={setupColor===c} aria-label={k} className={setupColor===c?'on':''} style={{background:c}} onClick={()=>setSetupColor(c)}/>)}</div>
+   <FriendNames names={setupFriends} onChange={setSetupFriends}/>
    {footballOn&&<label>What will you call?<select name="groupType" defaultValue="Friends"><option value="Friends">Our own calls</option><option value="Football">Football matches</option><option value="Mixed">Both</option></select></label>}
    {practiceAllowed&&<label className="c-check"><input type="checkbox" name="practice" value="1"/><span><b>Practice group</b><small>For testing: a whole week in an hour.</small></span></label>}
    <button className="c-btn" disabled={busy}>Create group <Icon name="arrow"/></button>
-   <small>The game starts once three friends join. Points are free and can’t be bought or cashed out. For players aged 18 and over.</small>
+   <small>Starts right away. Points are free and can’t be bought or cashed out. For players aged 18 and over.</small>
   </form>
   {canApple&&<div className="c-signin"><small>Already made a call?</small><AppleButton busy={busy} onClick={()=>void signInApple()}/></div>}
   <LegalLinks/>
@@ -133,7 +151,8 @@ export default function Home(){
  const unread=data.notifications?.filter(n=>!n.read_at).length||0;
  const myRow=data.selectedRound?.standings.find(s=>s.user_id===me);const anyPoints=!!data.selectedRound?.standings.some(s=>s.points_tenths>0);
  const nextLock=nextLockAt();
- const status=data.members<3?'Waiting for '+(3-data.members)+' more '+(3-data.members===1?'friend':'friends'):start&&clock<start.getTime()?'First week opens '+when(start,clock,zone):!active?'This week has wrapped up':(sections.yourTurn.length?sections.yourTurn.length+(sections.yourTurn.length===1?' call':' calls')+' waiting for you':'You’re all caught up')+(nextLock?' · next lock in '+countdown(nextLock,clock):'');
+ const instant=!!(data.group as {instant?:boolean}).instant;
+ const status=data.members<3&&!instant?'Waiting for '+(3-data.members)+' more '+(3-data.members===1?'friend':'friends'):start&&clock<start.getTime()?'First week opens '+when(start,clock,zone):!active?'This week has wrapped up':(sections.yourTurn.length?sections.yourTurn.length+(sections.yourTurn.length===1?' call':' calls')+' waiting for you':'You’re all caught up')+(nextLock?' · next lock in '+countdown(nextLock,clock):'');
  const lastFinal=(data.rounds||[]).find(r=>r.state==='final'&&r.winners.length>0);
  const liveEmpty=!!data.selectedRound&&data.selectedRound.state!=='final'&&data.selectedRound.standings.every(x=>x.points_tenths===0);
  const board=(data.rounds||[]).find(r=>r.id===boardRound)||(liveEmpty&&lastFinal?lastFinal:data.selectedRound);
@@ -147,12 +166,15 @@ export default function Home(){
  const waitingMatches=football&&!footballQs.length&&data.selectedRound?.state==='waiting_feed';
  const footballBlock=football&&(waitingMatches||data.comingUp)?<>{waitingMatches&&<section className="c-card coming"><span className="c-badge later">Matches</span><h3>This week’s matches are on their way</h3><p className="c-sub">They show up here as soon as they’re published.</p></section>}{data.comingUp&&<ComingUp c={data.comingUp} zone={zone} now={clock}/>}</>:null;
  const nothing=!sections.yourTurn.length&&!sections.locked.length&&!sections.inIt.length&&!sections.later.length&&!sections.results.length&&!football;
+ const groupLang:'tr'|'en'=(data.group as {lang?:string}).lang==='tr'?'tr':'en';
+ const pendingNames=((data.group as {pending_names?:string[]}).pending_names)||[];
+ const friendNames=[...members.filter(m=>m.active).map(m=>m.name),...pendingNames.filter(n=>!members.some(m=>m.active&&m.name.toLowerCase()===n.toLowerCase()))];
  const others=members.filter(m=>m.active&&m.user_id!==me).map(m=>({id:m.user_id,name:m.name}));
 
  return <div className="c-shell">
   <header className="c-top">
    <div className="c-top-row">
-    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members+(data.members===1?' friend':' friends')}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
+    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members===1?'Just you so far':data.members+' friends'}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':'Notifications'} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
      <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this week</span></>:<><b>{sections.yourTurn.length}</b><span>to call</span></>}</button></div>
    </div>
@@ -161,7 +183,7 @@ export default function Home(){
 
   <main className="app c-main">
   {tab==='calls'&&<>
-   {data.members<3&&<section className="c-card invite"><h3>Good calls need good company.</h3><p>Get {3-data.members} more {data.members===2?'friend':'friends'} in and the week starts. Later calls work already.</p><button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>}
+   {data.members<3&&<section className="c-card invite"><h3>{(data.group as {instant?:boolean}).instant?'Now get them in':'Good calls need good company.'}</h3><p>{(data.group as {instant?:boolean}).instant?'Share a call in your group chat. Friends tap it, claim their name and pick, no sign-up.':`Get ${3-data.members} more ${data.members===2?'friend':'friends'} in and the week starts. Later calls work already.`}</p><button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>}
    {football&&!practice&&data.selectedRound?.state==='skipped'&&clock<Date.parse(data.selectedRound.pick_end_at||'')&&members.find(m=>m.user_id===me)?.admin&&<section className="c-card starter"><span className="c-kicker dark">This week</span><h3>No matches were published in time</h3><p>Added some since? Open this week now with them.</p><button className="c-btn" disabled={busy} onClick={()=>void act({action:'startFirstWeek'},'This week is on. Make your calls.')}>Open this week now</button></section>}
    {data.members>=3&&start&&clock<start.getTime()&&!practice&&<section className="c-card starter"><span className="c-kicker dark">First week</span><h3>Starts {when(start,clock,zone)}</h3>{members.find(m=>m.user_id===me)?.admin?<><p>Don’t want to wait? Start a short first week now. It runs until then, and the normal weeks follow.</p><button className="c-btn" disabled={busy} onClick={()=>{if(window.confirm('Start the first week now? Everyone can make their calls straight away.'))void act({action:'startFirstWeek'},'The first week is on. Make your calls.')}}>Start the first week now</button></>:<p>The admin can start it early. Until then, you can look around.</p>}</section>}
    {!!data.secretCount&&<section className="c-secret"><span className="c-secret-icon"><Icon name="eyeoff" size={22}/></span><div><b>{data.secretCount===1?'There’s a secret call about you.':'There are '+data.secretCount+' secret calls about you.'}</b><p>Your friends are talking about you. You’ll see {data.secretCount===1?'it':'them'} once it’s settled.</p></div></section>}
@@ -175,6 +197,7 @@ export default function Home(){
   {tab==='group'&&<>
    <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>
     <button className="c-btn" onClick={()=>setSharing({title:'Invite friends',url:groupLink,text:shareText(inviteCard(data.group.name,members.map(m=>m.name)),groupLink,meName)})}><Icon name="share"/> Invite friends</button></section>
+   <section className="c-card pending"><span className="c-kicker dark">Not in yet</span><h3>{pendingNames.length?'They’ll claim their name from your link':'Add friends by name'}</h3><p className="c-sub">Names only. “Who…?” calls can pick them before they join.</p><AddNames names={pendingNames} busy={busy} onAdd={names=>act({action:'addNames',names},'Added.')}/></section>
    {canApple&&data.linked===false&&<section className="c-card save"><span className="c-kicker dark">Your account</span><h3>Don’t lose your calls</h3><p className="c-sub">Sign in with Apple to keep your calls, points and level on any phone, and to pick up where you left off in the app.</p><AppleButton busy={busy} onClick={()=>void signInApple()}/></section>}
    {footballOn&&<FootballPanel data={data} act={p=>act(p)} busy={busy}/>}
    <LifecyclePanel view="group" featureFocus={featureFocus} notificationFocus={notificationFocus} data={data} act={p=>act(p,'Saved.')} busy={busy} shareContext={{groupName:data.group.name,invite,origin,demo:!!data.demoNow}}/>
@@ -191,7 +214,7 @@ export default function Home(){
   <RevealSheet call={revealing} snaps={snaps} me={me} meName={meName} onClose={()=>setRevealing(null)}/>
   <ResultSheet call={result} snaps={snaps} meName={meName} onClose={()=>setResult(null)} onShare={(c,text)=>{const url=linkFor(c);setResult(null);setSharing({title:'Rub it in',url,text:text+' '+url})}}/>
   <ResolveSheet call={resolving?.call||null} mode={resolving?.mode||'set'} busy={busy} onClose={()=>setResolving(null)} onPick={(c,answer)=>act({action:resolving?.mode==='judge'?'judge':'propose',questionId:c.id,answer},resolving?.mode==='judge'?'Decided. It counts now.':'Result set. Everyone has a day to say if it’s not right.')}/>
-  <NewCallSheet open={creating} now={clock} practice={practice} weeklyOpen={weeklyOpen} weeklyWhy={weeklyWhy} deadline={data.selectedRound?Date.parse(data.selectedRound.deadline_at):null} members={others} busy={busy} onClose={()=>setCreating(false)} onCreate={(c:NewCall)=>{const payload:Record<string,unknown>={...c};if(c.action==='question'){requestId.current||=crypto.randomUUID();payload.requestId=requestId.current}return act(payload).then(ok=>{if(ok)requestId.current='';return ok})}}/>
+  <NewCallSheet open={creating} first={firstOpen} lang={groupLang} friendNames={friendNames} now={clock} practice={practice} weeklyOpen={weeklyOpen} weeklyWhy={weeklyWhy} deadline={data.selectedRound?Date.parse(data.selectedRound.deadline_at):null} members={others} busy={busy} onClose={()=>{setCreating(false);setFirstOpen(false)}} onCreate={(c:NewCall)=>{const payload:Record<string,unknown>={...c};if(c.action==='question'){requestId.current||=crypto.randomUUID();payload.requestId=requestId.current}return act(payload).then(ok=>{if(ok)requestId.current='';return ok})}}/>
   {saving&&<Sheet open label="Save your call" onClose={()=>setSaving(false)}><div className="c-save"><span className="c-kicker dark">Your call is in</span><h2>Save it and get the app</h2>
    <ul><li><Icon name="check" size={18} stroke={2.6}/>See how the group splits the moment picks close</li><li><Icon name="check" size={18} stroke={2.6}/>A nudge when friends make their calls</li><li><Icon name="check" size={18} stroke={2.6}/>Your calls, points and level on any phone</li></ul>
    <AppleButton busy={busy} onClick={()=>void signInApple()}>{apple.storeUrl?'Sign in with Apple & get the app':'Sign in with Apple'}</AppleButton>
@@ -199,7 +222,7 @@ export default function Home(){
    <button className="c-link" onClick={()=>{setSaving(false);setNotice('You’re in, and your call is saved.')}}>Not now</button></div></Sheet>}
   <ProfileSheet c={data.careers?.find(c=>c.user_id===profile)||null} name={names[profile]||''} me={profile===me} onClose={()=>setProfile('')}/>
   <LevelUpSheet c={levelUp&&myCareer?myCareer:null} from={levelUp} onClose={()=>setLevelUp('')} onShare={()=>{const url=groupLink;setLevelUp('');if(myCareer)setSharing({title:'Tell the group',url,text:`Just levelled up to ${myCareer.level.name} in ${data.group.name} (${myCareer.points.toLocaleString('en-GB')} career points). ${url}`})}}/>
-  <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>
+  <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} tags={sharing?.tags} tag={sharing?.tag} onTag={sharing?.retag} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>
  </div>;
 }
 
@@ -211,26 +234,30 @@ function ComingUp({c,zone,now}:{c:NonNullable<GroupView['comingUp']>;zone:string
 }
 
 function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:boolean;clock:number;onJoin:(name:string,answer:string,p:Preview|null)=>void;error:string;notice:string}){
- const p=data.preview||null;const [answer,setAnswer]=useState(''),[name,setName]=useState('');
+ const p=data.preview||null;const [answer,setAnswer]=useState(''),[name,setName]=useState(''),[other,setOther]=useState(false);
+ const pending=data.pendingNames||[],claimed=!other&&pending.includes(name);
+ const pickedMe=claimed&&p?.pickedYou?(Object.entries(p.pickedYou).find(([k])=>k.toLowerCase()===name.toLowerCase())?.[1]||0):0;
  const locked=!!p&&(clock>=Date.parse(p.locks_at)||p.state!=='open');const long=p?.scope==='longterm';
  const people=data.memberNames||[];
  const opts=p?.answers||(p?answersOf(p).map(a=>({value:a,label:label(a,p)})):[]);
  return <main className="c-join">
   <div className="c-join-top"><span className="c-brandmark">{BRAND}</span><span>Free · no money, ever</span></div>
+  {pending.length>0&&!other&&<section className="c-claim"><p>Which one are you?</p><div className="c-chips">{pending.map(n=><button type="button" key={n} className={'c-chip-name'+(name===n?' on':'')} aria-pressed={name===n} onClick={()=>setName(n)}><Face name={n} size={28}/>{n}</button>)}<button type="button" className="c-chip-name ghost" onClick={()=>{setOther(true);setName('')}}>Someone else</button></div>
+   {pickedMe>0&&<div className="c-picked-you"><b>{pickedMe===1?'A friend picked you':pickedMe+' friends picked you'}</b> in this one. Make your own pick to see the rest when picks close.</div>}</section>}
   {p?<>
    <div className="c-join-from">{p.creator_name&&!p.answers&&<Face name={p.creator_name} size={48} ring="#FFFFFF"/>}<p>{p.answers?<>Your friends in <b>{data.group.name}</b> want your call</>:<><b>{p.creator_name||'A friend'}</b> wants your call in <b>{data.group.name}</b></>}</p></div>
    <section className="c-join-card">
     <div className="c-card-top"><span className={'c-badge '+(long?'later':'soon')}>{locked?'Picks are closed':long&&p.event_at?'We’ll know in '+new Date(p.event_at).toLocaleDateString('en-GB',{month:'long'}):'Picks close '+when(p.locks_at,clock)}</span><span className="c-by"><Faces names={people} size={22} max={4}/> {data.members} in</span></div>
     <h1>{p.text}</h1>
-    {!locked&&<><div className={'c-options'+(opts.length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{opts.map(o=><button key={o.value} role="radio" aria-checked={answer===o.value} className={'c-opt big'+(answer===o.value?' on':'')} onClick={()=>setAnswer(o.value)}><span>{o.label}</span>{answer===o.value&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
+    {!locked&&<>{p.answer_type==='friend'?<FacePicker names={opts.map(o=>o.value)} value={answer} onPick={setAnswer} big/>:<div className={'c-options'+(opts.length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{opts.map(o=><button key={o.value} role="radio" aria-checked={answer===o.value} className={'c-opt big'+(answer===o.value?' on':'')} onClick={()=>setAnswer(o.value)}><span>{o.label}</span>{answer===o.value&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>}
      <p className="c-hint">You’ll see what everyone said when picks close.</p></>}
    </section>
   </>:<>
    <div className="c-join-from big"><p>You’re invited to</p><h1>{data.group.name}</h1><Faces names={people} size={40} ring="#17201B"/><p>{people.length?people.slice(0,3).join(', ')+(people.length>3?' and '+(people.length-3)+' more':'')+' '+(people.length===1?'is':'are')+' in.':''}</p></div>
   </>}
   <form className="c-join-form" onSubmit={e=>{e.preventDefault();onJoin(name.trim(),locked?'':answer,p)}}>
-   <label htmlFor="join-name">What do your friends call you?</label>
-   <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder="Your name" autoComplete="given-name"/>
+   {(!pending.length||other)?<><label htmlFor="join-name">What do your friends call you?</label>
+   <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder="Your name" autoComplete="given-name"/></>:!claimed&&<p className="c-hint">Tap your name above.</p>}
    <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?'I’m in: '+(opts.find(o=>o.value===answer)?.label||label(answer)):'Pick an answer first'):'Join the group'}</button>
    <small>No sign-up form. Nothing to spend: you earn points by being right, just for bragging rights. Points can’t be bought or cashed out. 18+.</small>
   </form>
@@ -240,3 +267,22 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
 
 /** Privacy, terms and help live on the website, also from inside the app. */
 function LegalLinks(){const base=webOrigin();return <nav className="c-footer-links"><a href={base+'/privacy'} target="_blank" rel="noreferrer">Privacy</a><a href={base+'/terms'} target="_blank" rel="noreferrer">Terms</a><a href={base+'/support'} target="_blank" rel="noreferrer">Help</a></nav>}
+
+/** The phone's language decides the group's: Turkish phones get Turkish cards and examples. */
+export function uiLang():'tr'|'en'{try{return (navigator.languages?.[0]||navigator.language||'en').toLowerCase().startsWith('tr')?'tr':'en'}catch{return 'en'}}
+/** "Who's in?": first names only, as chips. They claim their name when they open your link. */
+function FriendNames({names,onChange}:{names:string[];onChange:(n:string[])=>void}){
+ const [draft,setDraft]=useState('');
+ const add=()=>{const n=draft.trim().replace(/,$/,'');if(n&&!names.some(x=>x.toLowerCase()===n.toLowerCase())&&names.length<29)onChange([...names,n.slice(0,60)]);setDraft('')};
+ return <div className="c-friends"><span className="c-flabel">Who’s in? <small>First names. They’ll claim theirs from your link.</small></span>
+  <div className="c-chips">{names.map(n=><button type="button" key={n} className="c-chip-name" onClick={()=>onChange(names.filter(x=>x!==n))} aria-label={'Remove '+n}><Face name={n} size={24}/>{n}<i aria-hidden="true">×</i></button>)}
+   <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();add()}}} onBlur={add} placeholder={names.length?'Add another':'Ege, Can, Deniz…'} maxLength={60} aria-label="Add a friend’s name"/></div></div>;
+}
+
+/** Group tab: friends who haven't joined yet, and adding more. */
+function AddNames({names,busy,onAdd}:{names:string[];busy:boolean;onAdd:(n:string[])=>Promise<boolean>}){
+ const [draft,setDraft]=useState('');
+ const add=async()=>{const list=draft.split(',').map(s=>s.trim()).filter(Boolean);if(!list.length)return;if(await onAdd(list))setDraft('')};
+ return <><div className="c-chips">{names.map(n=><span key={n} className="c-chip-name static"><Face name={n} size={24}/>{n}</span>)}</div>
+  <div className="c-form-row"><input className="c-input" value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();void add()}}} placeholder="Ege, Can…" maxLength={200} aria-label="Friends’ names"/><button className="c-btn small" disabled={busy||!draft.trim()} onClick={()=>void add()}>Add</button></div></>;
+}
