@@ -1,4 +1,4 @@
-export type NotificationKind='about_you'|'round_open'|'lock_reminder'|'weekly_final'|'proposal'|'dispute'|'judgment_request'|'settlement'|'match_change'|'moderation';
+export type NotificationKind='about_you'|'round_open'|'lock_reminder'|'weekly_final'|'proposal'|'dispute'|'judgment_request'|'settlement'|'match_change'|'moderation'|'moment_open';
 export type NotificationPreferences={muted:boolean;round_open:boolean;lock_reminder:boolean;weekly_final:boolean};
 export const defaultPreferences:NotificationPreferences={muted:false,round_open:true,lock_reminder:true,weekly_final:true};
 export const routineKinds:NotificationKind[]=['round_open','lock_reminder','weekly_final'];

@@ -1,5 +1,5 @@
 // Moment kinds and their three suggested calls (pure: used by the server and the app).
-export const MOMENT_KINDS=['birthday','trip','wedding','night','baby','job','own'] as const;
+export const MOMENT_KINDS=['year','birthday','trip','wedding','night','baby','job','own'] as const;
 export type MomentKind=typeof MOMENT_KINDS[number];
 type Lang='tr'|'en';
 type Starter={text:string;answerType:'friend'|'choice';options?:string[]};
@@ -9,6 +9,8 @@ export function starters(kind:MomentKind,lang:Lang,who=''):Starter[]{
  const n=who||(lang==='tr'?'O':'They');
  const yes:Starter['answerType']='choice',friend:Starter['answerType']='friend';
  const S:Record<MomentKind,Record<Lang,Starter[]>>={
+  year:{tr:[{text:'Bu yıl gruptan ilk kim nişanlanır?',answerType:friend},{text:'Yaz tatili planı gerçekten gerçekleşir mi?',answerType:yes},{text:'Kim yeni bir hobiye başlayıp bırakır?',answerType:friend},{text:'Yıl bitmeden kim iş değiştirir?',answerType:friend}],
+   en:[{text:'Who gets engaged first this year?',answerType:friend},{text:'Does the summer trip actually happen?',answerType:yes},{text:'Who starts a new hobby and quits it?',answerType:friend},{text:'Who changes jobs before the year is out?',answerType:friend}]},
   birthday:{tr:[{text:`${n} mumları ilk denemede söndürür mü?`,answerType:yes},{text:'Gecenin sonunda kim ağlar?',answerType:friend},{text:'Hediyeyi son anda kim alır?',answerType:friend}],
    en:[{text:`Does ${n} blow out the candles in one go?`,answerType:yes},{text:'Who cries by the end of the night?',answerType:friend},{text:'Who buys the present last minute?',answerType:friend}]},
   trip:{tr:[{text:'Tatilde ilk kim güneşte yanar?',answerType:friend},{text:'Gezi planı ilk günü atlatır mı?',answerType:yes},{text:'Şarj aletini evde unutan kim?',answerType:friend}],

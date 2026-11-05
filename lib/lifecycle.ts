@@ -1,4 +1,4 @@
-import {createMoment} from './moments';
+import {createMoment,addMomentCall,sealedUntil} from './moments';
 import {friendOptions} from './friends';
 import {moderationAction,moderationActions,touchMember,maintainRecovery} from './moderation';
 import {exactOutcome,marketAnswer,localSunday,customAnswers,cleanOptions,type Fixture} from './football/rules';
@@ -80,11 +80,15 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  else if(now.getTime()>=cutoff)await settle(tx,q,null,new Date(cutoff),now);
  }
  await lockReminders(tx,group.id,now,t);
+ // Sealed predictions: everyone hears at the same moment that they're open.
+ for(const m of (await tx.query<{id:string;title:string;opens_at:Date}>("SELECT id,title,opens_at FROM moments WHERE group_id=$1 AND sealed AND opens_at<=$2 AND opens_at>$2::timestamptz-interval '7 days'",[group.id,now])).rows)
+  for(const u of (await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active',[group.id])).rows)
+   await emitNotification(tx,{groupId:group.id,userId:u.user_id,key:'opened:'+m.id,kind:'moment_open',text:`${m.title}: your sealed predictions are open. See what everyone said.`,eventAt:new Date(m.opens_at)},now);
  if(!t.practice)await weekendReminders(tx,group.id,now);
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
-const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
+const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment','addMomentCall']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),momentId:z.string().max(64).optional(),call:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
 export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const data=schema.parse(input),d=await db();
  // Commit due settlements independently of an action that may subsequently fail.
@@ -125,6 +129,10 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  // A Moment: a few calls that close together when it starts. Moves no points (reviewed in tests/policy.test.ts).
  const made=await createMoment(tx,g,userId,data.moment,now,m=>{throw new LifecycleError(m)});
  await audit(tx,g.id,made.questionIds[0],userId,'moment created',now);return {invite:data.invite,momentId:made.momentId,questionId:made.questionIds[0]};
+ }else if(data.action==='addMomentCall'){
+ // Sealed predictions are written together until the seal date. Moves no points.
+ const q=await addMomentCall(tx,g,userId,data.momentId,data.call,now,m=>{throw new LifecycleError(m)});
+ await audit(tx,g.id,q,userId,'sealed call added',now);return {invite:data.invite,questionId:q};
  }else if(data.action==='addNames'){
  // Friends who aren't in yet, by first name: "who…?" calls can name them, and they claim the name when they join. Moves no points.
  const taken=new Set([...(await tx.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active',[g.id])).rows.map(r=>r.name),...((await tx.query<{pending_names:string[]}>('SELECT pending_names FROM groups WHERE id=$1',[g.id])).rows[0].pending_names||[])].map(n=>n.toLocaleLowerCase('tr')));
@@ -177,7 +185,9 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  if(data.action==='propose'){
  const creatorActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,q.creator])).rows.length;
  const event=q.event_at?new Date(q.event_at).getTime():new Date(g.opens_at!).getTime()+7*DAY-60000;
- check(userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+t.takeoverMs)),'Only the creator or authorized takeover admin can propose.');
+ // Sealed predictions: nobody settles them before the opening; after it, the group decides together, so anyone in it can.
+ const opens=await sealedUntil(tx,q.id);if(opens)check(now>=opens,'These open on '+opens.toISOString().slice(0,10)+'.');
+ check(!!opens||userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+t.takeoverMs)),'Only the creator or authorized takeover admin can propose.');
  check(q.state==='open','A proposal already exists.');
  if(userId!==q.creator)await audit(tx,g.id,q.id,userId,'admin takeover',now,{creator:q.creator});
  await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[option(),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
