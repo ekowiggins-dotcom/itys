@@ -2,9 +2,10 @@
 import {Face,Faces,Icon,Badge,Split,Crest} from './ui';
 import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome} from './calls';
 import {countdown,when} from './format';
+import {useState} from 'react';
 
-type Act={pick:(c:Call,answer?:string)=>void;reveal:(c:Call)=>void;result:(c:Call)=>void;resolve:(c:Call,mode:'set'|'judge')=>void;dispute:(c:Call)=>void;share:(c:Call)=>void};
-type Ctx={me?:string;meName?:string;names:Record<string,string>;now:number;snaps:Snapshot[];admin:boolean;activeIds:Set<string>;judgeFor:Set<string>;disputeMs:number;busy:boolean};
+type Act={pick:(c:Call,answer?:string)=>void;reveal:(c:Call)=>void;result:(c:Call)=>void;resolve:(c:Call,mode:'set'|'judge')=>void;dispute:(c:Call)=>void;share:(c:Call)=>void;setResolver:(c:Call,userId:string)=>void};
+type Ctx={me?:string;meName?:string;names:Record<string,string>;now:number;snaps:Snapshot[];admin:boolean;activeIds:Set<string>;judgeFor:Set<string>;disputeMs:number;busy:boolean;adminId:string;people:{id:string;name:string}[]};
 
 const knowIn=(c:Call)=>c.event_at?'We’ll know in '+new Date(c.event_at).toLocaleDateString('en-GB',{month:'long'}):'Later';
 function closes(c:Call,now:number){const left=Date.parse(c.locks_at)-now;return left<6*3600000?'Locks in '+countdown(c.locks_at,now):'Picks close '+when(c.locks_at,now)}
@@ -15,6 +16,17 @@ export function SectionTitle({children,count}:{children:React.ReactNode;count?:n
 /** The two clubs, kickoff and why this match is in. */
 export function MatchHead({c,dark=false}:{c:Call;dark?:boolean}){const m=c.match!;
  return <div className={'c-match'+(dark?' dark':'')}><Crest team={m.home}/><div className="c-match-mid"><b>{m.home}</b><span>{c.state==='settled'&&m.home90!=null?m.home90+' – '+m.away90:'vs'}</span><b>{m.away}</b></div><Crest team={m.away}/></div>;
+}
+/** Who says what happened: the admin, or whoever the admin handed it to. The admin can change it. */
+export const resolverOf=(c:Call,ctx:Ctx)=>c.resolver_id||ctx.adminId;
+export const canSettle=(c:Call,ctx:Ctx)=>{const r=resolverOf(c,ctx);return c.state==='open'&&(r===ctx.me||(ctx.admin&&!ctx.activeIds.has(r)))};
+function SettledBy({c,ctx,act,light=false}:{c:Call;ctx:Ctx;act:Act;light?:boolean}){
+ const [open,setOpen]=useState(false);if(c.match||c.state!=='open')return null;
+ const r=resolverOf(c,ctx),who=r===ctx.me?'You say':(ctx.names[r]||'The admin')+' says';
+ return <div className={'c-settler'+(light?' light':'')} onClick={e=>e.stopPropagation()}>
+  <span>{who} what happened{ctx.admin&&<> · <button className="c-inline" onClick={()=>setOpen(!open)}>{open?'Done':r===ctx.me?'Hand it to someone':'Change'}</button></>}</span>
+  {open&&<div className="c-about small">{ctx.people.map(p=><button type="button" key={p.id} className={r===p.id?'on':''} aria-pressed={r===p.id} disabled={ctx.busy} onClick={()=>{if(p.id!==r)act.setResolver(c,p.id);setOpen(false)}}><Face name={p.name} size={22}/>{p.id===ctx.me?'You':p.name}</button>)}</div>}
+ </div>;
 }
 const byLine=(c:Call,ctx:Ctx)=>c.match?(c.match.league||'Football'):c.creator===ctx.me?'your call':'by '+c.creator_name;
 
@@ -46,12 +58,13 @@ export function InRow({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  return <article className="c-row">
   <div className="c-row-main">{c.match&&<span className="c-row-kick">{byLine(c,ctx)}</span>}<h3>{c.text}</h3>{c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} compact/>}<p>{about?'It’s about you, so you sit this one out':long?(c.answer?'You said '+label(c.answer,c):'')+' · '+(c.picked||0)+' in':'You said '+label(c.answer||'',c)+' · '+(c.picked||0)+' in'}</p></div>
   <div className="c-row-side">{long?<Badge tone="later">{knowIn(c)}</Badge>:<Badge tone="neutral">{c.match?'Kick-off '+when(c.locks_at,ctx.now):closes(c,ctx.now)}</Badge>}<div className="c-row-actions"><ShareButton c={c} act={act}/>{!about&&ctx.now<Date.parse(c.locks_at)&&<button className="c-chip" onClick={()=>act.pick(c)}>Change</button>}</div></div>
+  <SettledBy c={c} ctx={ctx} act={act}/>
  </article>;
 }
 
 export function LockedCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  const groups=reveal(c,ctx.snaps),total=groups.reduce((n,g)=>n+g.names.length,0),max=Math.max(1,...groups.map(g=>g.names.length));
- const creatorLeft=!ctx.activeIds.has(c.creator),canSet=c.state==='open'&&(c.creator===ctx.me||(ctx.admin&&creatorLeft));
+ const canSet=canSettle(c,ctx),settler=ctx.names[resolverOf(c,ctx)]||'the admin';
  const by=c.proposed_by||c.creator,proposer=by===ctx.me?'You':ctx.names[by]||c.creator_name;
  const windowEnds=c.proposed_at?Date.parse(c.proposed_at)+ctx.disputeMs:0,canDispute=c.state==='proposed'&&ctx.now<windowEnds&&c.proposed_by!==ctx.me;
  const judge=c.state==='disputed'&&ctx.judgeFor.has(c.id);
@@ -60,8 +73,9 @@ export function LockedCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
   {c.match?<><MatchHead c={c} dark/><p className="c-market light">Who wins?</p></>:<h3>{c.text}</h3>}
   {total>0&&<div className="c-bars">{groups.filter(g=>g.names.length).sort((a,b)=>b.names.length-a.names.length).slice(0,4).map(g=><div key={g.answer} className={'c-bar-row'+(c.proposed_answer===g.answer?' hit':'')}><span>{label(g.answer,c)}</span><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><Faces names={g.names.map(n=>n.name)} size={20} ring="#17201B" max={3}/></div>)}</div>}
   {c.match&&c.state==='open'&&<p className="c-status">Scores itself at full time (90 minutes).</p>}
-  {!c.match&&c.state==='open'&&(canSet?<button className="c-btn small" onClick={()=>act.resolve(c,'set')}>What happened?</button>:<p className="c-status">Waiting for {c.creator_name} to say what happened.</p>)}
-  {c.state==='proposed'&&<p className="c-status"><b>{proposer==='You'?'You said':proposer+' says'}: {label(c.proposed_answer||'',c)}.</b> {canDispute?<>Counts in {countdown(windowEnds,ctx.now)}. <button className="c-inline" disabled={ctx.busy} onClick={()=>act.dispute(c)}>Not right? Say so</button></>:'Counts soon.'}</p>}
+  {!c.match&&c.state==='open'&&(canSet?<button className="c-btn small" onClick={()=>act.resolve(c,'set')}>What happened?</button>:<p className="c-status">Waiting for {settler} to say what happened.</p>)}
+  {!c.match&&c.state==='open'&&ctx.admin&&<SettledBy c={c} ctx={ctx} act={act} light/>}
+  {c.state==='proposed'&&c.about_you&&c.proposed_by!==ctx.me?<p className="c-status">The result’s in. It’s about you, so you’ll see it once it counts.</p>:c.state==='proposed'&&<p className="c-status"><b>{proposer==='You'?'You said':proposer+' says'}: {label(c.proposed_answer||'',c)}.</b> {canDispute?<>Counts in {countdown(windowEnds,ctx.now)}. <button className="c-inline" disabled={ctx.busy} onClick={()=>act.dispute(c)}>Not right? Say so</button></>:'Counts soon.'}</p>}
   {c.state==='disputed'&&(judge?<button className="c-btn small" onClick={()=>act.resolve(c,'judge')}>You’re the judge: decide</button>:<p className="c-status">Someone said that’s not right. A friend who stayed out of it decides.</p>)}
   {total>0&&<button className="c-link light" onClick={()=>act.reveal(c)}>See who said what <Icon name="arrow" size={16}/></button>}
  </article>;
@@ -73,6 +87,7 @@ export function LaterCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
   <div className="c-card-top"><Badge tone="later">{knowIn(c)}</Badge><span className="c-by">by {c.creator_name}<ShareButton c={c} act={act}/></span></div>
   <h3>{c.text}</h3>
   {c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} compact/>}
+  <SettledBy c={c} ctx={ctx} act={act}/>
   <div className="c-later-foot"><span>{c.subject_id===ctx.me?'About you · sitting out':c.answer?<>You said <b>{label(c.answer,c)}</b></>:'You didn’t pick'} · {c.picked||0} in</span><span>{open?<button className="c-chip" onClick={()=>act.pick(c)}>{c.answer?'Change':'Pick'}</button>:'Picks closed'}</span></div>
  </article>;
 }

@@ -1,5 +1,5 @@
 import {createMoment,addMomentCall,sealedUntil} from './moments';
-import {friendOptions} from './friends';
+import {friendOptions,assignResolver} from './friends';
 import {moderationAction,moderationActions,touchMember,maintainRecovery} from './moderation';
 import {exactOutcome,marketAnswer,localSunday,customAnswers,cleanOptions,type Fixture} from './football/rules';
 import { randomUUID } from 'node:crypto';
@@ -15,7 +15,7 @@ import {disputeCutoff} from './rules';
 const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
-type Question={moment_id?:string|null;moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
+type Question={moment_id?:string|null;moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;resolver_id?:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
 export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null,t:Timing=NORMAL){return q.event_at?new Date(q.event_at).getTime()+t.resolutionMs:new Date(opens!).getTime()+(t.practice?PRACTICE_ROUND.lockByMs+t.resolutionMs:14*DAY-60000)}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
@@ -88,7 +88,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
-const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment','addMomentCall']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),momentId:z.string().max(64).optional(),call:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
+const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment','addMomentCall','setResolver']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),momentId:z.string().max(64).optional(),call:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional(),resolverId:z.uuid().optional()});
 export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const data=schema.parse(input),d=await db();
  // Commit due settlements independently of an action that may subsequently fail.
@@ -167,12 +167,22 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  if(data.subjectId)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,data.subjectId])).rows.length,'The tagged subject must be a member.');
  let options:string[]|null;try{options=data.answerType==='friend'?await friendOptions(tx,g.id):cleanOptions(data.options)}catch(e){throw new LifecycleError((e as Error).message)}
  const id=randomUUID();await tx.query('INSERT INTO questions(id,group_id,creator,text,locks_at,scope,event_at,subject_id,options,answer_type) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[id,g.id,userId,z.string().trim().min(3).max(240).parse(data.text),lock,'longterm',event,data.subjectId||null,options?JSON.stringify(options):null,data.answerType==='friend'?'friend':'choice']);
- if(data.subjectId)await emitNotification(tx,{groupId:g.id,userId:data.subjectId,key:'about:'+id,kind:'about_you',text:'Your friends just made a call about you. You’ll see it once it’s settled.'},now);
+ if(data.subjectId)await emitNotification(tx,{groupId:g.id,userId:data.subjectId,key:'about:'+id,kind:'about_you',text:'Your friends made a call about you. You can see it, but not their answers until it’s settled.'},now);
+ await assignResolver(tx,g.id,userId,id,data.resolverId);
  await audit(tx,g.id,id,userId,'longterm created',now);return {invite:data.invite,questionId:id};
  }else if(data.action!=='tick'){
  const q=(await tx.query<Question>('SELECT * FROM questions WHERE id=$1 AND group_id=$2 FOR UPDATE',[data.questionId,g.id])).rows[0];check(q,'Call not found.');
  const option=()=>{const a=data.answer||'';check(customAnswers(q.options).includes(a),'Choose one of this call’s options.');return a};check(q.moderation_state==='visible','This call is hidden pending moderation.');
- if(data.action==='predictLongterm'){
+ if(data.action==='setResolver'){
+ // The admin hands a call to someone who'll know what happened. It only changes who reports the outcome; scoring is untouched.
+ check(userId===g.admin,'Only the admin can choose who settles a call.');
+ check(q.state==='open'&&!q.fixture_id,'This call already has a result.');
+ const target=data.targetId&&data.targetId!==g.admin?data.targetId:null;
+ if(target)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,target])).rows.length,'Pick someone in the group.');
+ await tx.query('UPDATE questions SET resolver_id=$1 WHERE id=$2',[target,q.id]);await audit(tx,g.id,q.id,userId,'resolver set',now,{resolver:target||g.admin});
+ if(target)await emitNotification(tx,{groupId:g.id,userId:target,key:'resolver:'+q.id+':'+target,kind:'judgment_request',questionId:q.id,roundId:q.round_id||undefined,text:'You’ll say what happened: '+q.text},now);
+ return {invite:data.invite,questionId:q.id};
+ }else if(data.action==='predictLongterm'){
  check(q.subject_id!==userId,'The tagged person can’t predict on this call.');
  check(q.scope==='longterm'&&now<new Date(q.locks_at)&&q.state==='open','This long-term call is locked.');
  const existing=(await tx.query<{forfeited:boolean}>('SELECT forfeited FROM predictions WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows[0];check(!existing?.forfeited,'Forfeited predictions cannot be restored.');
@@ -183,13 +193,15 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(!['settled','void'].includes(q.state),'This call has already settled or reached its deadline.');
  check(now>=new Date(q.locks_at),'Wait until the call locks.');
  if(data.action==='propose'){
- const creatorActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,q.creator])).rows.length;
+ // The admin says what happened, unless they handed the call to someone else. If that person has left, or is
+ // late after the event, the admin can step in.
+ const resolver=q.resolver_id||g.admin!,resolverActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,resolver])).rows.length;
  const event=q.event_at?new Date(q.event_at).getTime():new Date(g.opens_at!).getTime()+7*DAY-60000;
  // Sealed predictions: nobody settles them before the opening; after it, the group decides together, so anyone in it can.
  const opens=await sealedUntil(tx,q.id);if(opens)check(now>=opens,'These open on '+opens.toISOString().slice(0,10)+'.');
- check(!!opens||userId===q.creator||(userId===g.admin&&(!creatorActive||now.getTime()>=event+t.takeoverMs)),'Only the creator or authorized takeover admin can propose.');
+ check(!!opens||userId===resolver||(userId===g.admin&&(!resolverActive||now.getTime()>=event+t.takeoverMs)),'Only the person settling this call can say what happened.');
  check(q.state==='open','A proposal already exists.');
- if(userId!==q.creator)await audit(tx,g.id,q.id,userId,'admin takeover',now,{creator:q.creator});
+ if(!opens&&userId!==resolver)await audit(tx,g.id,q.id,userId,'admin takeover',now,{resolver});
  await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[option(),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
  }else if(data.action==='dispute'){
  check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+t.disputeMs,deadline(q,g.opens_at,t)),'The dispute window has closed.');
