@@ -1,9 +1,9 @@
 # Rules for anyone changing this app (people, Codex, Claude Code)
 
-This is a **free prediction game between friends**. It must never become, or look like, gambling. That protects the App Store listing, the age rating, and the app's legal position (including in Türkiye). `tests/policy.test.ts` enforces most of this: **never loosen those tests to make a change pass.** If a feature seems to need it, stop and ask the product owner.
+This is a **free social game between friends**: calls about each other and your plans (football is switched off, see `lib/features.ts`). It must never become, or look like, gambling. That protects the App Store listing, the age rating, and the app's legal position (including in Türkiye). `tests/policy.test.ts` enforces most of this: **never loosen those tests to make a change pass.** If a feature seems to need it, stop and ask the product owner.
 
 ## Hard rules for points
-- Points are **only earned**, by being right. Nobody spends, chooses, allocates or risks points: every pick counts the same (`PICK_POINTS` = 10 in `lib/rules.ts`). What a right answer is worth is set when picks close, from how the group split (`callPoints` in `lib/rules.ts`): 10 + 30 × (1 − share who said it), so 10 to 40, the same for every call (football or custom). A called-off call counts for nobody. Before the lock, never show points per answer (that would read like odds).
+- Points are **only earned**, by being right. Nobody spends, chooses, allocates or risks points: every pick counts the same (`PICK_POINTS` = 10 in `lib/rules.ts`). A right call scores more the fewer friends got it right (`callPoints` in `lib/rules.ts`): 10 + 30 × (1 − share who said it), so 10 to 40. A called-off call counts for nobody. Points appear only on settled results ("+33 · 1 of 4 called it"), never next to answers before or after the lock: that would read like odds.
 - Points can **never** be bought, sold, gifted, traded, transferred between people, or cashed out.
 - **No prizes** of any kind, cash or otherwise, are tied to points or rankings.
 - No wallets, balances, top-ups, payments or in-app purchases connected to points.
@@ -19,6 +19,7 @@ Internal code names (`bets`, `stake`, `removeBet`, `/share/bet`) may stay; they'
 | Add a bet | Add a call |
 | Long-term bets | Long-term calls |
 | Payout, odds | Score, "bold calls score more" |
+| Winner of the week | Oracle of the week |
 
 ## Visuals
 No coins, cash, chips, dice, playing cards, slot-machine effects or bank imagery. Celebrations for being right (confetti, trophies, medals) are fine.

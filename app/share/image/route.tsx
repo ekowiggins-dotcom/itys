@@ -74,7 +74,7 @@ function Invite({card}:{card:ShareCard}){return <div style={flex({position:'rela
 
 function Winner({card}:{card:ShareCard}){return <div style={flex({position:'relative',width:1200,height:630,background:LIME,color:INK,fontFamily:'Noto Sans, Noto Symbols'})}>
  <div style={flex({position:'absolute',left:56,right:56,top:44,bottom:44,flexDirection:'column'})}>
-  <div style={flex({fontSize:30,fontWeight:700})}>{card.subtitle==='SHARED WEEKLY WIN'?'Shared win of the week':'Winner of the week'} · {card.groupName}</div>
+  <div style={flex({fontSize:30,fontWeight:700})}>{card.subtitle==='SHARED WEEKLY WIN'?'Oracles of the week':'Oracle of the week'} · {card.groupName}</div>
   <div style={flex({flexGrow:1,flexDirection:'column',justifyContent:'center'})}><div style={flex({fontFamily:DISPLAY,fontSize:card.title.length>30?72:110,fontWeight:700,lineHeight:1,letterSpacing:-3})}>{card.title}</div><div style={flex({fontSize:40,marginTop:24,fontWeight:700})}>{card.detail}</div></div>
   <div style={flex({justifyContent:'space-between',alignItems:'center'})}><div style={flex({fontSize:28})}>{card.footer}</div><div style={flex({fontFamily:DISPLAY,fontSize:44,fontWeight:700})}>{BRAND}</div></div>
  </div>

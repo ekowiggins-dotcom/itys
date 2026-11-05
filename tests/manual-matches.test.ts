@@ -1,6 +1,6 @@
 import {test,after} from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
-const dir=await mkdtemp(join(tmpdir(),'manual-'));process.env.PREDICTION_DATA_DIR=dir;process.env.FOOTBALL_FEED='manual';process.env.API_FOOTBALL_KEY='';
+const dir=await mkdtemp(join(tmpdir(),'manual-'));process.env.PREDICTION_DATA_DIR=dir;process.env.FOOTBALL='on';process.env.FOOTBALL_FEED='manual';process.env.API_FOOTBALL_KEY='';
 const {db}=await import('../lib/db');const {execute,view}=await import('../lib/service');const {runScheduler}=await import('../lib/scheduler');
 const {parseMatches,addMatches,publishWeek,setResult}=await import('../lib/football/manual');
 after(async()=>{await(await db()).close();await rm(dir,{recursive:true,force:true})});

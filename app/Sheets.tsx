@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
-import {type Call,type Snapshot,answersOf,label,reveal,headline,potential,pts} from './calls';
+import {type Call,type Snapshot,answersOf,label,reveal,headline,pts} from './calls';
 import {MatchHead} from './CallsTab';
 import {countdown,when} from './format';
 import {shareMessage,copyText} from './share';
@@ -24,7 +24,7 @@ export function PickSheet({call,preset,names,longCount,now,busy,step,onSkip,onSa
   :<><h2 className="c-title">{call.text}</h2><p className="c-sub">{call.creator_name}{pickers.length?' · '+pickers.length+' in':''}</p></>}
   {call.split&&<div className="c-split-box"><span className="c-label">How the group is split so far</span><Split answers={answersOf(call)} counts={call.split} mine={call.answer} label={a=>label(a,call)}/></div>}
   <div className={'c-options'+(answersOf(call).length>2?' stack':' pair')} role="radiogroup" aria-label="Your answer">{answersOf(call).map(a=><button key={a} role="radio" aria-checked={answer===a} className={'c-opt'+(answer===a?' on':'')} onClick={()=>setAnswer(a)}><span>{label(a,call)}</span>{answer===a&&<Icon name="check" size={20} stroke={2.6}/>}</button>)}</div>
-  <p className="c-hint">{long?'Later calls count for the season.'+(fullLong?' You already have 3 going: wait for one to finish.':''):'Points are set when picks close: 10 if everyone agrees, up to 40 the fewer agree.'}</p>
+  <p className="c-hint">{long?'Later calls count for the season.'+(fullLong?' You already have 3 going: wait for one to finish.':''):'Right calls score 10 to 40: the fewer friends who see it coming, the more you get.'}</p>
   <button className="c-btn" disabled={!canSave} onClick={async()=>{if(await onSave(call,answer)&&!more)onClose()}}>{!answer?'Pick one first':(more?'Lock in & next':call.answer?'Update to ':'Lock in ')+(more?'':label(answer,call))}{more&&answer&&<Icon name="arrow" size={18}/>}</button>
   {more&&onSkip&&<button className="c-link center" onClick={onSkip}>Skip for now</button>}
  </Sheet>;
@@ -40,9 +40,9 @@ export function RevealSheet({call,snaps,me,meName,onClose}:{call:Call|null;snaps
   <h2 className="c-title big">{call.text}</h2>
   <p className="c-sub light">{headline(groups,meName,call)}</p>
   <div className="c-reveal">{[...groups].sort((a,b)=>b.names.length-a.names.length).map(g=>{const isMine=g===mine;const alone=g.names.length===1&&total>2;return <div key={g.answer} className={'c-group'+(isMine?' mine':'')+(g.names.length?'':' empty')}>
-   <div className="c-group-head"><b>{label(g.answer,call)}{g.names.length>0&&<em className="c-worth">+{potential(g.names.length,total)}</em>}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
+   <div className="c-group-head"><b>{label(g.answer,call)}</b>{alone&&isMine?<span className="c-tag">Lone wolf</span>:<span>{g.names.length?g.names.length+(g.names.length===1?' friend':' friends'):'nobody'}</span>}</div>
    {g.names.length>0&&<><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><div className="c-names">{g.names.map(n=><span key={n.name}><Face name={n.name} size={26}/>{n.name===meName?'You':n.name}</span>)}</div></>}
-   {isMine&&call.scope!=='longterm'&&total>0&&<p className="c-if">If it’s {label(g.answer,call)}, you score +{potential(g.names.length,total)}.</p>}
+   {isMine&&call.scope!=='longterm'&&total>1&&<p className="c-if">{g.names.length===1?'You’re the only one. If you’re right, that’s a bold call.':g.names.length*2<total?'You’re with the few. Right would be a bold call.':'You’re with the crowd.'}</p>}
   </div>})}</div>
  </Sheet>;
 }
@@ -58,7 +58,7 @@ export function ResultSheet({call,snaps,meName,onClose,onShare}:{call:Call|null;
   {won&&<div className="c-confetti" aria-hidden="true">{Array.from({length:16},(_,i)=><i key={i}/>)}</div>}
   <span className="c-kicker dark">{call.text}</span>
   <h3 className="c-it">{call.match&&call.match.home90!=null?call.match.home+' '+call.match.home90+'–'+call.match.away90+' '+call.match.away:label(call.result_answer||'',call)+' it is.'}</h3>
-  {won?<><Face name={meName||'You'} size={88} ring="#17201B"/><h2 className="c-huge">You called it.</h2><p className="c-sub dark">{others.length?'With '+others.join(', ')+'.':right.length===1&&groups.reduce((n,g)=>n+g.names.length,0)>1?'The only one in the group.':'Nice.'}</p><span className="c-score">+{score}</span></>
+  {won?<><Face name={meName||'You'} size={88} ring="#17201B"/><h2 className="c-huge">You called it.</h2><p className="c-sub dark">{others.length?'With '+others.join(', ')+'.':right.length===1&&groups.reduce((n,g)=>n+g.names.length,0)>1?'The only one in the group.':'Nice.'}</p><span className="c-score">+{score}</span><p className="c-sub dark">{right.length} of {groups.reduce((n,g)=>n+g.names.length,0)} called it{right.length===1?': a bold call.':'.'} The fewer who see it coming, the more it’s worth.</p></>
   :<><h2 className="c-huge">{call.answer?'Not this time.':'You sat this one out.'}</h2><p className="c-sub dark">{right.length?(right.length===1?right[0].name+' was the only one who called it.':right.map(n=>n.name).join(', ')+' called it.'):'Nobody saw that coming.'}</p></>}
   {(won?wrong:right).length>0&&<div className="c-also"><span>{won?'Better luck next time':'Called it'}</span><Faces names={(won?wrong:right).map(n=>n.name)} size={30}/></div>}
   {won&&<button className="c-btn dark" onClick={()=>onShare(call,`Called it: ${label(call.result_answer||'',call)}. ${call.text} +${score} for me`)}><Icon name="share"/> Rub it in the group chat</button>}

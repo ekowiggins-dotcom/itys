@@ -76,7 +76,7 @@ export async function finalizeRounds(tx:Transaction,g:string,now:Date){
  if(Number(counts.total)===0){await tx.query("UPDATE rounds SET state='skipped',skip_reason=CASE WHEN content_ready THEN skip_reason ELSE 'Fixture feed unavailable' END,finalized_at=$2 WHERE id=$1",[r.id,now]);continue;}
  const final=Number(counts.pending)===0;
  await tx.query("UPDATE rounds SET state=$1,finalized_at=CASE WHEN $1='final' THEN $2::timestamptz ELSE NULL END WHERE id=$3",[final?'final':'provisional',now,r.id]);
- if(final){const result=(await weeklyViews(tx,g)).find(v=>v.id===r.id)!;const names=result.winners.slice(0,3).map(w=>w.name).join(' & ')+(result.winners.length>3?' and others':'');const text=names?`${names} ${result.winners.length>1?'share the weekly win':'wins this week'} with ${(result.winners[0].points_tenths/10).toFixed(1)} points.`:'The weekly standings are final.';await roundEvent(tx,r,'final',text,now);}
+ if(final){const result=(await weeklyViews(tx,g)).find(v=>v.id===r.id)!;const names=result.winners.slice(0,3).map(w=>w.name).join(' & ')+(result.winners.length>3?' and others':'');const text=names?`${names} ${result.winners.length>1?'are this week’s oracles':'is this week’s oracle'} with ${(result.winners[0].points_tenths/10).toFixed(1)} points.`:'The weekly standings are final.';await roundEvent(tx,r,'final',text,now);}
  }
 }
 export {rankStandings} from './rules';

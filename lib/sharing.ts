@@ -18,7 +18,7 @@ export function inviteCard(groupName:string,members:string[]):ShareCard{
 export function winnerCard(groupName:string,round:{state:string;opens_at:string|Date;winners:Winner[]}):ShareCard{
  if(round.state!=='final'||!round.winners.length)throw Error('The winner card is available only after the round is final.');
  const winners=round.winners;const title=winners.length<=3?winners.map(w=>w.name).join(' & '):winners.slice(0,2).map(w=>w.name).join(', ')+` & ${winners.length-2} others`;
- return{kind:'winner',groupName,title,subtitle:winners.length>1?'SHARED WEEKLY WIN':'THIS WEEK’S WINNER',detail:`${(winners[0].points_tenths/10).toFixed(1)} points · Final`,footer:'Week of '+new Date(round.opens_at).toLocaleDateString('en-GB',{timeZone:'UTC',day:'numeric',month:'short',year:'numeric'})};
+ return{kind:'winner',groupName,title,subtitle:winners.length>1?'SHARED WEEKLY WIN':'ORACLE OF THE WEEK',detail:`${(winners[0].points_tenths/10).toFixed(1)} points · Final`,footer:'Week of '+new Date(round.opens_at).toLocaleDateString('en-GB',{timeZone:'UTC',day:'numeric',month:'short',year:'numeric'})};
 }
 /** Long link used inside the app and by older shares. New shares use short links (lib/short-links.ts). */
 export function shareLink(origin:string,invite:string,target?:{questionId?:string;roundId?:string;winner?:boolean},demo=false){
@@ -33,7 +33,7 @@ export function shareLink(origin:string,invite:string,target?:{questionId?:strin
 export function shareText(card:ShareCard,url:string,from?:string){
  if(card.kind==='bet')return `${card.title}\nWho’s in? ${url}`;
  if(card.kind==='invite')return `${from?from+' invited you to ':'Join '}${card.groupName} on ${BRAND_NAME}. Free, no money, just calls. ${url}`;
- return `${card.title} ${card.subtitle==='SHARED WEEKLY WIN'?'share the weekly win':'wins this week'} in ${card.groupName}!\n${card.detail}\n${card.footer}\n${url}`;
+ return `${card.title} ${card.subtitle==='SHARED WEEKLY WIN'?'are this week’s oracles':'is this week’s oracle'} in ${card.groupName}!\n${card.detail}\n${card.footer}\n${url}`;
 }
 /** Short link: https://calld.app/c/k7Qm2xa */
 export function shortLink(origin:string,code:string){const parsed=new URL(origin);if(!['http:','https:'].includes(parsed.protocol))throw Error('A web URL is required.');return parsed.origin+'/c/'+code}
