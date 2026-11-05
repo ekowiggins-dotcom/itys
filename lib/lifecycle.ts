@@ -1,3 +1,4 @@
+import {announceOracle} from './rankings';
 import {createMoment,addMomentCall,sealedUntil} from './moments';
 import {friendOptions,assignResolver} from './friends';
 import {moderationAction,moderationActions,touchMember,maintainRecovery} from './moderation';
@@ -54,6 +55,8 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  const t=timingFor((await tx.query<{practice:boolean}>('SELECT practice FROM groups WHERE id=$1',[group.id])).rows[0]?.practice);
  await maintainRecovery(tx,group.id,now);
  await ensureRounds(tx,group.id,now);
+ const zone=(await tx.query<{timezone:string}>('SELECT timezone FROM groups WHERE id=$1',[group.id])).rows[0]?.timezone||'Europe/Istanbul';
+ await announceOracle(tx,{id:group.id,timezone:zone},now);
  const qs=(await tx.query<Question>("SELECT * FROM questions WHERE group_id=$1 AND NOT superseded AND (state NOT IN ('settled','void') OR fixture_id IS NOT NULL)",[group.id])).rows;
  for(const q of qs){
  if(q.fixture_id){

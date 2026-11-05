@@ -19,7 +19,7 @@ import {type Call,type Snapshot,type Moment,sortCalls,answersOf,label,matchTitle
 import {CallsList,SectionTitle,canSettle,type CallsAct,type CallsCtx} from './CallsTab';
 import {PickSheet,RevealSheet,ResultSheet,ResolveSheet,ShareSheet,CallPreview,FacePicker} from './Sheets';
 import {NewCallSheet,type NewCall} from './NewCallSheet';
-import RankingTab from './RankingTab';
+import RankingTab,{type Boards} from './RankingTab';
 import {ProfileSheet,LevelUpSheet,LevelPill} from './Career';
 import {LEVELS as CAREER_LEVELS,type Career} from '../lib/career';
 import {setGroupOrder} from '../lib/avatar';
@@ -27,7 +27,7 @@ import type {SeasonView} from './SeasonsPanel';
 
 type Preview={answer_type?:string;pickedYou?:Record<string,number>;answers?:{value:string;label:string}[];kickoff?:string|null;id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
 type Member={user_id:string;name:string;active:boolean;admin:boolean;fallback?:boolean};
-type GroupView=LifecycleData & FootballData & {linked?:boolean;timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];pendingNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
+type GroupView=LifecycleData & FootballData & {boards?:Boards;linked?:boolean;timing?:{practice:boolean;disputeMs:number;resolutionMs:number};group:{name:string;opens_at?:string;practice?:boolean;share_code?:string};members:number;memberNames?:string[];pendingNames?:string[];joined:boolean;user?:{id?:string;name:string};questions:FootballQuestion[];used:number;rounds?:WeeklyRound[];selectedRound?:WeeklyRound & {deadline_at:string};currentRoundId?:string;preview?:Preview|null;bets?:Call[];snapshots?:Snapshot[];groupMembers?:Member[];seasons?:SeasonView[];alerts?:{id:string;question_id?:string|null;stage:string;text:string}[];secretCount?:number;careers?:Career[];comingUp?:{opensAt:string;matches:{home:string;away:string;kickoff:string;league_name:string;reason:string;motw:boolean}[]}|null};
 type Tab='calls'|'ranking'|'group';
 const TABS:{id:Tab;label:string;icon:string}[]=[{id:'calls',label:'Calls',icon:'calls'},{id:'ranking',label:'Ranking',icon:'ranking'},{id:'group',label:'Group',icon:'group'}];
 const SEEN='calld.seen.';
@@ -145,7 +145,7 @@ export default function Home(){
  if(!data.joined)return <JoinScreen data={data} busy={busy} clock={clock} onJoin={joinAndPick} error={error} notice={notice}/>;
 
  const practice=!!data.group.practice;
- const roundType=data.selectedRound?.group_type||data.group.group_type||'Friends',limits=slotLimits(roundType),zone=data.selectedRound?.timezone||data.group.timezone||'UTC';
+ const roundType=data.selectedRound?.group_type||data.group.group_type||'Friends',limits=(data.group as {instant?:boolean}).instant&&roundType==='Friends'?{...slotLimits(roundType),custom:50}:slotLimits(roundType),zone=data.selectedRound?.timezone||data.group.timezone||'UTC';
  // Football is switched off (FOOTBALL=on brings it back); a running football week just shows its own calls.
  const football=footballOn&&roundType!=='Friends';
  const start=data.group.opens_at?new Date(data.group.opens_at):null;
@@ -156,7 +156,7 @@ export default function Home(){
  const weeklyWhy=data.members<3?'This week’s calls start once three friends are in. Later works now.':customUsed>=limits.custom?`This week already has ${limits.custom} calls. Try Later.`:!active?(start&&clock<start.getTime()?'This week opens '+when(start,clock,zone)+'. Later works now.':'This week has wrapped up. Later works now.'):'Adding calls has closed for this week. Try Later.';
  const canPickFootball=!!data.selectedRound&&['live','provisional'].includes(data.selectedRound.state)&&data.selectedRound.content_ready!==false&&clock<=Date.parse(data.selectedRound.pick_end_at||'');
  const unread=data.notifications?.filter(n=>!n.read_at).length||0;
- const myRow=data.selectedRound?.standings.find(s=>s.user_id===me);const anyPoints=!!data.selectedRound?.standings.some(s=>s.points_tenths>0);
+ const myRow=data.boards?.month.find(s=>s.user_id===me);const anyPoints=!!data.boards?.month.some(s=>s.points_tenths>0);
  const nextLock=nextLockAt();
  const activeMoments=moments.filter(m=>{const v=momentView(m,calls,clock,me);return v.status!=='done'||clock-Date.parse(m.starts_at)<3*86400000}).sort((x,y)=>{const dx=momentView(x,calls,clock,me).status==='done'?1:0,dy=momentView(y,calls,clock,me).status==='done'?1:0;return dx-dy||Date.parse(x.starts_at)-Date.parse(y.starts_at)});
  // New Year: from November, nudge each group to seal its predictions for next year (once).
@@ -188,7 +188,7 @@ export default function Home(){
    <div className="c-top-row">
     <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">Practice · a week in an hour</b>:data.members===1?'Just you so far':data.members+' friends'}</span><h1>{data.group.name}</h1><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>{myCareer&&<LevelPill c={myCareer} dark onClick={()=>setProfile(me!)}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':'Notifications'} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
-     <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this week</span></>:<><b>{sections.yourTurn.length+momentPicks}</b><span>to call</span></>}</button></div>
+     <button className="c-rank" onClick={()=>go('ranking')} aria-label="Ranking">{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>this month</span></>:<><b>{sections.yourTurn.length+momentPicks}</b><span>to call</span></>}</button></div>
    </div>
    <p className="c-top-status">{status}</p>
   </header>
@@ -201,11 +201,11 @@ export default function Home(){
    {yearCampaign&&<section className="c-card campaign" onClick={()=>setNewMoment('year')}><span className="c-campaign-emoji" aria-hidden="true">🔮</span><div><span className="c-kicker dark">New Year ritual</span><h3>Predictions for {new Date(clock).getFullYear()+1}</h3><p>Seal them before New Year’s Eve. Nobody sees a thing until next New Year, then you open them together.</p><button className="c-btn small">Start the capsule <Icon name="arrow"/></button></div></section>}
    {activeMoments.length>0&&<div className="c-moments">{activeMoments.map(m=><MomentCard key={m.id} m={m} calls={calls} me={me} names={names} now={clock} lang={groupLang} onOpen={()=>setMomentId(m.id)} onPick={()=>{const first=momentView(m,calls,clock,me).toPick[0];if(first)startFlow(first)}}/>)}</div>}
    <CallsList s={sections} ctx={ctx} act={a} football={footballBlock}/>
-   {nothing&&<div className="c-empty"><h2>Start the first “told you so”</h2><p>Make a call about anything: the weekend, the derby, who’s late. Right calls earn points; bold ones earn more. Free, every week.</p><button className="c-btn" onClick={()=>setCreating(true)}><Icon name="plus"/> New call</button></div>}
+   {nothing&&<div className="c-empty"><h2>Start the first “told you so”</h2><p>Make a call about anything: the weekend, the derby, who’s late. Right calls earn points; bold ones earn more. Free, always.</p><button className="c-btn" onClick={()=>setCreating(true)}><Icon name="plus"/> New call</button></div>}
    <div className="c-fab-row"><button className="c-fab ghost" onClick={()=>setNewMoment('any')}><span aria-hidden="true">✨</span> Moment</button><button className="c-fab" onClick={()=>setCreating(true)}><Icon name="plus" stroke={2.6}/> New call</button></div>
   </>}
 
-  {tab==='ranking'&&<RankingTab rounds={data.rounds||[]} board={board} onSelect={setBoardRound} me={me} meName={meName} calls={calls} snaps={snaps} seasons={data.seasons||[]} admin={!!members.find(m=>m.user_id===me)?.admin} busy={busy} act={p=>act(p)} clock={clock} careers={data.careers||[]} names={names} onProfile={setProfile} onShareWinner={r=>{const url=origin?r.share_code?shortLink(origin,r.share_code):shareLink(origin,invite,{roundId:r.id,winner:true}):'';setSharing({title:'Share the winner',url,text:shareText(winnerCard(data.group.name,r),url)})}}/>}
+  {tab==='ranking'&&<RankingTab boards={data.boards} me={me} meName={meName} calls={calls} snaps={snaps} careers={data.careers||[]} names={names} onProfile={setProfile} onShareOracle={(who,month)=>setSharing({title:'Share the Oracle',url:groupLink,text:`👑 ${who} called ${month} best in ${data.group.name}. Think you can do better?\n${groupLink}`})}/>}
 
   {tab==='group'&&<>
    <section className="c-card group-invite"><span className="c-kicker dark">Invite</span><h3>{data.group.name}</h3><Faces names={members.filter(m=>m.active).map(m=>m.name)} size={30}/><p>{data.members} {data.members===1?'friend':'friends'} · up to 30</p>

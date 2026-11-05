@@ -584,3 +584,6 @@ main.app .c-btn.dark-lime,.c-btn.dark-lime{background:transparent!important;colo
 .c-settler:not(.light) .c-inline.c-inline{color:var(--ink);text-underline-offset:2px}
 .c-row>.c-row-main{flex:1 1 0;min-width:0}.c-row>.c-row-side{flex:none}
 .c-settler .c-about.small{display:flex;flex-wrap:wrap;gap:6px}
+.c-oracle-hall{margin:16px 4px 0;background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:12px 14px}
+.c-oracle-hall-row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}.c-oracle-hall-row:first-of-type{border-top:0}
+.c-oracle-hall-row span{color:var(--muted);font-weight:600}

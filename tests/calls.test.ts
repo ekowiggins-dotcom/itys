@@ -1,7 +1,7 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {sortCalls,reveal,headline,potential,outcome,answersOf,label,matchTitle,type Call} from '../app/calls';
 import {whenChoices,laterMonths} from '../app/when-presets';
-import {callOfTheWeek} from '../app/RankingTab';
+import {boldestCall} from '../app/RankingTab';
 
 const now=Date.parse('2030-04-10T09:00:00Z'),H=3600000;
 const base:Call={id:'x',text:'?',scope:'weekly',locks_at:new Date(now+H).toISOString(),event_at:null,state:'open',creator:'u2',creator_name:'Ege',answer:null,proposed_answer:null,proposed_at:null,points_tenths:null};
@@ -32,7 +32,7 @@ test('the reveal tells the story and the score preview matches the scoring rule'
  assert.equal(potential(1,5),34,'alone in 5: 10 + 30 × 4/5');
  assert.equal(outcome(c({state:'settled',answer:'Aykut',result_answer:'Aykut',points_tenths:360})).text,'You called it · +36');
  assert.equal(outcome(c({state:'void'})).tone,'void');
- const best=callOfTheWeek([c({state:'settled',result_answer:'Aykut'})],snaps);assert.equal(best?.name,'Arda');assert.equal(best?.score,34);assert.ok(best?.alone);
+ const best=boldestCall([c({state:'settled',result_answer:'Aykut',settled_at:new Date(now).toISOString()})],snaps,now-H);assert.equal(best?.name,'Arda');assert.equal(best?.score,34);assert.ok(best?.alone);
 });
 
 test('When will we know? turns into valid lock and event times',()=>{
