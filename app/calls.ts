@@ -2,7 +2,7 @@ import {callPoints} from '../lib/rules';
 // How the Calls screen sorts and describes calls. Pure functions, so they can be tested without a browser.
 export type Call={id:string;text:string;options?:string[]|null;scope:string;locks_at:string;event_at:string|null;state:string;creator:string;creator_name:string;subject_id?:string|null;
  answer:string|null;stake?:number|null;picked?:number;picker_ids?:string[];proposed_answer:string|null;proposed_at:string|null;proposed_by?:string|null;result_answer?:string|null;
- points_tenths:number|null;allocation?:string|null;moderation_state?:string;market?:string;answer_type?:string;fixture_id?:string|null;share_code?:string|null;round_id?:string|null;forfeited?:boolean;disputes?:number;settled_at?:string|null;
+ points_tenths:number|null;allocation?:string|null;moderation_state?:string;market?:string;answer_type?:string;moment_id?:string|null;moment_pos?:number|null;fixture_id?:string|null;share_code?:string|null;round_id?:string|null;forfeited?:boolean;disputes?:number;settled_at?:string|null;
  /** Anonymous counts per answer: only sent once you've made your call, or once it locks. */
  split?:Record<string,number>;
  /** A football match call: the teams and kickoff, filled in from the round's fixtures. */
@@ -31,6 +31,7 @@ const terminal=(s:string)=>s==='settled'||s==='void';
 export function sortCalls(calls:Call[],me:string|undefined,now:number,recentMs=7*86400000):Sections{
  const out:Sections={yourTurn:[],locked:[],inIt:[],later:[],results:[],hidden:[]};
  for(const c of calls){
+  if(c.moment_id)continue; // Moment calls live inside their Moment card
   if(c.moderation_state&&c.moderation_state!=='visible'){out.hidden.push(c);continue}
   const open=c.state==='open'&&now<Date.parse(c.locks_at),long=c.scope==='longterm';
   if(terminal(c.state)){if(!long||now-Date.parse(c.settled_at||c.locks_at)<recentMs)out.results.push(c);continue}
@@ -72,4 +73,24 @@ export function outcome(c:Call){
  if(!c.answer)return {tone:'none' as const,text:label(c.result_answer||'',c)+' it was'};
  const right=c.answer===c.result_answer;
  return right?{tone:'win' as const,text:'You called it · +'+pts(c.points_tenths)}:{tone:'miss' as const,text:'You said '+label(c.answer,c)};
+}
+
+// ── Moments ──
+export type Moment={id:string;kind:string;title:string;subject_name:string|null;starts_at:string;creator:string;share_code:string|null;created_at:string};
+export type MomentStatus='open'|'live'|'done';
+/** A Moment's calls in the order they were written, and where it stands. */
+export function momentView(m:Moment,calls:Call[],now:number,me?:string){
+ const list=calls.filter(c=>c.moment_id===m.id&&(!c.moderation_state||c.moderation_state==='visible')).sort((a,b)=>(a.moment_pos??0)-(b.moment_pos??0));
+ const settled=list.filter(c=>c.state==='settled'),open=now<Date.parse(m.starts_at);
+ const status:MomentStatus=list.length&&list.every(c=>c.state==='settled'||c.state==='void')&&settled.length?'done':open?'open':'live';
+ const toPick=open?list.filter(c=>c.state==='open'&&!c.answer&&c.subject_id!==me&&!c.forfeited):[];
+ return{calls:list,status,toPick,settled:settled.length};
+}
+/** "Oracle of the night": points from settled calls (rarer right answers score more), then most right. */
+export function momentLeaders(list:Call[],snaps:Snapshot[]){
+ const by=new Map<string,{name:string;points:number;right:number}>();
+ for(const c of list){if(c.state!=='settled'||!c.result_answer)continue;const mine=snaps.filter(s=>s.question_id===c.id),right=mine.filter(s=>s.answer===c.result_answer);
+  for(const s of mine){const r=by.get(s.name)||{name:s.name,points:0,right:0};by.set(s.name,r)}
+  for(const s of right){const r=by.get(s.name)!;r.points+=callPoints({same:right.length,total:mine.length});r.right++}}
+ return [...by.values()].sort((a,b)=>b.points-a.points||b.right-a.right||a.name.localeCompare(b.name));
 }

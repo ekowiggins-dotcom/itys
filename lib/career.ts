@@ -1,3 +1,4 @@
+import {momentTable} from './moment-table';
 // Career points, levels and badges. Career points are every point you've won in the group, added up forever:
 // they're never put on a call, so they only go up, and they can't be spent, sent or swapped.
 import type {Transaction} from '@electric-sql/pglite';
@@ -21,6 +22,8 @@ export const BADGES=[
  {id:'early_bird',name:'Early Bird',rule:'First in the group to make the call, 10 times.',need:10},
  {id:'crowd',name:'Against the Crowd',rule:'Went the other way from most of the group, and was right, 5 times.',need:5},
  {id:'rock_solid',name:'On Fire',rule:'Ten right in a row.',need:1},
+ {id:'ritual_maker',name:'Ritual Maker',rule:'Started a Moment for the group.',need:1},
+ {id:'moment_oracle',name:'Oracle of the Night',rule:'Called a Moment better than anyone.',need:1},
 ] as const;
 export type BadgeId=typeof BADGES[number]['id'];
 
@@ -55,6 +58,11 @@ export async function careerView(tx:Transaction,groupId:string,rounds:RoundView[
  }
  for(const [k,w] of weekend)if(w.all>=4&&w.right===w.all)add(k.split('|')[0],'perfect_weekend');
  for(const f of firsts)if(f.n>0)add(f.user_id,'early_bird',f.n);
+ // Moments: starting one, and calling one best once all its calls are settled.
+ for(const r of (await tx.query<{creator:string;n:number}>('SELECT creator,count(*)::int n FROM moments WHERE group_id=$1 GROUP BY creator',[groupId])).rows)add(r.creator,'ritual_maker',r.n);
+ const done=(await tx.query<{id:string}>("SELECT m.id FROM moments m WHERE m.group_id=$1 AND EXISTS(SELECT 1 FROM questions q WHERE q.moment_id=m.id AND q.state='settled') AND NOT EXISTS(SELECT 1 FROM questions q WHERE q.moment_id=m.id AND NOT q.superseded AND q.state NOT IN ('settled','void'))",[groupId])).rows;
+ for(const m of done){const rows=(await tx.query<{user_id:string;name:string;points:number;right:number}>(`SELECT s.user_id,'' name,sum(s.points_tenths)::int points,count(*) FILTER (WHERE s.points_tenths>0)::int "right" FROM scores s JOIN questions q ON q.id=s.question_id WHERE q.moment_id=$1 AND q.state='settled' GROUP BY s.user_id`,[m.id])).rows;
+  for(const w of momentTable(rows).winners)add(w.user_id,'moment_oracle');}
  const finals=rounds.filter(r=>r.state==='final');
  return members.map(u=>{
   const points=totals.get(u)||0,raw=badges.get(u)||{};

@@ -19,7 +19,9 @@ export async function ensureShareCodes(tx:Transaction,groupId:string){
 
 export type ShareTarget={invite:string;questionId?:string;roundId?:string;winner?:boolean;
  /** "For Ege": the card tells Ege how many friends picked him (friend calls only). */
- forName?:string};
+ forName?:string;
+ /** A Moment's link: opens its first call, the card shows the whole Moment. */
+ momentId?:string};
 /** What a short code points at. Unknown or malformed codes return null. */
 export async function resolveCode(code:string):Promise<ShareTarget|null>{
  if(!validCode(code))return null;
@@ -28,7 +30,8 @@ export async function resolveCode(code:string):Promise<ShareTarget|null>{
   `SELECT g.invite,NULL question_id,NULL round_id FROM groups g WHERE g.share_code=$1
    UNION ALL SELECT g.invite,q.id,q.round_id FROM questions q JOIN groups g ON g.id=q.group_id WHERE q.share_code=$1
    UNION ALL SELECT g.invite,NULL,r.id FROM rounds r JOIN groups g ON g.id=r.group_id WHERE r.share_code=$1 LIMIT 1`,[code])).rows[0];
- if(!row)return null;
+ if(!row){const m=(await d.query<{invite:string;id:string;first:string|null}>("SELECT g.invite,m.id,(SELECT q.id FROM questions q WHERE q.moment_id=m.id AND NOT q.superseded ORDER BY q.moment_pos LIMIT 1) first FROM moments m JOIN groups g ON g.id=m.group_id WHERE m.share_code=$1",[code])).rows[0];
+  return m?{invite:m.invite,momentId:m.id,questionId:m.first||undefined}:null;}
  if(row.question_id)return {invite:row.invite,questionId:row.question_id,roundId:row.round_id||undefined};
  if(row.round_id)return {invite:row.invite,roundId:row.round_id,winner:true};
  return {invite:row.invite};

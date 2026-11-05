@@ -1,3 +1,4 @@
+import {createMoment} from './moments';
 import {friendOptions} from './friends';
 import {moderationAction,moderationActions,touchMember,maintainRecovery} from './moderation';
 import {exactOutcome,marketAnswer,localSunday,customAnswers,cleanOptions,type Fixture} from './football/rules';
@@ -14,7 +15,7 @@ import {disputeCutoff} from './rules';
 const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
-type Question={moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
+type Question={moment_id?:string|null;moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
 export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null,t:Timing=NORMAL){return q.event_at?new Date(q.event_at).getTime()+t.resolutionMs:new Date(opens!).getTime()+(t.practice?PRACTICE_ROUND.lockByMs+t.resolutionMs:14*DAY-60000)}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
@@ -83,7 +84,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
-const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
+const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional()});
 export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const data=schema.parse(input),d=await db();
  // Commit due settlements independently of an action that may subsequently fail.
@@ -120,6 +121,10 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(!(await tx.query('SELECT 1 FROM seasons WHERE group_id=$1 AND starts_at<$3 AND ends_at>$2',[g.id,start,end])).rows.length,'Season windows cannot overlap.');
  await tx.query('INSERT INTO seasons(id,group_id,name,starts_at,ends_at) VALUES($1,$2,$3,$4,$5)',[randomUUID(),g.id,data.name||'Next season',start,end]);
  await maintain(tx,g,now);
+ }else if(data.action==='createMoment'){
+ // A Moment: a few calls that close together when it starts. Moves no points (reviewed in tests/policy.test.ts).
+ const made=await createMoment(tx,g,userId,data.moment,now,m=>{throw new LifecycleError(m)});
+ await audit(tx,g.id,made.questionIds[0],userId,'moment created',now);return {invite:data.invite,momentId:made.momentId,questionId:made.questionIds[0]};
  }else if(data.action==='addNames'){
  // Friends who aren't in yet, by first name: "who…?" calls can name them, and they claim the name when they join. Moves no points.
  const taken=new Set([...(await tx.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active',[g.id])).rows.map(r=>r.name),...((await tx.query<{pending_names:string[]}>('SELECT pending_names FROM groups WHERE id=$1',[g.id])).rows[0].pending_names||[])].map(n=>n.toLocaleLowerCase('tr')));
@@ -163,7 +168,7 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  check(q.subject_id!==userId,'The tagged person can’t predict on this call.');
  check(q.scope==='longterm'&&now<new Date(q.locks_at)&&q.state==='open','This long-term call is locked.');
  const existing=(await tx.query<{forfeited:boolean}>('SELECT forfeited FROM predictions WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows[0];check(!existing?.forfeited,'Forfeited predictions cannot be restored.');
- const count=Number((await tx.query<{count:string}>("SELECT count(*) FROM predictions p JOIN questions q ON q.id=p.question_id WHERE p.user_id=$1 AND q.scope='longterm' AND q.state NOT IN ('settled','void') AND NOT p.forfeited AND q.id<>$2 AND q.group_id=$3",[userId,q.id,g.id])).rows[0].count);check(count<3,'You already have three open long-term predictions.');
+ const count=Number((await tx.query<{count:string}>("SELECT count(*) FROM predictions p JOIN questions q ON q.id=p.question_id WHERE p.user_id=$1 AND q.scope='longterm' AND q.state NOT IN ('settled','void') AND NOT p.forfeited AND q.id<>$2 AND q.group_id=$3 AND q.moment_id IS NULL",[userId,q.id,g.id])).rows[0].count);check(q.moment_id||count<3,'You already have three open long-term predictions.');
  await tx.query('INSERT INTO predictions(question_id,user_id,answer,stake) VALUES($1,$2,$3,10) ON CONFLICT(question_id,user_id) DO UPDATE SET answer=EXCLUDED.answer',[q.id,userId,option()]);
  }else{
  check(!q.fixture_id,'Football questions resolve automatically from the data feed.');
