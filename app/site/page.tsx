@@ -1,6 +1,5 @@
 'use client';
-// The product website: what Calld is, for people who haven't been sent a call yet. Turkish or English by the phone's
-// language, with a switch. The hero is a real call you can tap, the way friends meet it in their group chat.
+// The product website: what Calld is, for people who haven't been sent a call yet. English, with a switch to Turkish. The hero is a real call you can tap, the way friends meet it in their group chat.
 import {useEffect,useState} from 'react';
 import './site.css';
 
@@ -14,56 +13,58 @@ const T={
   lang:'English',start:'Grubunu kur',soon:'iPhone uygulaması yakında',
   call:'Akşamı kim eker?',tap:'Birine dokun',
   picked:(n:string)=>`${n} dedin. Grup şimdilik:`,hidden:'Kim ne dedi, seçimler kapanınca açılır.',again:'Tekrar dene',
-  lead:'Arkadaş grupları için ücretsiz bir tahmin oyunu. Birbiriniz ve planlarınız hakkında soru sorun; kimsenin beklemediğini bilen en çok puanı alır.',
-  howTitle:'Nasıl oynanır',
+  tagline:'Olmadan bil.',
+  lead:'Arkadaş grupları için ücretsiz bir oyun. Birbiriniz hakkında sorun, cevabını seç, kim bildi görün.',
+  howTitle:'Üç adım. Bu kadar.',
   how:[
-   ['Bir soru sor','“Akşamı kim eker?”, “En son kim evlenir?”, “Tatil gerçekten olur mu?” Cevaplar arkadaşların, evet/hayır ya da kendi seçeneklerin.'],
-   ['Gruba at','Soru, WhatsApp’ta büyük bir kart olarak görünür. Arkadaşların dokunur, adını seçer, tahminini yapar. Üyelik yok.'],
-   ['Sonucu gör','Seçimler kapanınca kim ne dedi açılır. Doğru bilen 10 ile 40 puan alır: ne kadar az kişi bildiyse o kadar çok.'],
+   ['Sor','Kim geç kalır? En son kim evlenir? Tatil gerçekten olur mu?'],
+   ['Paylaş','Grup sohbetine at. Arkadaşların dokunur, seçer. Üyelik yok.'],
+   ['Bil','Seçimler kapanır, cevaplar açılır. Ne kadar az kişi bildiyse o kadar çok puan.'],
   ],
-  chatTitle:'Davetiye bir mesaj',chatText:'Kimseye uygulama indirtmek gerekmiyor. Link telefonda açılır, isim seçilir, tahmin yapılır. Kart, kimin seçtiğini gösterir ama ne dediğini söylemez.',
+  chatTitle:'Tek mesaj. Davetiye bu.',chatText:'Uygulama gerekmez. Karta dokun, adını seç, tahminini yap.',
   chatMsg:'Sen kimi diyorsun? 👀',chatReply:'Can tabii ki 😂',chatDesc:'Arda birini seçti, kimi söylemiyoruz. Sen kimi diyorsun?',
-  momentsTitle:'Doğum günü, tatil, yılbaşı',momentsText:'Bir etkinlik için birkaç tahmin toplayın: Ege’nin doğum günü, Kaş tatili, cumartesi gecesi. Fikir lazımsa öneriler hazır, ama soruları siz yazarsınız.',
-  capsule:'Yılbaşı kapsülü',capsuleText:'2027 tahminlerinizi şimdi mühürleyin. Bir yıl boyunca kimse göremez; seneye yılbaşında birlikte açarsınız.',
-  oracleTitle:'Her ayın bir kâhini var',oracleText:'Puanlar ay boyunca birikir. Ayı zirvede bitiren ayın kâhini olur ve unvanı profilinde kalır. Ayın 1’inde herkes sıfırdan başlar; dün katılan biri bile kazanabilir.',
+  momentsTitle:'Doğum günü. Tatil. Yılbaşı.',momentsText:'Büyük bir gün ya da uzun bir gece için birkaç tahmin. Soruları siz yazarsınız.',
+  capsule:'Bir yıllığına mühürle.',capsuleText:'2027 tahminlerini şimdi yap. Seneye yılbaşına kadar kimse göremez.',
+  oracleTitle:'Her ay bir kâhin.',oracleText:'Ayı zirvede bitir, unvanı al. Ayın 1’inde herkes sıfırdan başlar.',
   moneyTitle:'Para yok. Asla.',
-  money:['Tamamen ücretsiz.','Puan sadece doğru bilene gelir; kimse puan harcamaz.','Puanlar satın alınmaz, satılmaz, gönderilmez, paraya çevrilmez.','Ödül yok. Sadece hava atma hakkı.','18 yaş ve üzeri için.'],
+  money:['Ücretsiz.','Puan sadece doğru bilene.','Satın alınacak bir şey yok. Paraya çevrilecek bir şey yok.','Ödül yok. Sadece hava atma hakkı.','18+.'],
   faqTitle:'Sorular',
   faq:[
-   ['Arkadaşlarımın uygulamayı indirmesi gerekiyor mu?','Hayır. Paylaştığın link telefonda açılır; adlarını seçip hemen tahmin ederler. Uygulama, bildirimler ve hesabını korumak için.'],
-   ['Sonucu kim girer?','Grubun yöneticisi ya da onun seçtiği kişi. Herkesin “yanlış” demek için bir günü var; o zaman tahmine katılmayan bir arkadaş karar verir.'],
-   ['Benim hakkımda bir soru sorulursa?','Soruyu görürsün ama sonuçlanana kadar kimin ne dediğini göremezsin. O tahmine sen katılmazsın.'],
-   ['Kaç kişiyle oynanır?','İki kişi bile yeter, en fazla 30. En eğlencelisi 4 ile 10 kişilik gruplar.'],
+   ['Arkadaşlarımın uygulamayı indirmesi gerekir mi?','Hayır. Link telefonda açılır. Adını seçer, oynar.'],
+   ['Sonucu kim girer?','Grubun yöneticisi ya da seçtiği kişi. Bir gün içinde herkes “yanlış” diyebilir.'],
+   ['Benim hakkımda soru sorulursa?','Soruyu görürsün, cevapları sonuçlanınca. O tahmine katılmazsın.'],
+   ['Kaç kişi oynayabilir?','2 ile 30 arası. En iyisi 4 ile 10.'],
   ],
-  endTitle:'İlk “ben demiştim”i başlat',endText:'Grubunu kur, arkadaşlarının adlarını yaz, ilk soruyu sor. Bir dakika sürer.',
+  endTitle:'İlk “ben demiştim”i başlat.',endText:'Grubuna ad ver, arkadaşlarını ekle, ilk soruyu sor.',
   privacy:'Gizlilik',terms:'Koşullar',help:'Yardım',
  },
  en:{
   lang:'Türkçe',start:'Start your group',soon:'iPhone app coming soon',
   call:'Who bails on Saturday first?',tap:'Tap one',
   picked:(n:string)=>`You said ${n}. The group so far:`,hidden:'Who said what opens when picks close.',again:'Try again',
-  lead:'A free prediction game for friend groups. Ask about each other and your plans; whoever saw it coming when nobody else did scores the most.',
-  howTitle:'How it works',
+  tagline:'Call it before it happens.',
+  lead:'A free game for friend groups. Ask about each other, pick an answer, see who called it.',
+  howTitle:'Three steps. That’s it.',
   how:[
-   ['Ask a question','“Who bails first?”, “Who marries last?”, “Does the trip actually happen?” Answers are your friends, yes/no, or your own options.'],
-   ['Drop it in the group','It shows up in WhatsApp as a big card. Friends tap it, pick their name and make their call. No sign-up.'],
-   ['See who called it','When picks close, who said what opens up. Right calls score 10 to 40: the fewer friends who saw it coming, the more you get.'],
+   ['Ask','Who’s late? Who marries last? Does the trip actually happen?'],
+   ['Share','Drop it in your group chat. Friends tap and pick. No sign-up.'],
+   ['Call it','Picks close, answers open. The fewer who saw it coming, the more you score.'],
   ],
-  chatTitle:'The invite is a message',chatText:'Nobody has to download anything. The link opens on their phone, they pick their name and make a call. The card shows who has picked, never what they said.',
+  chatTitle:'One message. That’s the invite.',chatText:'No app needed. Tap the card, pick your name, make your call.',
   chatMsg:'Who’s your pick? 👀',chatReply:'Can, obviously 😂',chatDesc:'Arda picked someone. We’re not saying who. Who’s yours?',
-  momentsTitle:'Birthdays, trips, New Year',momentsText:'Gather a few calls for one occasion: Ege’s birthday, the Kaş trip, Saturday night. Ideas are there if you want them, but you write the questions.',
-  capsule:'The New Year capsule',capsuleText:'Seal your calls for 2027 now. Nobody sees them for a year; you open them together next New Year’s Eve.',
-  oracleTitle:'Every month has an Oracle',oracleText:'Points add up through the month. Whoever tops it is the Oracle of the month, and the title stays on their profile. Everyone starts level on the 1st, so someone who joined yesterday can win.',
+  momentsTitle:'Birthdays. Trips. New Year.',momentsText:'A few calls for one big day or one long night. You write the questions.',
+  capsule:'Seal it for a year.',capsuleText:'Make your calls for 2027 now. Nobody sees them until next New Year’s Eve.',
+  oracleTitle:'One Oracle a month.',oracleText:'Top the month, take the title. Everyone starts level on the 1st.',
   moneyTitle:'No money. Ever.',
-  money:['Completely free.','Points only come from being right; nobody spends any.','Points can’t be bought, sold, sent or cashed out.','No prizes. Just bragging rights.','For players aged 18 and over.'],
+  money:['Free.','Points only for being right.','Nothing to buy. Nothing to cash out.','No prizes. Just bragging rights.','18+.'],
   faqTitle:'Questions',
   faq:[
-   ['Do my friends need the app?','No. The link you share opens on their phone; they pick their name and call it straight away. The app is for notifications and keeping your account.'],
-   ['Who says what happened?','The group’s admin, or someone the admin picks. Everyone gets a day to say it’s not right, and then a friend who stayed out of it decides.'],
-   ['What if a question is about me?','You see the question, but not who said what until it’s settled. You sit that one out.'],
-   ['How many people can play?','Two is enough, up to 30. It’s most fun with 4 to 10.'],
+   ['Do my friends need the app?','No. The link opens on their phone. They pick their name and play.'],
+   ['Who says what happened?','The group’s admin, or someone they choose. Anyone can say “that’s not right” within a day.'],
+   ['What if a question is about me?','You see it, but not the answers, until it’s settled. You sit that one out.'],
+   ['How many can play?','2 to 30. Best with 4 to 10.'],
   ],
-  endTitle:'Start the first “told you so”',endText:'Make your group, add your friends’ names, ask the first question. It takes a minute.',
+  endTitle:'Start the first “told you so”.',endText:'Name your group, add your friends, ask the first question.',
   privacy:'Privacy',terms:'Terms',help:'Help',
  },
 };
@@ -71,8 +72,7 @@ const T={
 function Face({n,c,size=56}:{n:string;c:string;size?:number}){return <span className="s-face" style={{width:size,height:size,background:c,fontSize:size*0.42}} aria-hidden="true">{n[0]}</span>}
 
 export default function Site(){
- const [lang,setLang]=useState<Lang>('tr'),[pick,setPick]=useState('');
- useEffect(()=>{try{setLang((navigator.languages?.[0]||navigator.language||'tr').toLowerCase().startsWith('tr')?'tr':'en')}catch{}},[]);
+ const [lang,setLang]=useState<Lang>('en'),[pick,setPick]=useState('');
  useEffect(()=>{document.documentElement.lang=lang},[lang]);
  const t=T[lang];
  const split=pick?{...SPLIT,[pick]:SPLIT[pick]+1}:SPLIT,total=Object.values(split).reduce((a,b)=>a+b,0);
@@ -91,6 +91,7 @@ export default function Site(){
      </>:<p className="s-hint">{t.tap}</p>}</div>
     </div>
     <div className="s-hero-side">
+     <h2 className="s-tagline">{t.tagline}</h2>
      <p className="s-lead">{t.lead}</p>
      <a className="s-btn" href="/">{t.start}</a>
      <p className="s-soon">{t.soon}</p>
