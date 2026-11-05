@@ -13,8 +13,12 @@ const T={
   lang:'English',start:'Grubunu kur',soon:'iPhone uygulaması yakında',
   call:'Akşamı kim eker?',tap:'Birine dokun',
   picked:(n:string)=>`${n} dedin. Grup şimdilik:`,hidden:'Kim ne dedi, seçimler kapanınca açılır.',again:'Tekrar dene',
-  tagline:'Olmadan bil.',
-  lead:'Arkadaş grupları için ücretsiz bir oyun. Birbiriniz hakkında sorun, cevabını seç, kim bildi görün.',
+  tagline:'Arkadaşlarını tanıyor musun? Kanıtla.',
+  lead:'Arkadaşların hakkında tahmin yap. Senin hakkında gerçekten ne düşündüklerini ve kimin bildiğini gör.',
+  proofTitle:'Bildiğini kanıtla.',proofText:'Herkes “ben demiştim” der. Artık tarihi var. Kimse bilmezken sen bildiysen en çok puan senin.',
+  proofQ:'Tatil gerçekten olur mu?',proofA:'Hayır.',proofYou:'2 Kasım’da sen bildin',proofFew:'5 kişiden 1’i bildi',
+  revealTitle:'Senin hakkında ne düşündüklerini gör.',revealText:'Seçimler kapanana kadar cevaplar gizli. Sonra hepsi birden açılır.',
+  revealQ:'En son kim evlenir?',revealNote:'5 kişiden 4’ü seni dedi.',you:'Sen',
   howTitle:'Üç adım. Bu kadar.',
   how:[
    ['Sor','Kim geç kalır? En son kim evlenir? Tatil gerçekten olur mu?'],
@@ -42,8 +46,12 @@ const T={
   lang:'Türkçe',start:'Start your group',soon:'iPhone app coming soon',
   call:'Who bails on Saturday first?',tap:'Tap one',
   picked:(n:string)=>`You said ${n}. The group so far:`,hidden:'Who said what opens when picks close.',again:'Try again',
-  tagline:'Call it before it happens.',
-  lead:'A free game for friend groups. Ask about each other, pick an answer, see who called it.',
+  tagline:'Know your friends? Prove it.',
+  lead:'Make calls about your friends. See what they really think of you, and who saw it coming.',
+  proofTitle:'Prove you called it.',proofText:'Everyone says “I knew it”. Now it has a date on it. Be right when nobody else was and you score the most.',
+  proofQ:'Does the trip actually happen?',proofA:'No.',proofYou:'You called it on 2 Nov',proofFew:'1 of 5 saw it coming',
+  revealTitle:'See what they really think of you.',revealText:'Answers stay hidden until picks close. Then they all open at once.',
+  revealQ:'Who marries last?',revealNote:'4 of 5 said you.',you:'You',
   howTitle:'Three steps. That’s it.',
   how:[
    ['Ask','Who’s late? Who marries last? Does the trip actually happen?'],
@@ -95,6 +103,23 @@ export default function Site(){
      <p className="s-lead">{t.lead}</p>
      <a className="s-btn" href="/">{t.start}</a>
      <p className="s-soon">{t.soon}</p>
+    </div>
+   </div>
+  </section>
+
+  <section className="s-feel">
+   <div className="s-wrap s-feel-grid">
+    <div>
+     <h2>{t.proofTitle}</h2><p className="s-body">{t.proofText}</p>
+     <div className="s-result" aria-hidden="true"><p className="s-result-q">{t.proofQ}</p><p className="s-result-a">{t.proofA}</p>
+      <div className="s-result-row"><Face n="Arda" c="#FF8A5B" size={40}/><div><b>{t.proofYou}</b><span>{t.proofFew}</span></div><strong>+34</strong></div></div>
+    </div>
+    <div>
+     <h2>{t.revealTitle}</h2><p className="s-body">{t.revealText}</p>
+     <div className="s-reveal" aria-hidden="true"><p className="s-result-q">{t.revealQ}</p>
+      <div className="s-reveal-row"><Face n="Arda" c="#FF8A5B" size={40}/><b>{t.you}</b><div className="s-reveal-bar"><i style={{width:'80%'}}/></div><span>4</span></div>
+      <div className="s-reveal-row"><Face n="Can" c="#A98BFF" size={40}/><b>Can</b><div className="s-reveal-bar"><i style={{width:'20%',background:'#A98BFF'}}/></div><span>1</span></div>
+      <p className="s-reveal-note">{t.revealNote} 😭</p></div>
     </div>
    </div>
   </section>

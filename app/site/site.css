@@ -109,3 +109,19 @@
 .s .s-tagline{font-size:clamp(34px,4.6vw,52px);line-height:1;letter-spacing:-.04em;margin:0 0 14px}
 .s-how li{align-items:center}.s-how li:before{grid-row:span 2}
 .s-call h1{max-width:14ch}
+/* What it feels like, before how it works: the receipt and the reveal. */
+.s-feel{padding:72px 0}
+.s-feel-grid{display:grid;gap:64px}
+.s-result,.s-reveal{margin-top:26px;background:#fff;border:2px solid var(--ink);border-radius:24px;box-shadow:0 6px 0 var(--ink);padding:22px;max-width:440px}
+.s .s-result-q{margin:0;font:700 20px/1.2 'Space Grotesk',sans-serif;color:var(--ink)}
+.s .s-result-a{margin:4px 0 16px;font:700 44px/1 'Space Grotesk',sans-serif;letter-spacing:-.03em;color:var(--ink)}
+.s-result-row{display:flex;align-items:center;gap:12px;background:var(--lime);border-radius:16px;padding:12px 14px}
+.s-result-row div{flex:1}.s-result-row div b{display:block;font-size:15px}.s-result-row div span{display:block;font-size:13.5px;color:var(--ink);opacity:.75}
+.s-result-row strong{font:700 26px 'Space Grotesk',sans-serif}
+.s-reveal-row{display:grid;grid-template-columns:40px 56px 1fr 24px;align-items:center;gap:10px;margin-top:14px;font-size:15px}
+.s-reveal-bar{height:14px;border-radius:99px;background:#EEECE4;overflow:hidden}.s-reveal-bar i{display:block;height:100%;background:#FF8A5B;border-radius:99px}
+.s-reveal-row span{font:700 18px 'Space Grotesk',sans-serif;text-align:right}
+.s .s-reveal-note{margin:16px 0 0;font-weight:700;font-size:16px;color:var(--ink)}
+@media (min-width:860px){.s-feel{padding:104px 0}.s-feel-grid{grid-template-columns:1fr 1fr;gap:56px}}
+
+.s .s-call h1{font-size:clamp(52px,11vw,100px)}
