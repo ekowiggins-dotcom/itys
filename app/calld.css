@@ -613,3 +613,9 @@ main.app .c-btn.dark-lime,.c-btn.dark-lime{background:transparent!important;colo
 .lifecycle .segmented{flex-wrap:wrap}
 .c-join-how li>span{flex:1}
 .lifecycle .segmented button{flex:0 0 auto}
+/* The group's own colour (picked at setup) shows up in the app too, as on its share cards. */
+header.c-top{overflow:hidden}
+header.c-top::before{content:'';position:absolute;right:-120px;top:-160px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,var(--group,var(--lime)) 0%,transparent 62%);opacity:.42;pointer-events:none}
+header.c-top::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--group,var(--lime))}
+header.c-top>*{position:relative;z-index:1}
+.c-top h1:before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--group,var(--lime));margin:0 8px 3px 0;vertical-align:middle}

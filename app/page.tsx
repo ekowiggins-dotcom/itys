@@ -13,7 +13,7 @@ import {api,webOrigin,setSession,lastInvite,rememberInvite,forgetAccount,NATIVE}
 import {initNative,haptic,updateWidget} from './native';
 import {Face,Faces,Icon,Sheet,AppleButton} from './ui';
 import {appleIdToken} from './apple';
-import {GROUP_COLORS} from '../lib/share-art';
+import {GROUP_COLORS,groupColor} from '../lib/colors';
 import {MomentCard,MomentSheet,NewMomentSheet,PastMoments,OpeningSheet,type NewMoment} from './Moments';
 import type {MomentKind} from '../lib/moment-starters';
 import {type Call,type Snapshot,type Moment,sortCalls,answersOf,label,matchTitle,momentView} from './calls';
@@ -188,7 +188,7 @@ export default function Home(){
  const friendNames=[...members.filter(m=>m.active).map(m=>m.name),...pendingNames.filter(n=>!members.some(m=>m.active&&m.name.toLowerCase()===n.toLowerCase()))];
  const others=members.filter(m=>m.active&&m.user_id!==me).map(m=>({id:m.user_id,name:m.name}));
 
- return <div className="c-shell">
+ return <div className="c-shell" style={{['--group' as string]:groupColor(data.group.name,(data.group as {color?:string|null}).color)}}>
   <header className={'c-top'+(tab==='calls'?'':' compact')}>
    <div className="c-top-row">
     <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">{t('Practice · a week in an hour')}</b>:data.members===1?t('Just you so far'):data.members+L(' friends',' arkadaş')}</span><h1>{data.group.name}</h1>{tab==='calls'&&<Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>}</div>

@@ -2,7 +2,7 @@
 // One job each: a question, faces, curiosity. WhatsApp shows it about a quarter size, so nothing under ~32px and few words.
 // Each group has its own colour.
 import {BRAND} from './brand';
-import {AVATAR_COLORS,initials} from './avatar';
+import {AVATAR_COLORS,initials,NEAR_GROUP} from './avatar';
 
 export type Lang='tr'|'en';
 export type Art=
@@ -16,7 +16,7 @@ export type Art=
 export type GroupLook={name:string;color:string};
 
 /** Group colours: bright, with ink text on top. */
-export const GROUP_COLORS={coral:'#FF8A5B',sky:'#7CC0FF',violet:'#B9A2FF',mint:'#5FDDA6',sun:'#FFC94D',pink:'#FF8EC2',lime:'#D7F25A'} as const;
+export {GROUP_COLORS} from './colors';
 const INK='#17201B',WHITE='#FFFFFF';
 const DISPLAY='Space Grotesk, Noto Sans';
 const flex=(s:Record<string,unknown>={})=>({display:'flex',...s});
@@ -27,7 +27,7 @@ const T={
 };
 
 /** Face colours never match the card behind them. */
-let bg='';const palette=()=>AVATAR_COLORS.filter(c=>c.toLowerCase()!==bg.toLowerCase()&&!(bg===GROUP_COLORS.coral&&c==='#F59E8C'));
+let bg='';const palette=()=>{const near=(NEAR_GROUP[bg.toUpperCase()]||bg).toLowerCase();return AVATAR_COLORS.filter(c=>c.toLowerCase()!==bg.toLowerCase()&&c.toLowerCase()!==near)};
 function Face({name,size,ring=INK,i}:{name:string;size:number;ring?:string;i:number}){const p=palette();
  return <div style={flex({width:size,height:size,borderRadius:size,background:p[i%p.length],border:`${Math.round(size/14)}px solid ${ring}`,alignItems:'center',justifyContent:'center',fontFamily:DISPLAY,fontSize:Math.round(size*0.4),fontWeight:700,color:INK})}>{initials(name)}</div>;
 }
