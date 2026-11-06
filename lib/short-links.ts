@@ -1,7 +1,7 @@
 import {randomBytes} from 'node:crypto';
 import type {Transaction} from '@electric-sql/pglite';
 import {db} from './db';
-// Short share links: calld.app/c/k7Qm2x. One code per group invite, per call and per weekly result.
+// Short share links: wholl.app/c/k7Qm2x. One code per group invite, per call and per weekly result.
 // No look-alike characters (0/O, 1/l/I), so a code read aloud or retyped still works.
 const ALPHABET='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function newCode(length=7){let s='';for(const b of randomBytes(length))s+=ALPHABET[b%ALPHABET.length];return s}

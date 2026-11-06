@@ -11,7 +11,7 @@ import HowItWorks from './HowItWorks';
 import {BRAND,BRAND_NAME} from '../lib/brand';
 import {api,webOrigin,setSession,lastInvite,rememberInvite,forgetAccount,NATIVE} from './api-client';
 import {initNative,haptic,updateWidget} from './native';
-import {Face,Faces,Icon,Sheet,AppleButton} from './ui';
+import {Face,Faces,Icon,Sheet,AppleButton,Wordmark} from './ui';
 import {appleIdToken} from './apple';
 import {GROUP_COLORS,groupColor} from '../lib/colors';
 import {MomentCard,MomentSheet,NewMomentSheet,PastMoments,OpeningSheet,type NewMoment} from './Moments';
@@ -131,11 +131,11 @@ export default function Home(){
 
  // The interface speaks the group's language; before you're in one, the phone's.
  setLang(data?((data.group as {lang?:string}).lang==='tr'?'tr':'en'):deviceLang);
- if(loading)return <main className="c-loading" role="status"><span className="c-brandmark big">{BRAND}</span></main>;
+ if(loading)return <main className="c-loading" role="status"><Wordmark h={40}/></main>;
 
  // Landing: start a group.
  if(!invite)return <main className="c-landing">
-  <div className="c-landing-top"><span className="c-brandmark big">{BRAND}</span><span className="c-pill">{t('Free. No money. Ever.')}</span></div>
+  <div className="c-landing-top"><Wordmark on="light" h={34}/><span className="c-pill">{t('Free. No money. Ever.')}</span></div>
   <h1>{t('Your friends.')}<br/><em>{t('Your calls.')}</em></h1>
   <p className="c-lead">{t('Make calls about your friends and your plans. See who said what when picks close. The fewer friends who saw it coming, the more you score.')}</p>
   <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice,friends:setupFriends,color:setupColor,lang:uiLang(),startNow:!practice};if(!practice&&f.get('groupType'))payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void act(payload).then(ok=>{if(ok&&!practice)setFirstCall(true)});}}>
@@ -274,7 +274,7 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
  const people=data.memberNames||[];
  const opts=p?.answers||(p?answersOf(p).map(a=>({value:a,label:label(a,p)})):[]);
  return <main className="c-join">
-  <div className="c-join-top"><span className="c-brandmark">{BRAND}</span><span>{t('Free · no money, ever')}</span></div>
+  <div className="c-join-top"><Wordmark h={22}/><span>{t('Free · no money, ever')}</span></div>
   {p?<>
    <div className="c-join-from">{p.creator_name&&!p.answers&&<Face name={p.creator_name} size={48} ring="#FFFFFF"/>}<p>{p.answers?<>{t('Your friends in')} <b>{data.group.name}</b> want your call</>:<><b>{p.creator_name||t('A friend')}</b> wants your call in <b>{data.group.name}</b></>}</p></div>
    <section className="c-join-card">

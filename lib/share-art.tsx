@@ -10,7 +10,7 @@ export type Art=
  |{variant:'friend';lang:Lang;group:GroupLook;question:string;answers:string[];pickers:string[];when?:string}
  |{variant:'choice';lang:Lang;group:GroupLook;question:string;answers:string[];pickers:string[];when?:string}
  |{variant:'picked';lang:Lang;group:GroupLook;subject:string;count:number;question:string}
- |{variant:'result';lang:Lang;group:GroupLook;question:string;answer:string;winners:string[];right:number;total:number}
+ |{variant:'result';lang:Lang;group:GroupLook;question:string;answer:string;winners:string[];right:number;total:number;stamp?:string}
  |{variant:'invite';lang:Lang;group:GroupLook;members:string[]}
  |{variant:'moment';lang:Lang;group:GroupLook;title:string;kind:string;when:string;questions:string[];pickers:string[];sealed?:{opens:string;closed:boolean}}
  |{variant:'reveal';lang:Lang;group:GroupLook;question:string;rows:{name:string;count:number}[];total:number}
@@ -132,6 +132,7 @@ function Result({a}:{a:Extract<Art,{variant:'result'}>}){const t=T[a.lang];const
   {confetti.map(([x,y,c,r],i)=><div key={i} style={flex({position:'absolute',left:x,top:y,width:34,height:14,borderRadius:4,background:c,transform:`rotate(${r}deg)`})}/>)}
   <div style={flex({position:'absolute',left:56,right:56,top:46,bottom:46,flexDirection:'column'})}>
    <Brand group={a.group}/>
+   {a.stamp&&<img src={a.stamp} width={250} height={250} style={{position:'absolute',right:-10,top:-16}}/>}
    <div style={flex({flexGrow:1,alignItems:'center'})}>
     <div style={flex({marginRight:44})}>{a.winners.slice(0,3).map((n,i)=><div key={n} style={flex({marginLeft:i?-60:0})}><Face name={n} size={a.winners.length>1?170:220} ring={WHITE} i={i}/></div>)}</div>
     <div style={flex({flexDirection:'column',flexGrow:1})}>

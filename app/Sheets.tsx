@@ -2,7 +2,7 @@
 import {revealHeadline} from '../lib/reveal';
 import {t,L,lang} from './i18n';
 import {useEffect,useState} from 'react';
-import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
+import {Sheet,Face,Faces,Icon,Badge,Split,Wordmark,CalledStamp} from './ui';
 import {type Call,type Snapshot,answersOf,label,reveal,headline,pts} from './calls';
 import {MatchHead} from './CallsTab';
 import {countdown,when} from './format';
@@ -70,8 +70,9 @@ export function ResultSheet({call,snaps,meName,onClose,onShare}:{call:Call|null;
  const others=right.filter(n=>n.name!==meName).map(n=>n.name);
  return <Sheet open label={t("Result")} onClose={onClose} full><div className={'c-result'+(won?' won':'')}>
   {won&&<div className="c-confetti" aria-hidden="true">{Array.from({length:16},(_,i)=><i key={i}/>)}</div>}
+  {won&&<CalledStamp at={call.answered_at||call.locks_at} size={120} className="slam"/>}
   <span className="c-kicker dark">{call.text}</span>
-  <h3 className="c-it">{call.match&&call.match.home90!=null?call.match.home+' '+call.match.home90+'–'+call.match.away90+' '+call.match.away:label(call.result_answer||'',call)+t(' it is.')}</h3>
+  <h3 className="c-it">{call.match&&call.match.home90!=null?call.match.home+' '+call.match.home90+'–'+call.match.away90+' '+call.match.away:label(call.result_answer||'',call)+(['yes','no'].includes(call.result_answer||'')?'.':t(' it is.'))}</h3>
   {won?<><Face name={meName||t('You')} size={88} ring="#17201B"/><h2 className="c-huge">{t('You called it.')}</h2><p className="c-sub dark">{others.length?t('With ')+others.join(', ')+'.':right.length===1&&groups.reduce((n,g)=>n+g.names.length,0)>1?t('The only one in the group.'):t('Nice.')}</p><span className="c-score">+{score}</span><p className="c-sub dark">{right.length} of {groups.reduce((n,g)=>n+g.names.length,0)} called it{right.length===1?t(': a bold call.'):'.'} {t('The fewer who see it coming, the more it’s worth.')}</p></>
   :<><h2 className="c-huge">{call.answer?t('Not this time.'):t('You sat this one out.')}</h2><p className="c-sub dark">{right.length?(right.length===1?right[0].name+t(' was the only one who called it.'):right.map(n=>n.name).join(', ')+t(' called it.')):t('Nobody saw that coming.')}</p></>}
   {(won?wrong:right).length>0&&<div className="c-also"><span>{won?t('Better luck next time'):t('Called it')}</span><Faces names={(won?wrong:right).map(n=>n.name)} size={30}/></div>}
@@ -107,7 +108,7 @@ export function ShareSheet({open,title,text,url,preview,tags,tag,onTag,onClose,o
 
 /** A small picture of the call, the way it shows up in the chat. */
 export function CallPreview({call,groupName,pickers,foot}:{call:{text:string;options?:string[]|null;market?:string;match?:Call['match'];locks_at:string;scope:string;event_at:string|null;creator_name:string};groupName:string;pickers:string[];foot?:string}){
- return <div className="c-preview"><div className="c-preview-top"><span className="c-brandmark">{BRAND}</span><Badge tone={call.scope==='longterm'?'later':'soon'}>{call.scope==='longterm'&&call.event_at?t('We’ll know in ')+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):t('Picks close ')+when(call.locks_at)}</Badge></div>
+ return <div className="c-preview"><div className="c-preview-top"><Wordmark h={18}/><Badge tone={call.scope==='longterm'?'later':'soon'}>{call.scope==='longterm'&&call.event_at?t('We’ll know in ')+new Date(call.event_at).toLocaleDateString('en-GB',{month:'long'}):t('Picks close ')+when(call.locks_at)}</Badge></div>
   <b>{call.text}</b><div className={'c-preview-opts n'+Math.min(4,answersOf(call).length)}>{answersOf(call).map((a,i)=><span key={a} className={i===0?'on':''}>{label(a,call)}</span>)}</div>
   <div className="c-preview-foot"><Faces names={foot?pickers:[call.creator_name,...pickers.filter(p=>p!==call.creator_name)]} size={20} ring="#17201B"/><span>{foot||call.creator_name+t('’s call in ')+groupName}</span></div></div>;
 }

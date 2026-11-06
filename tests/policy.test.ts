@@ -91,7 +91,7 @@ test('the old name never reaches players: the brand comes from lib/brand.ts',()=
  assert.deepEqual(hits,[]);
 });
 
-test('Calld is social: football stays off unless switched on, and points never sit next to answers',async()=>{
+test('Who’ll is social: football stays off unless switched on, and points never sit next to answers',async()=>{
  const {footballEnabled}=await import('../lib/features');assert.equal(footballEnabled({}),false);
  for(const f of ['app/CallsTab.tsx','app/Sheets.tsx'])assert.ok(!/potential\(/.test(readFileSync(f,'utf8')),f+' shows points per answer: that reads like odds');
 });

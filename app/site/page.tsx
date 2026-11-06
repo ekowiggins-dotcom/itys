@@ -1,5 +1,5 @@
 'use client';
-// The product website: what Calld is, for people who haven't been sent a call yet. English, with a switch to Turkish. The hero is a real call you can tap, the way friends meet it in their group chat.
+// The product website: what Who’ll is, for people who haven't been sent a call yet. English, with a switch to Turkish. The hero is a real call you can tap, the way friends meet it in their group chat.
 import {useEffect,useState} from 'react';
 import './site.css';
 
@@ -86,7 +86,7 @@ export default function Site(){
  const split=pick?{...SPLIT,[pick]:SPLIT[pick]+1}:SPLIT,total=Object.values(split).reduce((a,b)=>a+b,0);
  return <div className="s">
   <section className="s-hero">
-   <nav className="s-nav"><a className="s-mark" href="/site">calld</a><button className="s-lang" onClick={()=>{setLang(lang==='tr'?'en':'tr');setPick('')}}>{t.lang}</button></nav>
+   <nav className="s-nav"><a className="s-mark" href="/site" aria-label="Who’ll"><img src="/brand/wordmark.svg" alt="Who’ll"/></a><button className="s-lang" onClick={()=>{setLang(lang==='tr'?'en':'tr');setPick('')}}>{t.lang}</button></nav>
    <div className="s-hero-in">
     <div className="s-call">
      <p className="s-group"><i/>Agalar</p>
@@ -138,7 +138,7 @@ export default function Site(){
    <div className="s-wrap s-chat-grid">
     <div className="s-chat" aria-hidden="true">
      <div className="s-bubble in"><b style={{color:'#c2185b'}}>Ege</b>{lang==='tr'?'Cumartesi plan ne? 🍻':'Plans for Saturday? 🍻'}</div>
-     <div className="s-bubble out"><div className="s-preview"><img src={`/site/card-${lang}.webp`} alt="" width={1200} height={630}/><div><b>{t.call}</b><span>{t.chatDesc}</span><em>calld.app</em></div></div>{t.chatMsg}</div>
+     <div className="s-bubble out"><div className="s-preview"><img src={`/site/card-${lang}.webp`} alt="" width={1200} height={630}/><div><b>{t.call}</b><span>{t.chatDesc}</span><em>wholl.app</em></div></div>{t.chatMsg}</div>
      <div className="s-bubble in"><b style={{color:'#1e88e5'}}>Deniz</b>{t.chatReply}</div>
     </div>
     <div><h2>{t.chatTitle}</h2><p className="s-body">{t.chatText}</p></div>
@@ -180,6 +180,6 @@ export default function Site(){
     <a className="s-btn" href="/">{t.start}</a>
    </div>
   </section>
-  <footer className="s-foot"><div className="s-wrap"><span className="s-mark small">calld</span><nav><a href="/privacy">{t.privacy}</a><a href="/terms">{t.terms}</a><a href="/support">{t.help}</a></nav></div></footer>
+  <footer className="s-foot"><div className="s-wrap"><span className="s-mark small"><img src="/brand/wordmark.svg" alt="Who’ll"/></span><nav><a href="/privacy">{t.privacy}</a><a href="/terms">{t.terms}</a><a href="/support">{t.help}</a></nav></div></footer>
  </div>;
 }

@@ -1,3 +1,4 @@
+import {stampDataUri} from './stamp';
 import {type Art,type Lang} from './share-art';
 import {groupColor} from './colors';
 export {groupColor};
@@ -59,7 +60,8 @@ export async function shareArt(invite:string,target:{questionId?:string;roundId?
  if(q.state==='settled'&&q.result_answer){
   const locked=(await d.query<{name:string;answer:string}>('SELECT u.name,lp.answer FROM locked_predictions lp JOIN users u ON u.id=lp.user_id WHERE lp.question_id=$1',[q.id])).rows;
   const winners=locked.filter(r=>r.answer===q.result_answer).map(r=>r.name);
-  if(winners.length)return{variant:'result',lang,group,question:q.text,answer:label(q.result_answer),winners,right:winners.length,total:locked.length};
+  // The called-it stamp carries the day picks closed: proof they said it before it happened.
+  if(winners.length)return{variant:'result',lang,group,question:q.text,answer:label(q.result_answer),winners,right:winners.length,total:locked.length,stamp:await stampDataUri(new Date(q.locks_at),g.timezone)};
   return null;
  }
  if(q.state==='void')return null;

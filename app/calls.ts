@@ -1,7 +1,7 @@
 import {L} from './i18n';
 import {callPoints} from '../lib/rules';
 // How the Calls screen sorts and describes calls. Pure functions, so they can be tested without a browser.
-export type Call={id:string;text:string;options?:string[]|null;scope:string;locks_at:string;event_at:string|null;state:string;creator:string;creator_name:string;subject_id?:string|null;resolver_id?:string|null;about_you?:boolean;
+export type Call={id:string;text:string;options?:string[]|null;scope:string;locks_at:string;event_at:string|null;state:string;creator:string;creator_name:string;subject_id?:string|null;resolver_id?:string|null;about_you?:boolean;answered_at?:string|null;
  answer:string|null;stake?:number|null;picked?:number;picker_ids?:string[];proposed_answer:string|null;proposed_at:string|null;proposed_by?:string|null;result_answer?:string|null;
  points_tenths:number|null;allocation?:string|null;moderation_state?:string;market?:string;answer_type?:string;moment_id?:string|null;moment_pos?:number|null;fixture_id?:string|null;share_code?:string|null;round_id?:string|null;forfeited?:boolean;disputes?:number;settled_at?:string|null;
  /** Anonymous counts per answer: only sent once you've made your call, or once it locks. */

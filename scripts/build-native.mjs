@@ -10,7 +10,7 @@ rmSync(work,{recursive:true,force:true});mkdirSync(work);
 // Screens and shared client code only: API routes, share-image routes and the scheduler stay on the server.
 const skip=new Set(['api','share','c','admin','.well-known','privacy','terms','support','legal-ui']);
 cpSync(path.join(root,'app'),path.join(work,'app'),{recursive:true,filter:src=>!skip.has(path.relative(path.join(root,'app'),src).split(path.sep)[0])});
-for(const f of ['lib','package.json','tsconfig.json'])cpSync(path.join(root,f),path.join(work,f),{recursive:true});
+for(const f of ['lib','public','package.json','tsconfig.json'])cpSync(path.join(root,f),path.join(work,f),{recursive:true});
 symlinkSync(path.join(root,'node_modules'),path.join(work,'node_modules'),'dir');
 writeFileSync(path.join(work,'next.config.mjs'),"export default {output:'export',images:{unoptimized:true},typescript:{ignoreBuildErrors:false}};\n");
 const env={...process.env,NEXT_PUBLIC_NATIVE:'1',NEXT_PUBLIC_API_BASE:apiBase,NEXT_PUBLIC_WEB_ORIGIN:process.env.WEB_ORIGIN||apiBase,NEXT_PUBLIC_APNS_ENV:process.env.APNS_ENV||'production',NEXT_TELEMETRY_DISABLED:'1'};
