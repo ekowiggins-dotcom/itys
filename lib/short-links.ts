@@ -20,6 +20,8 @@ export async function ensureShareCodes(tx:Transaction,groupId:string){
 export type ShareTarget={invite:string;questionId?:string;roundId?:string;winner?:boolean;
  /** "For Ege": the card tells Ege how many friends picked him (friend calls only). */
  forName?:string;
+ /** The reveal card: how many said each friend, once picks have closed. */
+ reveal?:boolean;
  /** A Moment's link: opens its first call, the card shows the whole Moment. */
  momentId?:string};
 /** What a short code points at. Unknown or malformed codes return null. */

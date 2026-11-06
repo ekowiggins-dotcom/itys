@@ -1,15 +1,17 @@
+import {revealHeadline} from './share-art';
 import {BRAND,BRAND_NAME} from './brand';
 import {NextRequest} from 'next/server';import {publicShare,shareArt} from './share-data';import type {Art} from './share-art';import {shareLink} from './sharing';import type {ShareTarget} from './short-links';
 function escape(text:string){return text.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))}
 export function publicOrigin(req:NextRequest){return process.env.APP_ORIGIN||(process.env.RAILWAY_PUBLIC_DOMAIN?'https://'+process.env.RAILWAY_PUBLIC_DOMAIN:req.nextUrl.protocol+'//'+req.headers.get('host'))}
 /** The title and line WhatsApp shows under the picture, in the group's language. */
-function artText(a:Art):{title:string;description:string}{const tr=a.lang==='tr';
+export function artText(a:Art):{title:string;description:string}{const tr=a.lang==='tr';
  switch(a.variant){
   case 'friend':case 'choice':{
    // Curiosity, not instructions: someone has answered, we don't say what.
    const n=a.pickers.length,names=n>2?a.pickers.slice(0,2).join(', ')+(tr?' ve '+(n-2)+' kişi daha':' and '+(n-2)+' more'):a.pickers.join(tr?' ve ':' and '),friend=a.variant==='friend';
    if(!n)return{title:a.question,description:tr?(friend?'Henüz kimse seçmedi. İlk ismi sen ver.':'Henüz kimse cevaplamadı. İlk sen söyle.'):(friend?'Nobody’s picked yet. Name someone first.':'Nobody’s answered yet. Go first.')};
    return{title:a.question,description:tr?(friend?`${names} birini seçti, kimi söylemiyoruz. Sen kimi diyorsun?`:`${names} cevabını verdi, ne dediğini söylemiyoruz. Sen ne diyorsun?`):(friend?`${names} ${n===1?'has':'have'} picked someone. We’re not saying who. Who’s yours?`:`${names} ${n===1?'has':'have'} answered. We’re not saying what. What’s yours?`)}}
+  case 'reveal':return{title:revealHeadline(a.rows,a.total,a.lang)+' 👀',description:a.question+(tr?' · Cevaplar açıldı. Sen kimi dedin?':' · The answers are out. Who did you say?')};
   case 'picked':return{title:tr?`${a.count} arkadaşın seni seçti`:`${a.count} ${a.count===1?'friend':'friends'} picked you`,description:tr?`${a.group.name}’da bir soru seni soruyor. Bak, sen de seç.`:`A call in ${a.group.name} is about you. Take a look, then make your own pick.`};
   case 'result':return{title:tr?`${a.winners.slice(0,2).join(' & ')} bildi: ${a.answer}`:`${a.winners.slice(0,2).join(' & ')} called it: ${a.answer}`,description:tr?`${a.total} kişiden ${a.right} kişi bildi.`:`${a.right} of ${a.total} saw it coming.`};
   case 'moment':if(a.sealed)return{title:a.title,description:a.sealed.closed?(tr?`Mühürlendi. ${a.sealed.opens}’de birlikte açıyoruz.`:`Sealed. We open it together on ${a.sealed.opens}.`):(tr?`Tahminlerini mühürle: ${a.sealed.opens}’e kadar kimse göremez.`:`Seal your calls: nobody sees them until ${a.sealed.opens}.`)};
@@ -21,7 +23,7 @@ function artText(a:Art):{title:string;description:string}{const tr=a.lang==='tr'
 /** Old long links: /share/call?invite=…&question=… */
 export async function shareResponse(req:NextRequest,winner=false){
  const p=req.nextUrl.searchParams;
- return sharePage(req,{invite:p.get('invite')||'',questionId:p.get('question')||undefined,roundId:p.get('round')||undefined,winner},'/share/image'+req.nextUrl.search);
+ return sharePage(req,{invite:p.get('invite')||'',questionId:p.get('question')||undefined,roundId:p.get('round')||undefined,winner,reveal:p.get('r')==='1'},'/share/image'+req.nextUrl.search);
 }
 /** The page a shared link opens: rich preview tags for the chat app, then straight into the call. */
 export async function sharePage(req:NextRequest,t:ShareTarget,imagePath:string){

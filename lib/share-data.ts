@@ -43,10 +43,13 @@ export function closesLabel(at:Date,now:Date,zone:string,lang:Lang){
  return lang==='tr'?`${wd} kapanıyor`:`Closes ${wd}`;
 }
 /** The picture for a shared link, or null to fall back to the older cards (weekly winner, football, secret calls). */
-export async function shareArt(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean;forName?:string;momentId?:string},now=new Date()):Promise<Art|null>{
+export async function shareArt(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean;forName?:string;momentId?:string;reveal?:boolean},now=new Date()):Promise<Art|null>{
  if(target.winner)return null;const d=await db();
  const g=(await d.query<{id:string;name:string;color:string|null;lang:string;timezone:string}>('SELECT id,name,color,lang,timezone FROM groups WHERE invite=$1',[invite])).rows[0];if(!g)return null;
- const lang:Lang=g.lang==='tr'?'tr':'en',group={name:g.name,color:groupColor(g.name,g.color)};
+ const lang:Lang=g.lang==='tr'?'tr':'en';
+ // Join order, so every face on the card has the colour it has in the app.
+ const order=(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 ORDER BY m.joined_at',[g.id])).rows.map(r=>r.name);
+ const group={name:g.name,color:groupColor(g.name,g.color),order};
  if(target.momentId)return momentArt(g,target.momentId,lang,group,now);
  if(!target.questionId){const members=(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at LIMIT 30',[g.id])).rows.map(r=>r.name);return{variant:'invite',lang,group,members}}
  const q=(await d.query<{id:string;text:string;options:string[]|null;answer_type:string;market:string|null;locks_at:Date;state:string;result_answer:string|null;subject_id:string|null;moderation_state:string}>("SELECT id,text,options,answer_type,market,locks_at,state,result_answer,subject_id,moderation_state FROM questions WHERE id=$1 AND group_id=$2 AND NOT superseded",[target.questionId,g.id])).rows[0];
@@ -61,6 +64,12 @@ export async function shareArt(invite:string,target:{questionId?:string;roundId?
  }
  if(q.state==='void')return null;
  const sealedQ=(await d.query('SELECT 1 FROM moments m JOIN questions q ON q.moment_id=m.id WHERE q.id=$1 AND m.sealed AND m.opens_at>$2',[q.id,now])).rows.length>0;
+ // The reveal, once picks are closed: how many said each friend, never who said what. Calls about someone stay
+ // closed until settled (checked above), and sealed calls until they open.
+ if(friend&&target.reveal&&!sealedQ&&now>=new Date(q.locks_at)){
+  const rows=(await d.query<{name:string;count:number}>('SELECT answer AS name,count(*)::int AS count FROM locked_predictions WHERE question_id=$1 GROUP BY answer ORDER BY count(*) DESC,answer',[q.id])).rows;
+  const total=rows.reduce((n,r)=>n+r.count,0);if(total>=2)return{variant:'reveal',lang,group,question:q.text,rows,total};
+ }
  if(friend&&target.forName&&!sealedQ){const n=(await d.query<{n:number}>('SELECT count(*)::int n FROM predictions WHERE question_id=$1 AND lower(answer)=lower($2)',[q.id,target.forName])).rows[0].n;
   if(n>0&&q.options?.some(o=>o.toLocaleLowerCase('tr')===target.forName!.toLocaleLowerCase('tr')))return{variant:'picked',lang,group,subject:target.forName,count:n,question:q.text};}
  // Who's in (names only, never what they picked), first to last.

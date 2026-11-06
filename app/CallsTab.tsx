@@ -1,5 +1,6 @@
 'use client';
-import {t,L} from './i18n';
+import {revealHeadline} from '../lib/reveal';
+import {t,L,lang} from './i18n';
 import {Face,Faces,Icon,Badge,Split,Crest} from './ui';
 import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome} from './calls';
 import {countdown,when} from './format';
@@ -72,6 +73,7 @@ export function LockedCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  return <article className="c-card locked">
   <div className="c-card-top"><span className="c-kick">{c.match?(Date.parse(c.locks_at)+2.5*3600000>ctx.now?t('Playing now'):t('Full time soon')):c.state==='proposed'?t('Result’s in'):c.state==='disputed'?t('Being checked'):t('Locked')}</span><span className="c-by light">{total} {total===1?'pick':'picks'}</span></div>
   {c.match?<><MatchHead c={c} dark/><p className="c-market light">{t('Who wins?')}</p></>:<h3>{c.text}</h3>}
+  {c.answer_type==='friend'&&total>=2&&!c.about_you&&<p className="c-reveal-line">{revealHeadline(groups.filter(g=>g.names.length).map(g=>({name:label(g.answer,c),count:g.names.length})).sort((a,b)=>b.count-a.count),total,lang(),ctx.names[ctx.me||''])}</p>}
   {total>0&&<div className="c-bars">{groups.filter(g=>g.names.length).sort((a,b)=>b.names.length-a.names.length).slice(0,4).map(g=><div key={g.answer} className={'c-bar-row'+(c.proposed_answer===g.answer?' hit':'')}><span>{label(g.answer,c)}</span><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><Faces names={g.names.map(n=>n.name)} size={20} ring="#17201B" max={3}/></div>)}</div>}
   {c.match&&c.state==='open'&&<p className="c-status">{t('Scores itself at full time (90 minutes).')}</p>}
   {!c.match&&c.state==='open'&&(canSet?<button className="c-btn small" onClick={()=>act.resolve(c,'set')}>{t('What happened?')}</button>:<p className="c-status">{t('Waiting for')} {settler} {t('to say what happened.')}</p>)}

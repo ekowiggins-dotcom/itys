@@ -1,5 +1,6 @@
 // Turkish for every interface string, keyed by the English in the code. Turkish groups and phones see these.
 export const TR:Record<string,string>={
+ "Share the reveal":"Cevapları paylaş",
  "+ Add":"+ Ekle",
  "+ Add a prediction for everyone":"+ Herkes için bir tahmin ekle",
  "+ Add another":"+ Bir tane daha",

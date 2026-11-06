@@ -1,5 +1,6 @@
 'use client';
-import {t,L} from './i18n';
+import {revealHeadline} from '../lib/reveal';
+import {t,L,lang} from './i18n';
 import {useEffect,useState} from 'react';
 import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
 import {type Call,type Snapshot,answersOf,label,reveal,headline,pts} from './calls';
@@ -38,14 +39,20 @@ export function FacePicker({names,value,onPick,big=false}:{names:string[];value:
 }
 
 /** After the lock: who said what. */
-export function RevealSheet({call,snaps,me,meName,onClose}:{call:Call|null;snaps:Snapshot[];me?:string;meName?:string;onClose:()=>void}){
+export function RevealSheet({call,snaps,me,meName,onClose,onShare}:{call:Call|null;snaps:Snapshot[];me?:string;meName?:string;onClose:()=>void;onShare?:(c:Call)=>void}){
  if(!call)return null;
  const groups=reveal(call,snaps),total=groups.reduce((n,g)=>n+g.names.length,0),max=Math.max(1,...groups.map(g=>g.names.length));
+ // "Who…?" calls get the big moment: whose face won, and how many said it.
+ const rows=call.answer_type==='friend'?groups.filter(g=>g.names.length).map(g=>({name:label(g.answer,call),count:g.names.length})).sort((a,b)=>b.count-a.count):[];
+ const top=rows[0],tied=!!rows[1]&&rows[1].count===top?.count,meTop=!!top&&!!meName&&top.name.toLocaleLowerCase('tr')===meName.toLocaleLowerCase('tr');
+ const shareable=!!onShare&&rows.length>0&&total>=2&&!(call.subject_id&&call.state!=='settled');
  const mine=groups.find(g=>g.names.some(n=>n.id===me||n.name===meName));const myStake=mine?.names.find(n=>n.id===me||n.name===meName)?.stake||0;
  return <Sheet open dark full label={t("Who said what")} onClose={onClose}>
   <span className="c-kicker">{t('Locked · picks are out')}</span>
-  <h2 className="c-title big">{call.text}</h2>
-  <p className="c-sub light">{headline(groups,meName,call)}</p>
+  {top?<><p className="c-reveal-q">{call.text}</p>
+   <div className="c-reveal-hero"><span className="c-reveal-face"><Face name={top.name} size={112}/>{!tied&&<i aria-hidden="true">👑</i>}</span><h2>{revealHeadline(rows,total,lang(),meName)}{meTop?' 😭':''}</h2></div>
+   {shareable&&<button className="c-btn lime" onClick={()=>onShare!(call)}><Icon name="share"/> {t('Share the reveal')}</button>}</>
+  :<><h2 className="c-title big">{call.text}</h2><p className="c-sub light">{headline(groups,meName,call)}</p></>}
   <div className="c-reveal">{[...groups].sort((a,b)=>b.names.length-a.names.length).map(g=>{const isMine=g===mine;const alone=g.names.length===1&&total>2;return <div key={g.answer} className={'c-group'+(isMine?' mine':'')+(g.names.length?'':' empty')}>
    <div className="c-group-head"><b>{label(g.answer,call)}</b>{alone&&isMine?<span className="c-tag">{t('Lone wolf')}</span>:<span>{g.names.length?g.names.length+L(g.names.length===1?' friend':' friends',' kişi'):L('nobody','kimse')}</span>}</div>
    {g.names.length>0&&<><div className="c-bar"><i style={{width:(g.names.length/max*100)+'%'}}/></div><div className="c-names">{g.names.map(n=><span key={n.name}><Face name={n.name} size={26}/>{n.name===meName?t('You'):n.name}</span>)}</div></>}
