@@ -1,3 +1,4 @@
+import {revealHeadline} from './reveal';
 // The pictures WhatsApp shows under a shared link (1200×630, nothing important in the outer 44px).
 // One job each: a question, faces, curiosity. WhatsApp shows it about a quarter size, so nothing under ~32px and few words.
 // Each group has its own colour.
@@ -12,8 +13,9 @@ export type Art=
  |{variant:'result';lang:Lang;group:GroupLook;question:string;answer:string;winners:string[];right:number;total:number}
  |{variant:'invite';lang:Lang;group:GroupLook;members:string[]}
  |{variant:'moment';lang:Lang;group:GroupLook;title:string;kind:string;when:string;questions:string[];pickers:string[];sealed?:{opens:string;closed:boolean}}
+ |{variant:'reveal';lang:Lang;group:GroupLook;question:string;rows:{name:string;count:number}[];total:number}
  |{variant:'momentResult';lang:Lang;group:GroupLook;title:string;kind:string;winners:string[];right:number;of:number};
-export type GroupLook={name:string;color:string};
+export type GroupLook={name:string;color:string;order?:string[]};
 
 /** Group colours: bright, with ink text on top. */
 export {GROUP_COLORS} from './colors';
@@ -28,8 +30,11 @@ const T={
 
 /** Face colours never match the card behind them. */
 let bg='';const palette=()=>{const near=(NEAR_GROUP[bg.toUpperCase()]||bg).toLowerCase();return AVATAR_COLORS.filter(c=>c.toLowerCase()!==bg.toLowerCase()&&c.toLowerCase()!==near)};
-function Face({name,size,ring=INK,i}:{name:string;size:number;ring?:string;i:number}){const p=palette();
- return <div style={flex({width:size,height:size,borderRadius:size,background:p[i%p.length],border:`${Math.round(size/14)}px solid ${ring}`,alignItems:'center',justifyContent:'center',fontFamily:DISPLAY,fontSize:Math.round(size*0.4),fontWeight:700,color:INK})}>{initials(name)}</div>;
+/** A friend keeps the colour they have in the app (join order), unless it would melt into this card. */
+let order=new Map<string,number>();
+function faceColor(name:string,i:number){const p=palette(),at=order.get(name);if(at!==undefined){const c=AVATAR_COLORS[at%AVATAR_COLORS.length];if(p.includes(c))return c}return p[i%p.length]}
+function Face({name,size,ring=INK,i}:{name:string;size:number;ring?:string;i:number}){
+ return <div style={flex({width:size,height:size,borderRadius:size,background:faceColor(name,i),border:`${Math.round(size/14)}px solid ${ring}`,alignItems:'center',justifyContent:'center',fontFamily:DISPLAY,fontSize:Math.round(size*0.4),fontWeight:700,color:INK})}>{initials(name)}</div>;
 }
 function Brand({group,dark=false}:{group:GroupLook;dark?:boolean}){
  return <div style={flex({alignItems:'center'})}>
@@ -78,6 +83,25 @@ function Choice({a}:{a:Extract<Art,{variant:'choice'}>}){const t=T[a.lang];const
    <div style={flex({justifyContent:'space-between',alignItems:'center'})}>
     <div style={flex({})}>{opts.map(o=><div key={o} style={flex({background:WHITE,border:'5px solid '+INK,boxShadow:'0 7px 0 '+INK,borderRadius:28,height:many?104:116,padding:many?'0 22px':'0 48px',marginRight:16,alignItems:'center',justifyContent:'center',textAlign:'center',fontFamily:DISPLAY,fontSize:many?(o.length>10?30:36):52,fontWeight:700,lineHeight:1.05,maxWidth:many?200:330,overflow:'hidden'})}>{o}</div>)}</div>
     <div style={flex({alignItems:'center'})}>{a.pickers.length>0&&<div style={flex({marginRight:18})}>{a.pickers.slice(0,3).map((n,i)=><div key={n+i} style={flex({marginLeft:i?-22:0})}><PickedFace name={n} size={72} i={i+3} done/></div>)}</div>}<Cta>{t.pick}</Cta></div>
+   </div>
+  </div>
+ </>);
+}
+/** The reveal: picks have closed and the answers are out. How many said whom, never who said what. */
+export {revealHeadline} from './reveal';
+function Reveal({a}:{a:Extract<Art,{variant:'reveal'}>}){const top=a.rows[0],rest=a.rows.slice(1,4),tied=!!rest[0]&&rest[0].count===top.count;
+ return frame(a.group.color,<>
+  {blob({right:-120,top:-200,width:480,height:480,background:'rgba(255,255,255,0.22)'})}
+  <div style={flex({position:'absolute',left:60,right:60,top:50,bottom:48,flexDirection:'column'})}>
+   <Head group={a.group} when={a.lang==='tr'?'Cevaplar açıldı':'The answers are out'}/>
+   <div style={flex({fontSize:40,fontWeight:700,opacity:0.75,marginTop:22,maxHeight:100,overflow:'hidden'})}>{a.question}</div>
+   <div style={flex({flexGrow:1,alignItems:'center'})}>
+    <div style={flex({position:'relative',marginRight:44})}><Face name={top.name} size={210} ring={WHITE} i={0}/>{!tied&&<div style={flex({position:'absolute',top:-30,left:66,fontSize:80})}>👑</div>}</div>
+    <div style={flex({fontFamily:DISPLAY,fontSize:revealHeadline(a.rows,a.total,a.lang).length>26?76:96,fontWeight:700,lineHeight:1,letterSpacing:-3,flexGrow:1,flexWrap:'wrap'})}>{revealHeadline(a.rows,a.total,a.lang)}</div>
+   </div>
+   <div style={flex({justifyContent:'space-between',alignItems:'center'})}>
+    <div style={flex({alignItems:'center'})}>{rest.map((r,i)=><div key={r.name} style={flex({alignItems:'center',marginRight:30})}><Face name={r.name} size={64} ring={WHITE} i={i+1}/><div style={flex({marginLeft:12,fontSize:34,fontWeight:700})}>{r.name} · {r.count}</div></div>)}</div>
+    <Cta>{a.lang==='tr'?'Sen kimi dedin?':'Who did you say?'}</Cta>
    </div>
   </div>
  </>);
@@ -171,6 +195,6 @@ function MomentResult({a}:{a:Extract<Art,{variant:'momentResult'}>}){const t=T[a
   </div>
  </>);
 }
-export function renderArt(a:Art){bg=a.variant==='picked'?'':a.group.color;
- switch(a.variant){case 'friend':return <Friend a={a}/>;case 'choice':return <Choice a={a}/>;case 'picked':return <Picked a={a}/>;case 'result':return <Result a={a}/>;case 'invite':return <Invite a={a}/>;case 'moment':return <Moment a={a}/>;case 'momentResult':return <MomentResult a={a}/>}
+export function renderArt(a:Art){bg=a.variant==='picked'?'':a.group.color;order=new Map((a.group.order||[]).map((n,k)=>[n,k]));
+ switch(a.variant){case 'friend':return <Friend a={a}/>;case 'choice':return <Choice a={a}/>;case 'picked':return <Picked a={a}/>;case 'reveal':return <Reveal a={a}/>;case 'result':return <Result a={a}/>;case 'invite':return <Invite a={a}/>;case 'moment':return <Moment a={a}/>;case 'momentResult':return <MomentResult a={a}/>}
 }

@@ -84,7 +84,7 @@ export async function GET(req:NextRequest){
  try{const p=req.nextUrl.searchParams;const code=p.get('c');
  const target:ShareTarget|null=code?await resolveCode(code):{invite:p.get('invite')||'',questionId:p.get('question')||undefined,roundId:p.get('round')||undefined,winner:p.get('view')==='winner'};
  if(!target)throw Error('Share link not found.');
- const forName=p.get('for')?.slice(0,60)||undefined;const art=await shareArt(target.invite,{...target,forName});
+ const forName=p.get('for')?.slice(0,60)||undefined;const art=await shareArt(target.invite,{...target,forName,reveal:p.get('r')==='1'});
  const {card}=art?{card:null}:await publicShare(target.invite,target);const f=await fonts;
  const body=art?renderArt(art):!card?null:card.kind==='bet'?(card.teams?<Match card={card}/>:<Call card={card}/>):card.kind==='invite'?<Invite card={card}/>:<Winner card={card}/>;
  const svg=await satori(body,{width:1200,height:630,fonts:[{name:'Space Grotesk',data:f[3],weight:700},{name:'Space Grotesk',data:f[4],weight:700},{name:'Noto Sans',data:f[0],weight:400},{name:'Noto Sans',data:f[1],weight:700},{name:'Noto Symbols',data:f[2],weight:400}],loadAdditionalAsset:async(code,segment)=>code==='emoji'?emojiAsset(segment):''});

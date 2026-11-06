@@ -4,6 +4,6 @@ export const runtime='nodejs';
 export async function GET(req:NextRequest,{params}:{params:Promise<{code:string}>}){
  const {code}=await params;const target=await resolveCode(code);
  if(!target)return new Response('This link has expired or never existed.',{status:404,headers:{'Cache-Control':'no-store'}});
- const forName=req.nextUrl.searchParams.get('for')?.slice(0,60)||undefined;
- return sharePage(req,{...target,forName},'/share/image?c='+encodeURIComponent(code)+(forName?'&for='+encodeURIComponent(forName):''));
+ const forName=req.nextUrl.searchParams.get('for')?.slice(0,60)||undefined,reveal=req.nextUrl.searchParams.get('r')==='1';
+ return sharePage(req,{...target,forName,reveal},'/share/image?c='+encodeURIComponent(code)+(forName?'&for='+encodeURIComponent(forName):'')+(reveal?'&r=1':''));
 }
