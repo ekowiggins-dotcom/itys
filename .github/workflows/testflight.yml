@@ -1,7 +1,8 @@
 name: TestFlight
 
 # Builds, signs and uploads the iOS app (with its widget) to TestFlight from a GitHub-hosted Mac.
-# No Mac or certificates needed: Xcode signs automatically using an App Store Connect API key.
+# No Mac, certificates or registered devices needed: each run makes an Apple Distribution certificate and
+# App Store profiles through the App Store Connect API key (scripts/ci-signing.py) and signs manually with them.
 #
 # Repository secrets (Settings → Secrets and variables → Actions → Secrets):
 #   APPLE_TEAM_ID     10-character Team ID
@@ -101,20 +102,55 @@ jobs:
           open(sys.argv[1],'w').write(pem)
           PY
 
+      - name: Make App Store signing (certificate + profiles)
+        if: steps.cfg.outputs.signed == 'true'
+        id: sign
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q pyjwt cryptography
+          "$RUNNER_TEMP/venv/bin/python" scripts/ci-signing.py setup "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" "$KEY_ID" "$ISSUER" \
+            "$RUNNER_TEMP/signing" "${{ github.run_id }}" "$BUNDLE_ID" "$BUNDLE_ID.widget" | tee "$RUNNER_TEMP/profiles.txt"
+          APP_PROFILE=$(grep "^$BUNDLE_ID=" "$RUNNER_TEMP/profiles.txt" | cut -d= -f2-)
+          WIDGET_PROFILE=$(grep "^$BUNDLE_ID.widget=" "$RUNNER_TEMP/profiles.txt" | cut -d= -f2-)
+          echo "app_profile=$APP_PROFILE" >> "$GITHUB_OUTPUT"
+          echo "widget_profile=$WIDGET_PROFILE" >> "$GITHUB_OUTPUT"
+
+          # A throwaway keychain holding only this run's certificate.
+          KC="$RUNNER_TEMP/signing.keychain-db"; KCPW=$(uuidgen)
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          curl -fsSL -o "$RUNNER_TEMP/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$RUNNER_TEMP/signing/signing.p12" -P "$(cat "$RUNNER_TEMP/signing/signing.pw")" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+
+          # App Store builds push through production APNs; each target gets its own profile.
+          plutil -replace aps-environment -string production ios/App/App/App.entitlements
+          python3 - "$BUNDLE_ID" "$APP_PROFILE" "$WIDGET_PROFILE" <<'PY2'
+          import re,sys
+          bid,app,widget=sys.argv[1:]
+          p='ios/App/App.xcodeproj/project.pbxproj';s=open(p).read()
+          for b,name in((bid+'.widget',widget),(bid,app)):
+              s=re.sub(r'(\n(\s*)PRODUCT_BUNDLE_IDENTIFIER = '+re.escape(b)+r';)',lambda m:m.group(1)+'\n'+m.group(2)+'PROVISIONING_PROFILE_SPECIFIER = "'+name+'";',s)
+          open(p,'w').write(s)
+          print(s.count('PROVISIONING_PROFILE_SPECIFIER'),'build configurations got a profile')
+          PY2
+
       - name: Archive (signed)
         if: steps.cfg.outputs.signed == 'true'
         env:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
-          KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           set -o pipefail
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Calld.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
-            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" \
-            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             archive | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"
 
@@ -132,21 +168,27 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
             <key>teamID</key><string>$TEAM</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$BUNDLE_ID</key><string>${{ steps.sign.outputs.app_profile }}</string>
+              <key>$BUNDLE_ID.widget</key><string>${{ steps.sign.outputs.widget_profile }}</string>
+            </dict>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           PLIST
           set -o pipefail
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Calld.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
             -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
             -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" | tee export.log | grep -E "error|Upload|EXPORT (SUCCEEDED|FAILED)"
           echo "::notice title=Uploaded::Build ${{ github.run_number }} is processing in App Store Connect. It appears in TestFlight in about 10–30 minutes."
 
-      - name: Remove the API key
+      - name: Remove the API key and signing files
         if: always()
-        run: rm -rf "$RUNNER_TEMP/keys"
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/signing"
 
       - if: failure()
         uses: actions/upload-artifact@v4
