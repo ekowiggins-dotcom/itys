@@ -14,9 +14,9 @@ Every change to `ios/`, `app/` or `lib/` is compiled on a GitHub-hosted Mac by `
 ## One-time Apple setup
 
 1. Join the Apple Developer Program.
-2. Create an **App ID** with bundle ID `app.calld.ios` (or your own) and enable **Push Notifications**, **App Groups**, **Associated Domains** and **Sign in with Apple**. Create App Group `group.app.calld.ios`.
-3. Create a second App ID `app.calld.ios.widget` with the same App Group.
-4. **Sign in with Apple on the web:** Identifiers → + → **Services IDs**, e.g. `app.calld.web`. Enable Sign in with Apple, choose the App ID above as primary, and add your web domain (e.g. `itys-production.up.railway.app`) and return URL `https://<that domain>/`.
+2. Create an **App ID** with bundle ID `app.wholl.ios` (or your own) and enable **Push Notifications**, **App Groups**, **Associated Domains** and **Sign in with Apple**. Create App Group `group.app.wholl.ios`.
+3. Create a second App ID `app.wholl.ios.widget` with the same App Group.
+4. **Sign in with Apple on the web:** Identifiers → + → **Services IDs**, e.g. `app.wholl.web`. Enable Sign in with Apple, choose the App ID above as primary, and add your web domain (e.g. `itys-production.up.railway.app`) and return URL `https://<that domain>/`.
 5. Create an **APNs key** (Keys → +, Apple Push Notifications service). Download the `.p8` once and note its Key ID and your Team ID.
 
 ## Server settings (Railway variables)
@@ -26,8 +26,8 @@ Every change to `ios/`, `app/` or `lib/` is compiled on a GitHub-hosted Mac by `
 | `APNS_TEAM_ID` | Your 10-character Team ID |
 | `APNS_KEY_ID` | The APNs key's ID |
 | `APNS_KEY` | The full contents of the `.p8` file (newlines may be written as `\n`) |
-| `IOS_BUNDLE_ID` | `app.calld.ios` |
-| `APPLE_SERVICES_ID` | The Services ID from step 4, e.g. `app.calld.web`. Shows the Sign in with Apple button on the web |
+| `IOS_BUNDLE_ID` | `app.wholl.ios` |
+| `APPLE_SERVICES_ID` | The Services ID from step 4, e.g. `app.wholl.web`. Shows the Sign in with Apple button on the web |
 | `APP_STORE_URL` | The app's App Store link, once it's live. After saving with Apple on the web, people go straight there |
 
 **Sign in with Apple** keeps one account across the web and the app: someone picks from a link on the web, saves with Apple, installs the app, signs in with Apple again, and their group and pick are there. The server checks Apple's token for either the Services ID (web) or `IOS_BUNDLE_ID` (app).
@@ -51,7 +51,7 @@ If you use a different bundle ID, set `IOS_BUNDLE_ID` for both the build command
 
 `.github/workflows/testflight.yml` builds, signs and uploads the app from a GitHub-hosted Mac.
 
-1. **App Store Connect → Apps → +:** create the app (bundle ID `app.calld.ios`, name Calld). The App IDs and App Group from *One-time Apple setup* must exist first.
+1. **App Store Connect → Apps → +:** create the app (bundle ID `app.wholl.ios`, name Who’ll). The App IDs and App Group from *One-time Apple setup* must exist first.
 2. **Users and Access → Integrations → App Store Connect API → +:** create a key with the **Admin** role, so Xcode can create signing certificates and profiles in the cloud. Download the `.p8` once; note the Key ID and Issuer ID.
 3. **GitHub → Settings → Secrets and variables → Actions:**
    - Secrets: `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the whole `.p8` file, including the BEGIN/END lines).

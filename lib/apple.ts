@@ -17,7 +17,7 @@ export async function verifyAppleToken(idToken:string,opts:{audiences?:string[];
  const header=JSON.parse(b64(parts[0]).toString()),payload=JSON.parse(b64(parts[1]).toString());
  const jwk=(opts.keys||await appleKeys()).find(k=>k.kid===header.kid);if(!jwk||header.alg!=='RS256')throw new AppleError('That Apple sign-in didn’t work. Try again.');
  const ok=createVerify('RSA-SHA256').update(parts[0]+'.'+parts[1]).verify(createPublicKey({key:jwk as unknown as import('node:crypto').JsonWebKey,format:'jwk'}),b64(parts[2]));
- const audiences=opts.audiences||[process.env.APPLE_SERVICES_ID,process.env.IOS_BUNDLE_ID||'app.calld.ios'].filter(Boolean) as string[];
+ const audiences=opts.audiences||[process.env.APPLE_SERVICES_ID,process.env.IOS_BUNDLE_ID||'app.wholl.ios'].filter(Boolean) as string[];
  const now=(opts.now??Date.now())/1000;
  if(!ok||payload.iss!=='https://appleid.apple.com'||!audiences.includes(payload.aud)||!(payload.exp>now)||typeof payload.sub!=='string')throw new AppleError('That Apple sign-in didn’t work. Try again.');
  return{sub:payload.sub};

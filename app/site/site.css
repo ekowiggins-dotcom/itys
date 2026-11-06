@@ -11,8 +11,8 @@
 .s-hero{background:var(--violet);padding:0 20px 56px;position:relative;overflow:hidden}
 .s-hero:before{content:'';position:absolute;right:-180px;top:-220px;width:620px;height:620px;border-radius:50%;background:rgba(255,255,255,.2);pointer-events:none}
 .s-nav{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;padding:18px 0;position:relative}
-.s-mark{font:700 22px 'Space Grotesk',sans-serif;letter-spacing:-.04em;text-decoration:none;background:var(--ink);color:var(--lime)!important;border-radius:99px;padding:4px 14px 6px}
-.s-mark.small{font-size:17px}
+.s-mark{display:block;text-decoration:none}.s-mark img{display:block;height:30px;width:auto}
+.s-mark.small img{height:22px}
 .s-lang{background:transparent;border:1.5px solid rgba(23,32,27,.35);border-radius:99px;padding:7px 14px;font:600 14px 'DM Sans',sans-serif;color:var(--ink)}
 .s-hero-in{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:36px;position:relative;padding-top:24px}
 .s-group{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;margin:0 0 14px}.s-group i{width:12px;height:12px;border-radius:50%;background:var(--ink)}

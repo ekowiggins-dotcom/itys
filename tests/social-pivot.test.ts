@@ -4,10 +4,10 @@ const dir=await mkdtemp(join(tmpdir(),'pivot-'));process.env.PREDICTION_DATA_DIR
 const {db}=await import('../lib/db');const {execute,view}=await import('../lib/service');
 after(async()=>{await(await db()).close();await rm(dir,{recursive:true,force:true})});
 
-test('Calld is social: new groups are friends groups and football can’t be switched on from the app',async()=>{
+test('Who’ll is social: new groups are friends groups and football can’t be switched on from the app',async()=>{
  const a=await execute({action:'create',name:'Arda',groupName:'Agalar',groupType:'Football'});
  const v=await view(a.invite!,a.session);assert.equal((v.group as {group_type?:string}).group_type,'Friends','asking for football still makes a friends group');
- await assert.rejects(execute({action:'footballSettings',invite:a.invite,groupType:'Football',timezone:'Europe/Istanbul',country:'TR',leagues:[203]},a.session),/Football isn’t part of Calld/);
+ await assert.rejects(execute({action:'footballSettings',invite:a.invite,groupType:'Football',timezone:'Europe/Istanbul',country:'TR',leagues:[203]},a.session),/Football isn’t part of Who’ll/);
 });
 
 test('the pivot migration turns football groups into friends groups and takes down open matches',async()=>{

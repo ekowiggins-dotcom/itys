@@ -53,7 +53,7 @@ struct SidebetWidgetView: View {
 
     var body: some View {
         content
-            .widgetURL(URL(string: "calld://open?invite=" + (entry.state?.invite ?? "")))
+            .widgetURL(URL(string: "wholl://open?invite=" + (entry.state?.invite ?? "")))
             .modifier(Background())
     }
 
@@ -86,7 +86,7 @@ struct SidebetWidgetView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                Text("calld ↗").font(.headline).foregroundStyle(lime)
+                Text("who’ll ↗").font(.headline).foregroundStyle(lime)
                 Text("Open the app to join your group.").font(.caption).foregroundStyle(.white)
             }
         }

@@ -35,6 +35,6 @@ export function shareText(card:ShareCard,url:string,from?:string){
  if(card.kind==='invite')return `${from?from+' invited you to ':'Join '}${card.groupName} on ${BRAND_NAME}. Free, no money, just calls. ${url}`;
  return `${card.title} ${card.subtitle==='SHARED WEEKLY WIN'?'are this week’s oracles':'is this week’s oracle'} in ${card.groupName}!\n${card.detail}\n${card.footer}\n${url}`;
 }
-/** Short link: https://calld.app/c/k7Qm2xa */
+/** Short link: https://wholl.app/c/k7Qm2xa */
 export function shortLink(origin:string,code:string){const parsed=new URL(origin);if(!['http:','https:'].includes(parsed.protocol))throw Error('A web URL is required.');return parsed.origin+'/c/'+code}
 export function whatsappLink(text:string){return 'https://wa.me/?text='+encodeURIComponent(text)}

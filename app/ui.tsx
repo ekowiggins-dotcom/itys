@@ -2,10 +2,28 @@
 import {teamColors,teamCode} from '../lib/team-colors';
 import {useEffect,useRef} from 'react';
 import {avatarColor,initials} from '../lib/avatar';
-// Small shared pieces of the Calld look: faces, icons and bottom sheets.
+// Small shared pieces of the Who’ll look: faces, icons and bottom sheets.
 
 export function Face({name,size=28,ring='#FFFFFF',me=false}:{name:string;size?:number;ring?:string;me?:boolean}){
  return <span className={'c-face'+(me?' me':'')} title={name} style={{width:size,height:size,background:avatarColor(name),borderColor:ring,fontSize:Math.round(size*0.4)}} aria-hidden="true">{initials(name)}</span>;
+}
+/** The Who’ll wordmark: light on dark screens, ink on light ones. */
+export function Wordmark({on='dark',h=24}:{on?:'dark'|'light';h?:number}){return <img className="c-wordmark" src={on==='dark'?'/brand/wordmark-light.svg':'/brand/wordmark.svg'} alt="Who’ll" style={{height:h,width:'auto',display:'block'}}/>}
+/** The called-it stamp: Who’ll on top, CALLED IT below, the day you called it in the middle. Same drawing as the brand stamp. */
+export function CalledStamp({at,size=150,color='#E2462A',className=''}:{at:string|number;size?:number;color?:string;className?:string}){
+ const d=new Date(at),date=d.toLocaleDateString('en-GB',{day:'2-digit'})+' '+d.toLocaleDateString('en-GB',{month:'short'}).slice(0,3).toUpperCase(),id='st'+Math.round(d.getTime()/1000);
+ return <svg className={'c-stamp '+className} viewBox="0 0 600 600" width={size} height={size} role="img" aria-label={'Called it on '+d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}>
+  <defs><filter id={id+'f'} x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" result="warp"/><feDisplacementMap in="SourceGraphic" in2="warp" scale="5" result="w"/><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="11" result="grain"/><feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -5 0 0 0 3.6" result="holes"/><feComposite in="w" in2="holes" operator="in"/></filter>
+   <path id={id+'t'} d="M92,300 A208,208 0 0 1 508,300" fill="none"/><path id={id+'b'} d="M60,300 A240,240 0 0 0 540,300" fill="none"/></defs>
+  <g filter={`url(#${id}f)`} transform="rotate(-8 300 300)" fill={color} style={{fontFamily:"'Space Grotesk',sans-serif",fontWeight:700}}>
+   <circle cx="300" cy="300" r="272" fill="none" stroke={color} strokeWidth="16"/><circle cx="300" cy="300" r="258" fill="none" stroke={color} strokeWidth="4"/><circle cx="300" cy="300" r="176" fill="none" stroke={color} strokeWidth="5"/>
+   <text fontSize="52" letterSpacing="14"><textPath href={'#'+id+'t'} startOffset="50%" textAnchor="middle">WHO’LL</textPath></text>
+   <text fontSize="40" letterSpacing="10" dy="-6"><textPath href={'#'+id+'b'} startOffset="50%" textAnchor="middle">CALLED IT</textPath></text>
+   <circle cx="91" cy="411" r="9"/><circle cx="509" cy="411" r="9"/>
+   <rect x="196" y="244" width="208" height="6"/><rect x="196" y="380" width="208" height="6"/>
+   <text x="300" y="330" fontSize="80" textAnchor="middle" letterSpacing="-2">{date}</text>
+   <text x="300" y="368" fontSize="24" textAnchor="middle" letterSpacing="12">{d.getFullYear()}</text>
+  </g></svg>;
 }
 /** Overlapping faces, with "+3" when there are more than fit. */
 export function Faces({names,size=26,ring='#FFFFFF',max=6}:{names:string[];size?:number;ring?:string;max?:number}){

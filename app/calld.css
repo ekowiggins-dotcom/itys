@@ -1,4 +1,4 @@
-/* Calld v2: ink, paper, lime. Faces everywhere, sheets for actions, whole numbers only. */
+/* Who’ll: ink, paper, lime. Faces everywhere, sheets for actions, whole numbers only. */
 :root{--ink:#17201B;--ink2:#2B362F;--paper:#F5F3EC;--card:#FFFFFF;--line:#E4E2D8;--line2:#D9D6CA;--muted:#5E675F;--soft:#C8D0C4;--lime:#D7F25A;--green:#D7F25A;--coral:#FF6B4A;--soon-bg:#FFE4DC;--soon:#A1300F;--later-bg:#ECE9FF;--later:#4B32B8;--tabbar:76px}
 body{background:var(--paper);color:var(--ink)}
 body.c-locked{overflow:hidden}
@@ -629,3 +629,8 @@ header.c-top>*{position:relative;z-index:1}
 @media (prefers-reduced-motion:reduce){.c-reveal-face{animation:none}}
 .c-btn.lime{background:var(--lime)!important;color:var(--ink)!important;margin-bottom:14px}
 .c-reveal-line{margin:6px 0 10px;font:700 17px 'Space Grotesk',sans-serif;color:var(--lime)}
+/* The called-it stamp lands on your win. */
+.c-result{position:relative}
+.c-stamp.slam{position:absolute;top:52px;right:22px;z-index:2;animation:c-slam .45s cubic-bezier(.3,1.6,.5,1) .35s both;pointer-events:none}
+@keyframes c-slam{from{transform:scale(2.2) rotate(14deg);opacity:0}60%{opacity:1}to{transform:scale(1) rotate(0);opacity:.95}}
+@media (prefers-reduced-motion:reduce){.c-stamp.slam{animation:none;opacity:.95}}
