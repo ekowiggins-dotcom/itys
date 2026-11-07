@@ -78,10 +78,11 @@ export async function execute(input:unknown,token?:string,now=new Date()):Promis
 }
 /** The groups this person is in, most recently used first: for the group switcher and the start screen. Read-only. */
 export async function myGroups(token?:string){
- const user=await identity(token);if(!user)return {me:null,groups:[]};
+ const user=await identity(token);if(!user)return {me:null,linked:false,groups:[]};
  const groups=(await(await db()).query<{invite:string;name:string;color:string|null;members:number}>(`SELECT g.invite,g.name,g.color,(SELECT count(*)::int FROM members x WHERE x.group_id=g.id AND x.active) members
   FROM members m JOIN groups g ON g.id=m.group_id WHERE m.user_id=$1 AND m.active ORDER BY m.last_active_at DESC NULLS LAST,m.joined_at DESC LIMIT 50`,[user.id])).rows;
- return {me:user.name,groups};
+ const linked=!!(await(await db()).query('SELECT 1 FROM users WHERE id=$1 AND apple_sub IS NOT NULL',[user.id])).rows.length;
+ return {me:user.name,linked,groups};
 }
 export async function view(invite:string,token?:string,selectedRound?:string,now=new Date()){
  const d=await db(),user=await identity(token);if(user)await d.query('UPDATE members SET last_active_at=GREATEST(last_active_at,$3) WHERE user_id=$1 AND group_id IN(SELECT id FROM groups WHERE invite=$2) AND active',[user.id,invite,now]);await reconcile(invite,now);
@@ -89,7 +90,7 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  const group=(await tx.query<{practice:boolean;id:string;name:string;opens_at:Date|null;next_round_at:Date|null;fallback_id:string|null;group_type:GroupType;timezone:string;leagues:number[];pending_settings:unknown;color:string|null;lang:string;pending_names:string[]}>('SELECT id,name,opens_at,next_round_at,fallback_id,group_type,timezone,leagues,country,pending_settings,practice,share_code,color,lang,pending_names,instant FROM groups WHERE invite=$1',[invite])).rows[0];check(group,'This invite link was not found.');
  const members=Number((await tx.query<{count:string}>('SELECT count(*) FROM members WHERE group_id=$1 AND active',[group.id])).rows[0].count);
  const joined=!!user&&(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[group.id,user.id])).rows.length>0;
- if(!joined){const me=user?.name||null;const memberNames=(await tx.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at LIMIT 30',[group.id])).rows.map(r=>r.name);return {me,memberNames,pendingNames:group.pending_names||[],timing:undefined,moderation:undefined,group:{name:group.name,color:group.color,lang:group.lang},members,joined:false,user,questions:[],used:0,rounds:[],selectedRound:undefined,currentRoundId:undefined,roundScores:[],snapshots:[],audit:[],bets:[],alerts:[],seasons:[],seasonStandings:[],groupMembers:[],suggestions:[],fixtureCatalog:[],leagueCatalog:[],feedStatus:undefined,longTermCount:0,notifications:[],notificationPreferences:undefined,notificationUsage:undefined};}
+ if(!joined){const me=user?.name||null,linked=!!user&&!!(await tx.query('SELECT 1 FROM users WHERE id=$1 AND apple_sub IS NOT NULL',[user.id])).rows.length;const memberNames=(await tx.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at LIMIT 30',[group.id])).rows.map(r=>r.name);return {me,linked,memberNames,pendingNames:group.pending_names||[],timing:undefined,moderation:undefined,group:{name:group.name,color:group.color,lang:group.lang},members,joined:false,user,questions:[],used:0,rounds:[],selectedRound:undefined,currentRoundId:undefined,roundScores:[],snapshots:[],audit:[],bets:[],alerts:[],seasons:[],seasonStandings:[],groupMembers:[],suggestions:[],fixtureCatalog:[],leagueCatalog:[],feedStatus:undefined,longTermCount:0,notifications:[],notificationPreferences:undefined,notificationUsage:undefined};}
  await ensureShareCodes(tx,group.id);(group as {share_code?:string}).share_code=(await tx.query<{share_code:string}>('SELECT share_code FROM groups WHERE id=$1',[group.id])).rows[0].share_code;
  const rounds=await weeklyViews(tx,group.id);
  const current=rounds.find(r=>['live','provisional','waiting_feed'].includes(r.state)&&new Date(r.pick_end_at)>=now)||rounds[0];

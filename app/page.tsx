@@ -26,6 +26,7 @@ import {LEVELS as CAREER_LEVELS,type Career} from '../lib/career';
 import {setGroupOrder} from '../lib/avatar';
 import type {SeasonView} from './SeasonsPanel';
 import {GroupList,GroupsSheet,InviteBox,type MyGroup} from './Groups';
+import GetApp from './GetApp';
 import {parseInvite} from '../lib/invite-input';
 
 type Preview={answer_type?:string;pickedYou?:Record<string,number>;answers?:{value:string;label:string}[];kickoff?:string|null;id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
@@ -54,14 +55,29 @@ export default function Home(){
  const [plusOpen,setPlusOpen]=useState(false),[firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState<''|'any'|MomentKind>(''),[ceremony,setCeremony]=useState(''),[createdMoment,setCreatedMoment]=useState('');
  const [setupFriends,setSetupFriends]=useState<string[]>([]),[setupColor,setSetupColor]=useState<string>(GROUP_COLORS.coral),[firstCall,setFirstCall]=useState(false);
  const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
- const [groupsOpen,setGroupsOpen]=useState(false),[mine,setMine]=useState<{me:string|null;groups:MyGroup[]}|null>(null);
+ const [groupsOpen,setGroupsOpen]=useState(false),[mine,setMine]=useState<{me:string|null;linked?:boolean;groups:MyGroup[]}|null>(null),[webGate,setWebGate]=useState(false);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
+ /** In the app every account is saved with Apple, so nothing lives only on one phone. Joining or starting a group goes through
+  Sign in with Apple first: an Apple ID that already has an account switches this phone to it; a new one is attached right after. */
+ async function withApple(run:()=>Promise<boolean>){
+  if(!NATIVE||mine?.linked||(data as {linked?:boolean}|null)?.linked)return run();
+  let token:string|null;try{token=await appleIdToken(null)}catch(e){setError((e as Error).message);return false}
+  if(!token){setNotice(L('Sign in with Apple to continue. It keeps your calls if you change phones.','Devam etmek için Apple ile giriş yap. Telefon değiştirsen de tahminlerin kaybolmaz.'));return false}
+  const post=async(body:object)=>{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return {ok:r.ok,d:await r.json() as {session?:string;invite?:string;error?:string;code?:string}}};
+  const found=await post({action:'appleSignIn',idToken:token});
+  if(found.ok){if(found.d.session)await setSession(found.d.session);return run()}
+  if(found.d.code!=='no_account'){setError(found.d.error||'');return false}
+  const ok=await run();if(!ok)return false;
+  const link=await post({action:'appleSignIn',idToken:token});
+  if(!link.ok){setError(link.d.error||'');return true}
+  if(link.d.session)await setSession(link.d.session);if(link.d.invite)await load(link.d.invite).catch(()=>{});return true;
+ }
  async function loadGroups(){try{const r=await api('/api?groups');if(r.ok)setMine(await r.json())}catch{}}
  const goGroup=(code:string)=>{location.href='/?invite='+encodeURIComponent(code)};
 
  async function load(code:string){const r=await api('/api?invite='+encodeURIComponent(code)+(selectedRound.current?'&round='+encodeURIComponent(selectedRound.current):'')+(focusRef.current?'&question='+encodeURIComponent(focusRef.current):''));const d=await r.json();if(!r.ok)throw Error(d.error);setData(d);void rememberInvite(code);}
  const focusRef=useRef('');
- useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null});setFootballOn(!!c.football)}).catch(()=>{})},[]);
+ useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null});setFootballOn(!!c.football);setWebGate(!!c.webGate)}).catch(()=>{})},[]);
  useEffect(()=>{setOrigin(webOrigin());void (async()=>{const params=new URLSearchParams(location.search);focusRef.current=params.get('question')||'';setFocusQuestion(focusRef.current);if(params.get('view')==='winner')setTab('ranking');const code=params.get('invite')||(params.get('new')?'':await lastInvite())||'';selectedRound.current=params.get('round')||'';setInvite(code);if(code)await load(code).catch(e=>setError(e.message));setLoading(false);if(NATIVE)void initNative({onOpen:url=>{void openLink(url)}});})()},[]);
  async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);next.searchParams.delete('new');history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(d.momentId)setCreatedMoment(d.momentId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
  useEffect(()=>{if(!loading&&!invite)void loadGroups()},[loading,invite]);
@@ -134,7 +150,7 @@ export default function Home(){
  function openShareMoment(m:Moment){if(!origin||!m.share_code)return;const url=shortLink(origin,m.share_code);const tr=((data!.group as {lang?:string}).lang)==='tr';const done=momentView(m,calls,Date.now(),me).status==='done';
   setSharing({title:done?t('Share the result'):t('Send it to the group'),url,text:done?(tr?`${m.title}: kâhin belli oldu 🔮 ${url}`:`${m.title}: the oracle is in 🔮 ${url}`):(tr?`${m.title} 🎉 Tahminini yap 👀 ${url}`:`${m.title} 🎉 Make your calls 👀 ${url}`),preview:<img className="c-card-image" alt="" src={origin+'/share/image?c='+m.share_code+'&v='+Date.now()}/>})}
  function nextLockAt(){const t=[...calls.filter(c=>c.state==='open'&&!c.fixture_id).map(c=>Date.parse(c.locks_at)),...(data?.questions||[]).filter(q=>(q.market||'custom')!=='custom').map(q=>Date.parse(q.locks_at))].filter(x=>x>clock).sort((a,b)=>a-b);return t[0]}
- async function joinAndPick(name:string,answer:string,p:Preview|null){if(p)focused.current=p.id;const joined=await act({action:'join',name});if(!joined)return;if(!p||!answer){setNotice(t('You’re in. Let’s make it interesting.'));return;}const ok=await act(p.scope==='longterm'?{action:'predictLongterm',questionId:p.id,answer}:{action:'predict',questionId:p.id,answer});if(ok&&!NATIVE&&canApple){setSaving(true);return}setNotice(ok?t('You’re in, and your call is saved.'):t('You’re in. That call isn’t taking picks right now.'));}
+ async function joinAndPick(name:string,answer:string,p:Preview|null){if(p)focused.current=p.id;const joined=await withApple(()=>act({action:'join',name}));if(!joined)return;if(!p||!answer){setNotice(t('You’re in. Let’s make it interesting.'));return;}const ok=await act(p.scope==='longterm'?{action:'predictLongterm',questionId:p.id,answer}:{action:'predict',questionId:p.id,answer});if(ok&&!NATIVE&&canApple){setSaving(true);return}setNotice(ok?t('You’re in, and your call is saved.'):t('You’re in. That call isn’t taking picks right now.'));}
  const canApple=NATIVE||!!apple.servicesId;
  /** Sign in with Apple: saves this account (web) or finds it (app, new phone). On the web, then on to the App Store. */
  async function signInApple(){try{const idToken=await appleIdToken(apple.servicesId);if(!idToken)return;if(!await act({action:'appleSignIn',idToken}))return;setSaving(false);if(!NATIVE&&apple.storeUrl){location.href=apple.storeUrl;return}setNotice(NATIVE?t('You’re back in.'):t('Saved. Sign in with Apple in the app and your calls are there.'))}catch(e){setError((e as Error).message)}}
@@ -145,6 +161,9 @@ export default function Home(){
  setLang(data?((data.group as {lang?:string}).lang==='tr'?'tr':'en'):deviceLang);
  if(loading)return <main className="c-loading" role="status"><Wordmark h={40}/></main>;
 
+ const gated=!NATIVE&&webGate;
+ // Web, once the app is out: the start screen points to the app.
+ if(gated&&!invite&&!loading)return <GetApp picked={false} linked={!!mine?.linked} canApple={canApple} storeUrl={apple.storeUrl} busy={busy} onApple={()=>void signInApple()} notice={notice} error={error}/>;
  // Landing: start a group.
  if(!invite)return <main className="c-landing">
   <div className="c-landing-top"><Wordmark on="light" h={34}/><span className="c-pill">{t('Free. No money. Ever.')}</span></div>
@@ -152,7 +171,7 @@ export default function Home(){
   <p className="c-lead">{t('Make calls about your friends and your plans. See who said what when picks close. The fewer friends who saw it coming, the more you score.')}</p>
   {!!mine?.groups.length&&<section className="c-landing-groups"><h2>{L('Your groups','Grupların')}</h2><GroupList groups={mine.groups} onOpen={goGroup}/></section>}
   <InviteBox busy={busy} onOpen={openPasted}/>
-  <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice,friends:setupFriends,color:setupColor,lang:uiLang(),startNow:!practice};if(!practice&&f.get('groupType'))payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void act(payload).then(ok=>{if(ok&&!practice)setFirstCall(true)});}}>
+  <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice,friends:setupFriends,color:setupColor,lang:uiLang(),startNow:!practice};if(!practice&&f.get('groupType'))payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void withApple(()=>act(payload)).then(ok=>{if(ok&&!practice)setFirstCall(true)});}}>
    <h2>{t('Start your group')}</h2>
    <label>{t('Your name')}<input name="name" required maxLength={60} placeholder={t("What do your friends call you?")} autoComplete="given-name"/></label>
    <label>{t('Group name')}<input name="groupName" required maxLength={60} placeholder={t("Agalar, the flat, uni crew…")}/></label>
@@ -161,7 +180,7 @@ export default function Home(){
    {footballOn&&<label>{t('What will you call?')}<select name="groupType" defaultValue="Friends"><option value="Friends">{t('Our own calls')}</option><option value="Football">{t('Football matches')}</option><option value="Mixed">{t('Both')}</option></select></label>}
    {practiceAllowed&&<label className="c-check"><input type="checkbox" name="practice" value="1"/><span><b>{t('Practice group')}</b><small>{t('For testing: a whole week in an hour.')}</small></span></label>}
    <button className="c-btn" disabled={busy}>{t('Create group')} <Icon name="arrow"/></button>
-   <small>{t('Starts right away. Points are free and can’t be bought or cashed out. For players aged 18 and over.')}</small>
+   <small>{NATIVE&&!mine?.linked?L('You’ll sign in with Apple next, so your calls are never lost. ','Ardından Apple ile giriş yapacaksın, tahminlerin hiç kaybolmaz. '):''}{t('Starts right away. Points are free and can’t be bought or cashed out. For players aged 18 and over.')}</small>
   </form>
   {canApple&&<div className="c-signin"><small>{t('Already made a call?')}</small><AppleButton busy={busy} onClick={()=>void signInApple()}/></div>}
   <LegalLinks/>
@@ -171,6 +190,8 @@ export default function Home(){
  if(!data)return <main className="c-landing">{error&&<p className="c-toast error" role="alert">{error}</p>}</main>;
 
  // Opened from a link, not in the group yet: the call comes first.
+ // Web, once the app is out: after joining (and that first pick) the rest happens in the app.
+ if(gated&&data.joined)return <GetApp group={data.group.name} picked={!!focusQuestion||!!focused.current} linked={!!(data as {linked?:boolean}).linked} canApple={canApple} storeUrl={apple.storeUrl} busy={busy} onApple={()=>void signInApple()} notice={notice} error={error}/>;
  if(!data.joined)return <JoinScreen data={data} busy={busy} clock={clock} onJoin={joinAndPick} error={error} notice={notice}/>;
 
  const practice=!!data.group.practice;
@@ -308,7 +329,7 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
    {known?<p className="c-join-known">{L('You’ll join as ','Şu isimle katılacaksın: ')}<b>{known}</b></p>:(!pending.length||other)?<><label htmlFor="join-name">{t('What do your friends call you?')}</label>
    <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder={t("Your name")} autoComplete="given-name"/></>:null}
    <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?t('I’m in: ')+(opts.find(o=>o.value===answer)?.label||label(answer)):t('Pick an answer first')):name.trim()?L('Join as '+name.trim(),name.trim()+' olarak katıl'):t('Tap your name')}</button>
-   <small>{t('No sign-up. Free: points are only for being right, never bought or cashed out. 18+.')}</small>
+   <small>{NATIVE&&!(data as {linked?:boolean}).linked?L('You’ll sign in with Apple to join, so your calls are never lost. ','Katılmak için Apple ile giriş yapacaksın, tahminlerin hiç kaybolmaz. '):t('No sign-up. ')}{t('Free: points are only for being right, never bought or cashed out. 18+.')}</small>
   </form>
   {error&&<p className="c-toast error" role="alert">{error}</p>}{notice&&<p className="c-toast" role="status">{notice}</p>}
  </main>;
