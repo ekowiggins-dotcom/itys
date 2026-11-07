@@ -1,7 +1,7 @@
 'use client';
 import {revealHeadline} from '../lib/reveal';
 import {t,L,lang} from './i18n';
-import {Face,Faces,Icon,Badge,Split,Crest} from './ui';
+import {Face,Faces,Icon,Badge,Split,Tally,Crest} from './ui';
 import {type Call,type Sections,type Snapshot,answersOf,label,reveal,outcome} from './calls';
 import {countdown,when} from './format';
 import {useState} from 'react';
@@ -58,8 +58,9 @@ function MatchTurnCard({c,ctx,act,first}:{c:Call;ctx:Ctx;act:Act;first:boolean})
 export function InRow({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
  const about=c.subject_id===ctx.me;const long=c.scope==='longterm';
  return <article className="c-row">
-  <div className="c-row-main">{c.match&&<span className="c-row-kick">{byLine(c,ctx)}</span>}<h3>{c.text}</h3>{c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} compact/>}<p>{about?t('It’s about you, so you sit this one out'):long?(c.answer?t('You said ')+label(c.answer,c):'')+' · '+(c.picked||0)+L(' in',' kişi'):t('You said ')+label(c.answer||'',c)+' · '+(c.picked||0)+L(' in',' kişi')}</p></div>
+  <div className="c-row-main">{c.match&&<span className="c-row-kick">{byLine(c,ctx)}</span>}<h3>{c.text}</h3>{!c.split&&<p>{about?t('It’s about you, so you sit this one out'):c.answer?t('You said ')+label(c.answer,c):''}</p>}</div>
   <div className="c-row-side">{long?<Badge tone="later">{knowIn(c)}</Badge>:<Badge tone="neutral">{c.match?t('Kick-off ')+when(c.locks_at,ctx.now):closes(c,ctx.now)}</Badge>}<div className="c-row-actions"><ShareButton c={c} act={act}/>{!about&&ctx.now<Date.parse(c.locks_at)&&<button className="c-chip" onClick={()=>act.pick(c)}>{t('Change')}</button>}</div></div>
+  {c.split&&<Tally answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} picked={c.picked||0} of={Math.max(c.picked||0,ctx.activeIds.size-(c.subject_id?1:0))}/>}
   <SettledBy c={c} ctx={ctx} act={act}/>
  </article>;
 }
@@ -91,7 +92,7 @@ export function LaterCard({c,ctx,act}:{c:Call;ctx:Ctx;act:Act}){
   <h3>{c.text}</h3>
   {c.split&&<Split answers={answersOf(c)} counts={c.split} mine={c.answer} label={a=>label(a,c)} compact/>}
   <SettledBy c={c} ctx={ctx} act={act}/>
-  <div className="c-later-foot"><span>{c.subject_id===ctx.me?t('About you · sitting out'):c.answer?<>{t('You said')} <b>{label(c.answer,c)}</b></>:t('You didn’t pick')} · {c.picked||0} in</span><span>{open?<button className="c-chip" onClick={()=>act.pick(c)}>{c.answer?t('Change'):t('Pick')}</button>:t('Picks closed')}</span></div>
+  <div className="c-later-foot"><span>{c.subject_id===ctx.me?t('About you · sitting out'):c.answer?<>{t('You said')} <b>{label(c.answer,c)}</b></>:t('You didn’t pick')} · {L((c.picked||0)+' picked',(c.picked||0)+' kişi seçti')}</span><span>{open?<button className="c-chip" onClick={()=>act.pick(c)}>{c.answer?t('Change'):t('Pick')}</button>:t('Picks closed')}</span></div>
  </article>;
 }
 

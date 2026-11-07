@@ -60,11 +60,22 @@ export function Badge({tone,children}:{tone:'soon'|'later'|'locked'|'done'|'neut
 /** Answers, not people: the split uses ink shades (your answer in lime), never face colours, so nobody reads a dot as a friend. */
 const SPLIT_COLORS=['#17201B','#6B746C','#A3ABA4','#CDD2CA'];const splitColor=(a:string,i:number,mine?:string|null)=>a===mine?'#D7F25A':SPLIT_COLORS[i%4];
 /** How the group is split, without names: a stacked bar, then one row of dots per answer. */
+/** The live tally on a call card: the leading answers with their share, yours in lime, and how many have picked. */
+export function Tally({answers,counts,mine,label,picked,of}:{answers:string[];counts:Record<string,number>;mine?:string|null;label:(a:string)=>string;picked:number;of:number}){
+ const total=answers.reduce((n,a)=>n+(counts[a]||0),0);if(!total)return null;
+ const ranked=answers.filter(a=>counts[a]).sort((x,y)=>(counts[y]||0)-(counts[x]||0)||(x===mine?-1:y===mine?1:0));
+ const shown=ranked.slice(0,3);if(mine&&counts[mine]&&!shown.includes(mine))shown[2]=mine;
+ const more=ranked.length-shown.length,pct=(a:string)=>Math.round(100*(counts[a]||0)/total);
+ return <div className="c-tally" aria-label={shown.map(a=>label(a)+' '+pct(a)+'%').join(', ')}>
+  {shown.map(a=><div key={a} className={'c-tally-row'+(a===mine?' mine':'')}><span className="c-tally-label"><span>{label(a)}</span>{a===mine&&<em>{L('you','sen')}</em>}</span><span className="c-tally-track"><i style={{width:pct(a)+'%'}}/></span><b>{pct(a)}%</b></div>)}
+  <span className="c-tally-foot">{more>0?L(`+${more} more · `,`+${more} seçenek daha · `):''}{picked>=of&&of>1?L('Everyone’s in','Herkes seçti'):L(`${picked} of ${of} picked`,`${of} kişiden ${picked} seçti`)}</span>
+ </div>;
+}
 export function Split({answers,counts,mine,label,compact=false}:{answers:string[];counts:Record<string,number>;mine?:string|null;label:(a:string)=>string;compact?:boolean}){
  const total=answers.reduce((n,a)=>n+(counts[a]||0),0);if(!total)return null;
  return <div className={'c-split'+(compact?' compact':'')} aria-label={answers.map(a=>(counts[a]||0)+' said '+label(a)).join(', ')}>
   <div className="c-split-bar" aria-hidden="true">{answers.map((a,i)=>counts[a]?<i key={a} style={{flexGrow:counts[a],background:splitColor(a,i,mine)}}/>:null)}</div>
-  {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label"><span>{label(a)}</span>{a===mine&&<em>{L('you','sen')}</em>}</span><span className="c-split-track"><i style={{width:(total?Math.round(100*(counts[a]||0)/total):0)+'%',background:splitColor(a,i,mine)}}/></span><b>{counts[a]||0}</b></div>)}
+  {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label"><span>{label(a)}</span>{a===mine&&<em>{L('you','sen')}</em>}</span><span className="c-split-track"><i style={{width:(total?Math.round(100*(counts[a]||0)/total):0)+'%',background:splitColor(a,i,mine)}}/></span><b>{Math.round(100*(counts[a]||0)/total)}%<small>{counts[a]||0}</small></b></div>)}
   {compact&&<span className="c-split-legend" aria-hidden="true">{answers.filter(a=>counts[a]).map(a=>counts[a]+' said '+label(a)).join(' · ')}</span>}
  </div>;
 }

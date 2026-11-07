@@ -716,3 +716,17 @@ input.c-date{min-height:52px;height:52px;padding:0 14px;line-height:52px}
 /* On wide screens the + button sits at the edge of the content, not the screen. */
 @media (min-width:700px){.c-fab-row,.c-fab{right:calc(50vw - 300px + 16px)}}
 .c-sheet>*{flex-shrink:0}
+/* Live tally on a call card: ranked answers with their share. */
+.c-tally{display:flex;flex-direction:column;gap:6px;margin:8px 0 2px}
+.c-tally-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(40px,1fr) 40px;align-items:center;gap:10px}
+.c-tally-label{display:flex;align-items:center;gap:6px;min-width:0;font-size:14px;font-weight:700;white-space:nowrap}
+.c-tally-label>span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.c-tally-label em{flex:none;font-style:normal;font-size:10.5px;font-weight:700;background:var(--ink);color:#fff;border-radius:99px;padding:1px 6px}
+.c-tally-track{display:block;height:8px;border-radius:99px;background:#ECE9E0;overflow:hidden}
+.c-tally-track i{display:block;height:100%;border-radius:99px;background:#6B746C}
+.c-tally-row:first-child .c-tally-track i{background:var(--ink)}
+.c-tally-row.mine .c-tally-track i{background:var(--lime);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.c-tally-row b{font:700 15px 'Space Grotesk',sans-serif;text-align:right}
+.c-tally-foot{font-size:12.5px;font-weight:600;color:var(--muted);margin-top:2px}
+.c-split-row b{display:flex;align-items:baseline;gap:5px;justify-content:flex-end;min-width:64px}.c-split-row b small{font:600 12px 'DM Sans',sans-serif;color:var(--muted)}
+.c-row>.c-tally{flex-basis:100%;margin:0}
