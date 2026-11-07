@@ -665,3 +665,18 @@ main.c-getapp{min-height:100vh;max-width:560px;margin:0 auto;padding:calc(env(sa
 .c-getapp-steps b{font:700 17px/1.3 'Space Grotesk',sans-serif;padding-top:6px}
 .c-getapp-steps span{font-size:14.5px;color:var(--muted)}
 .c-getapp a.c-btn{text-decoration:none;display:flex;align-items:center;justify-content:center}
+/* One form: the "Seal it" switch in the new-call sheet, and date fields that never spill off iPhones. */
+.c-seal{display:flex;gap:12px;align-items:flex-start;background:#F3F0FF;border:1.5px solid #D9CFFF;border-radius:18px;padding:14px;cursor:pointer}
+.c-seal.on{border-color:var(--ink)}
+.c-seal input{position:absolute;opacity:0;pointer-events:none}
+.c-seal-box{flex:none;width:28px;height:28px;border-radius:9px;border:2px solid var(--ink);background:#fff;display:flex;align-items:center;justify-content:center;color:transparent}
+.c-seal.on .c-seal-box{background:var(--lime);color:var(--ink)}
+.c-seal input:focus-visible+.c-seal-box{outline:3px solid var(--ink);outline-offset:2px}
+.c-seal>span:last-child{display:flex;flex-direction:column;gap:3px;min-width:0}
+.c-seal b{font:700 16px 'Space Grotesk',sans-serif}.c-seal small{font-size:13.5px;line-height:1.45;color:var(--muted)}
+.c-seal-dates{display:flex;flex-direction:column;gap:12px}
+.c-seal-dates label{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:14px;min-width:0}
+input.c-date{display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;-webkit-appearance:none;appearance:none;background:#fff;color:var(--ink);text-align:left}
+input.c-date::-webkit-date-and-time-value{text-align:left}
+.c-sheet{overflow-x:hidden}
+.c-moment-top{flex-wrap:wrap;row-gap:8px}.c-moment-id{flex:1 1 60%}
