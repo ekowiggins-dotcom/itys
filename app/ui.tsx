@@ -2,10 +2,11 @@
 import {teamColors,teamCode} from '../lib/team-colors';
 import {useEffect,useRef} from 'react';
 import {avatarColor,initials} from '../lib/avatar';
+import {L} from './i18n';
 // Small shared pieces of the Who’ll look: faces, icons and bottom sheets.
 
 export function Face({name,size=28,ring='#FFFFFF',me=false}:{name:string;size?:number;ring?:string;me?:boolean}){
- return <span className={'c-face'+(me?' me':'')} title={name} style={{width:size,height:size,background:avatarColor(name),borderColor:ring,fontSize:Math.round(size*0.4)}} aria-hidden="true">{initials(name)}</span>;
+ return <span className={'c-face'+(me?' me':'')} title={name} style={{width:size,height:size,background:avatarColor(name),borderColor:ring,fontSize:Math.round(size*(size<34?0.46:0.4))}} aria-hidden="true">{size<34?Array.from(initials(name))[0]:initials(name)}</span>;
 }
 /** The Who’ll wordmark: light on dark screens, ink on light ones. */
 export function Wordmark({on='dark',h=24}:{on?:'dark'|'light';h?:number}){return <img className="c-wordmark" src={on==='dark'?'/brand/wordmark-light.svg':'/brand/wordmark.svg'} alt="Who’ll" style={{height:h,width:'auto',display:'block'}}/>}
@@ -56,13 +57,14 @@ export function Sheet({open,onClose,label,dark=false,children,full=false}:{open:
 
 export function Badge({tone,children}:{tone:'soon'|'later'|'locked'|'done'|'neutral';children:React.ReactNode}){return <span className={'c-badge '+tone}>{children}</span>}
 
-const SPLIT_COLORS=['#6FB7FF','#FF8A5B','#A98BFF','#4FD39A'];
+/** Answers, not people: the split uses ink shades (your answer in lime), never face colours, so nobody reads a dot as a friend. */
+const SPLIT_COLORS=['#17201B','#6B746C','#A3ABA4','#CDD2CA'];const splitColor=(a:string,i:number,mine?:string|null)=>a===mine?'#D7F25A':SPLIT_COLORS[i%4];
 /** How the group is split, without names: a stacked bar, then one row of dots per answer. */
 export function Split({answers,counts,mine,label,compact=false}:{answers:string[];counts:Record<string,number>;mine?:string|null;label:(a:string)=>string;compact?:boolean}){
  const total=answers.reduce((n,a)=>n+(counts[a]||0),0);if(!total)return null;
  return <div className={'c-split'+(compact?' compact':'')} aria-label={answers.map(a=>(counts[a]||0)+' said '+label(a)).join(', ')}>
-  <div className="c-split-bar" aria-hidden="true">{answers.map((a,i)=>counts[a]?<i key={a} style={{flexGrow:counts[a],background:SPLIT_COLORS[i%4]}}/>:null)}</div>
-  {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label">{label(a)}{a===mine&&<em>you</em>}</span><span className="c-split-dots">{Array.from({length:counts[a]||0},(_,k)=><i key={k} style={{background:SPLIT_COLORS[i%4]}} className={a===mine&&k===0?'me':''}/>)}</span><b>{counts[a]||0}</b></div>)}
+  <div className="c-split-bar" aria-hidden="true">{answers.map((a,i)=>counts[a]?<i key={a} style={{flexGrow:counts[a],background:splitColor(a,i,mine)}}/>:null)}</div>
+  {!compact&&answers.map((a,i)=><div key={a} className={'c-split-row'+(a===mine?' mine':'')} aria-hidden="true"><span className="c-split-label"><span>{label(a)}</span>{a===mine&&<em>{L('you','sen')}</em>}</span><span className="c-split-track"><i style={{width:(total?Math.round(100*(counts[a]||0)/total):0)+'%',background:splitColor(a,i,mine)}}/></span><b>{counts[a]||0}</b></div>)}
   {compact&&<span className="c-split-legend" aria-hidden="true">{answers.filter(a=>counts[a]).map(a=>counts[a]+' said '+label(a)).join(' · ')}</span>}
  </div>;
 }

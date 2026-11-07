@@ -699,3 +699,20 @@ main.app .c-btn:disabled,.c-btn:disabled,main.app .c-btn.small:disabled,.c-btn.s
 .c-invite-bar>span:first-child{display:flex;flex-direction:column;gap:1px;min-width:0}
 .c-invite-bar b{font:700 15px 'Space Grotesk',sans-serif}.c-invite-bar small{font-size:12.5px;opacity:.75}
 .c-invite-bar-cta{flex:none;display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:#fff;border-radius:99px;padding:8px 12px;font-weight:700;font-size:13px}
+/* iPad pass. */
+/* The question box keeps its full height everywhere (it collapsed to a sliver on iPad). */
+textarea.c-question{display:block;min-height:96px;height:auto;line-height:1.35;flex:none}
+/* Split: label, a bar for that answer, the count. Room for the label, the "you" tag never clipped. */
+.c-split-row{grid-template-columns:minmax(0,1.1fr) minmax(60px,1fr) auto}
+.c-split-label{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.c-split-label>span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.c-split-label em{flex:none;margin-left:0}
+.c-split-track{display:block;height:8px;border-radius:99px;background:#E7E4DA;overflow:hidden}
+.c-split-track i{display:block;height:100%;border-radius:99px;min-width:0}
+.c-split-row.mine .c-split-track i{box-shadow:inset 0 0 0 1.5px var(--ink)}
+/* Date fields: text centred in a normal-height box. */
+input.c-date{min-height:52px;height:52px;padding:0 14px;line-height:52px}
+.c-seal-dates{padding-bottom:6px}
+/* On wide screens the + button sits at the edge of the content, not the screen. */
+@media (min-width:700px){.c-fab-row,.c-fab{right:calc(50vw - 300px + 16px)}}
+.c-sheet>*{flex-shrink:0}
