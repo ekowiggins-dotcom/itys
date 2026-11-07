@@ -46,10 +46,10 @@ export function closesLabel(at:Date,now:Date,zone:string,lang:Lang){
 /** The picture for a shared link, or null to fall back to the older cards (weekly winner, football, secret calls). */
 export async function shareArt(invite:string,target:{questionId?:string;roundId?:string;winner?:boolean;forName?:string;momentId?:string;reveal?:boolean},now=new Date()):Promise<Art|null>{
  if(target.winner)return null;const d=await db();
- const g=(await d.query<{id:string;name:string;color:string|null;lang:string;timezone:string}>('SELECT id,name,color,lang,timezone FROM groups WHERE invite=$1',[invite])).rows[0];if(!g)return null;
+ const g=(await d.query<{id:string;name:string;color:string|null;lang:string;timezone:string}>('SELECT id,name,color,lang,timezone,pending_names FROM groups WHERE invite=$1',[invite])).rows[0];if(!g)return null;
  const lang:Lang=g.lang==='tr'?'tr':'en';
  // Join order, so every face on the card has the colour it has in the app.
- const order=(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 ORDER BY m.joined_at',[g.id])).rows.map(r=>r.name);
+ const order=[...(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at',[g.id])).rows.map(r=>r.name),...((g as {pending_names?:string[]}).pending_names||[])];
  const group={name:g.name,color:groupColor(g.name,g.color),order};
  if(target.momentId)return momentArt(g,target.momentId,lang,group,now);
  if(!target.questionId){const members=(await d.query<{name:string}>('SELECT u.name FROM members m JOIN users u ON u.id=m.user_id WHERE m.group_id=$1 AND m.active ORDER BY m.joined_at LIMIT 30',[g.id])).rows.map(r=>r.name);return{variant:'invite',lang,group,members}}

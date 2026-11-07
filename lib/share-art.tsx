@@ -3,7 +3,7 @@ import {revealHeadline} from './reveal';
 // One job each: a question, faces, curiosity. WhatsApp shows it about a quarter size, so nothing under ~32px and few words.
 // Each group has its own colour.
 import {BRAND} from './brand';
-import {AVATAR_COLORS,initials,NEAR_GROUP} from './avatar';
+import {AVATAR_COLORS,initials,NEAR_GROUP,faceColorIn} from './avatar';
 
 export type Lang='tr'|'en';
 export type Art=
@@ -31,8 +31,8 @@ const T={
 /** Face colours never match the card behind them. */
 let bg='';const palette=()=>{const near=(NEAR_GROUP[bg.toUpperCase()]||bg).toLowerCase();return AVATAR_COLORS.filter(c=>c.toLowerCase()!==bg.toLowerCase()&&c.toLowerCase()!==near)};
 /** A friend keeps the colour they have in the app (join order), unless it would melt into this card. */
-let order=new Map<string,number>();
-function faceColor(name:string,i:number){const p=palette(),at=order.get(name);if(at!==undefined){const c=AVATAR_COLORS[at%AVATAR_COLORS.length];if(p.includes(c))return c}return p[i%p.length]}
+let order=new Map<string,number>(),tint:string|null=null;
+function faceColor(name:string,_i:number){return faceColorIn(name,[...order.keys()],tint)}
 function Face({name,size,ring=INK,i}:{name:string;size:number;ring?:string;i:number}){
  return <div style={flex({width:size,height:size,borderRadius:size,background:faceColor(name,i),border:`${Math.round(size/14)}px solid ${ring}`,alignItems:'center',justifyContent:'center',fontFamily:DISPLAY,fontSize:Math.round(size*0.4),fontWeight:700,color:INK})}>{initials(name)}</div>;
 }
@@ -196,6 +196,6 @@ function MomentResult({a}:{a:Extract<Art,{variant:'momentResult'}>}){const t=T[a
   </div>
  </>);
 }
-export function renderArt(a:Art){bg=a.variant==='picked'?'':a.group.color;order=new Map((a.group.order||[]).map((n,k)=>[n,k]));
+export function renderArt(a:Art){bg=a.variant==='picked'?'':a.group.color;tint=a.group.color;order=new Map((a.group.order||[]).map((n,k)=>[n,k]));
  switch(a.variant){case 'friend':return <Friend a={a}/>;case 'choice':return <Choice a={a}/>;case 'picked':return <Picked a={a}/>;case 'reveal':return <Reveal a={a}/>;case 'result':return <Result a={a}/>;case 'invite':return <Invite a={a}/>;case 'moment':return <Moment a={a}/>;case 'momentResult':return <MomentResult a={a}/>}
 }
