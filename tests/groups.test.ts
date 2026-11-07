@@ -35,3 +35,17 @@ test('one person, several groups: listed most recent first, and joining a second
  const flat=await view(b.invite!,a.session) as {memberNames?:string[];members:number;joined:boolean};
  assert.equal(flat.joined,true);
 });
+
+test('app accounts are saved with Apple: a new Apple ID says so plainly, then attaches to the account just made',async()=>{
+ const {appleSignIn,AppleError}=await import('../lib/apple');
+ await assert.rejects(appleSignIn('apple-new'),(e:unknown)=>e instanceof AppleError&&e.code==='no_account');
+ const g=await execute({action:'create',name:'Deniz',groupName:'Book club',startNow:true});
+ assert.equal((await myGroups(g.session)).linked,false);
+ const {identity}=await import('../lib/service');
+ const linked=await appleSignIn('apple-new',(await identity(g.session))!.id);
+ assert.equal(linked.invite,g.invite);
+ assert.equal((await myGroups(linked.session)).linked,true);
+ // Same Apple ID on a new phone: straight back into the same account and group.
+ const again=await appleSignIn('apple-new');
+ assert.deepEqual((await myGroups(again.session)).groups.map(x=>x.name),['Book club']);
+});

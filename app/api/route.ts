@@ -10,12 +10,14 @@ import { identity } from '../../lib/service';
 import { footballEnabled } from '../../lib/features';
 import { verifyAppleToken, appleSignIn, deleteAccount, AppleError } from '../../lib/apple';
 export const runtime='nodejs';
+/** Web is a taster once the app is in the App Store: join and make your first pick, then get the app. WEB_GATE=on|off overrides. */
+const webGate=()=>process.env.WEB_GATE?process.env.WEB_GATE==='on':!!process.env.APP_STORE_URL;
 async function token(req:NextRequest){return sessionToken((await cookies()).get('prediction_session')?.value,req.headers.get('authorization'));}
 export async function OPTIONS(req:NextRequest){const headers=corsHeaders(req.headers.get('origin'));return new NextResponse(null,{status:Object.keys(headers).length?204:403,headers});}
 export async function GET(req:NextRequest) {
   const cors=corsHeaders(req.headers.get('origin'));
   try {
-    if(req.nextUrl.searchParams.get('config')!==null)return NextResponse.json({practiceAllowed:practiceAllowed(),appleServicesId:process.env.APPLE_SERVICES_ID||null,appStoreUrl:process.env.APP_STORE_URL||null,football:footballEnabled()},{headers:{'Cache-Control':'no-store',...cors}});
+    if(req.nextUrl.searchParams.get('config')!==null)return NextResponse.json({practiceAllowed:practiceAllowed(),appleServicesId:process.env.APPLE_SERVICES_ID||null,appStoreUrl:process.env.APP_STORE_URL||null,football:footballEnabled(),webGate:webGate()},{headers:{'Cache-Control':'no-store',...cors}});
     // The app opens short links (/c/<code>) itself, so it asks what a code points at.
     const code=req.nextUrl.searchParams.get('code');if(code!==null){const target=await resolveCode(code);return NextResponse.json(target||{error:'This link has expired.'},{status:target?200:404,headers:{'Cache-Control':'no-store',...cors}});}
     // Which groups this person is in (switcher, start screen). Read-only: nothing here can change points.
@@ -51,5 +53,5 @@ export async function POST(req:NextRequest) {
     const response=NextResponse.json(native&&session?{...body,session}:body,{headers:cors});
     if(session&&!native) response.cookies.set('prediction_session',session,{httpOnly:true,secure:req.nextUrl.protocol==='https:',sameSite:'lax',path:'/',maxAge:60*60*24*90});
     return response;
-  } catch(e) { return NextResponse.json({error:(e instanceof RuleError || e instanceof LifecycleError || e instanceof AppleError)?e.message:e instanceof ZodError?'Check the name, question, date, and points you entered.':'Unable to save. Please try again.'},{status:400,headers:cors}); }
+  } catch(e) { return NextResponse.json({code:e instanceof AppleError?e.code:undefined,error:(e instanceof RuleError || e instanceof LifecycleError || e instanceof AppleError)?e.message:e instanceof ZodError?'Check the name, question, date, and points you entered.':'Unable to save. Please try again.'},{status:400,headers:cors}); }
 }

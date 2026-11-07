@@ -656,3 +656,12 @@ header.c-top>*{position:relative;z-index:1}
 .c-top-switch svg{flex:none;opacity:.6}
 .c-new-back{align-self:flex-start;background:none;border:0;padding:0;font-weight:700;text-decoration:underline;color:var(--ink);cursor:pointer}
 .c-join .c-join-known{margin:0;font-size:15px;color:#fff;opacity:.85}
+/* Web taster: "get the app" after the first pick. */
+main.c-getapp{min-height:100vh;max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 22px) 20px 40px;display:flex;flex-direction:column;gap:18px;box-sizing:border-box;background:var(--bg,#F5F3EC);color:var(--ink)}
+.c-getapp h1{font:700 clamp(40px,11vw,64px)/1.02 'Space Grotesk',sans-serif;letter-spacing:-2px;margin:18px 0 0}
+.c-getapp-steps{list-style:none;counter-reset:s;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.c-getapp-steps li{counter-increment:s;display:grid;grid-template-columns:36px 1fr;column-gap:12px}
+.c-getapp-steps li:before{content:counter(s);grid-row:span 2;width:36px;height:36px;border-radius:50%;background:var(--lime);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font:700 16px 'Space Grotesk',sans-serif}
+.c-getapp-steps b{font:700 17px/1.3 'Space Grotesk',sans-serif;padding-top:6px}
+.c-getapp-steps span{font-size:14.5px;color:var(--muted)}
+.c-getapp a.c-btn{text-decoration:none;display:flex;align-items:center;justify-content:center}

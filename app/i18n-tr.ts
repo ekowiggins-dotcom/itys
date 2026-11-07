@@ -151,6 +151,8 @@ export const TR:Record<string,string>={
  "No matches were published in time":"Maçlar zamanında yayınlanmadı",
  "No points yet":"Henüz puan yok",
  "No sign-up. Free: points are only for being right, never bought or cashed out. 18+.":"Üyelik yok. Ücretsiz: puan sadece bilene, satın alınmaz, paraya çevrilmez. 18+.",
+ "No sign-up. ":"Üyelik yok. ",
+ "Free: points are only for being right, never bought or cashed out. 18+.":"Ücretsiz: puan sadece bilene, satın alınmaz, paraya çevrilmez. 18+.",
  "Nobody can see any answers until":"Şu tarihe kadar kimse cevapları göremez:",
  "Nobody saw that coming.":"Bunu kimse beklemiyordu.",
  "Nobody sealed an answer for this one.":"Bunun için kimse cevap mühürlemedi.",

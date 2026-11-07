@@ -9,7 +9,7 @@ async function appleKeys(fetcher=fetch):Promise<Jwk[]>{
  const r=await fetcher('https://appleid.apple.com/auth/keys');if(!r.ok)throw new AppleError('Apple sign-in is unavailable right now. Try again in a minute.');
  keys={at:Date.now(),list:((await r.json()) as {keys:Jwk[]}).keys};return keys.list;
 }
-export class AppleError extends Error{}
+export class AppleError extends Error{constructor(message:string,public code?:string){super(message)}}
 const b64=(s:string)=>Buffer.from(s.replace(/-/g,'+').replace(/_/g,'/'),'base64');
 /** Who signed in: Apple's stable user id. Checks the signature, issuer, audience (web Services ID or the app's bundle id) and expiry. */
 export async function verifyAppleToken(idToken:string,opts:{audiences?:string[];now?:number;keys?:Jwk[]}={}):Promise<{sub:string}>{
@@ -33,7 +33,7 @@ export async function appleSignIn(sub:string,currentUserId?:string){
   const linked=(await tx.query<{id:string}>('SELECT id FROM users WHERE apple_sub=$1',[sub])).rows[0];
   let userId=linked?.id;
   if(!userId){
-   if(!currentUserId)throw new AppleError('No calls are saved with this Apple ID yet. Open a link from a friend to make your first call.');
+   if(!currentUserId)throw new AppleError('No calls are saved with this Apple ID yet. Open a link from a friend to make your first call.','no_account');
    const current=(await tx.query<{apple_sub:string|null}>('SELECT apple_sub FROM users WHERE id=$1',[currentUserId])).rows[0];
    if(current?.apple_sub&&current.apple_sub!==sub)throw new AppleError('This account is already saved with a different Apple ID.');
    await tx.query('UPDATE users SET apple_sub=$2 WHERE id=$1',[currentUserId,sub]);userId=currentUserId;
