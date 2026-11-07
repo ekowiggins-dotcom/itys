@@ -25,6 +25,8 @@ import {ProfileSheet,LevelUpSheet} from './Career';
 import {LEVELS as CAREER_LEVELS,type Career} from '../lib/career';
 import {setGroupOrder} from '../lib/avatar';
 import type {SeasonView} from './SeasonsPanel';
+import {GroupList,GroupsSheet,InviteBox,type MyGroup} from './Groups';
+import {parseInvite} from '../lib/invite-input';
 
 type Preview={answer_type?:string;pickedYou?:Record<string,number>;answers?:{value:string;label:string}[];kickoff?:string|null;id:string;text:string;options:string[]|null;locks_at:string;event_at?:string|null;scope:string;state:string;picked:number;creator_name?:string};
 type Member={user_id:string;name:string;active:boolean;admin:boolean;fallback?:boolean};
@@ -35,8 +37,14 @@ const SEEN='calld.seen.';
 const seen=(id:string)=>{try{return !!localStorage.getItem(SEEN+id)}catch{return true}};
 const markSeen=(id:string)=>{try{localStorage.setItem(SEEN+id,'1')}catch{}};
 
+/** Where a short code (/c/<code>) points, as an app address. */
+async function codeTarget(code:string){try{const r=await api('/api?code='+encodeURIComponent(code));if(!r.ok)return null;const t=await r.json() as {invite:string;questionId?:string;roundId?:string;winner?:boolean};const q=new URLSearchParams({invite:t.invite});if(t.questionId)q.set('question',t.questionId);if(t.roundId)q.set('round',t.roundId);if(t.winner)q.set('view','winner');return '/?'+q.toString()}catch{return null}}
 /** Universal links in the app: long links carry the invite, short links (/c/<code>) are looked up first. */
-async function openLink(url:string){const u=new URL(url);if(u.searchParams.get('invite')){location.href='/'+u.search;return}const code=u.pathname.match(/^\/c\/([A-Za-z0-9]+)$/)?.[1];if(!code)return;try{const r=await api('/api?code='+code);if(!r.ok)return;const t=await r.json() as {invite:string;questionId?:string;roundId?:string;winner?:boolean};const q=new URLSearchParams({invite:t.invite});if(t.questionId)q.set('question',t.questionId);if(t.roundId)q.set('round',t.roundId);if(t.winner)q.set('view','winner');location.href='/?'+q.toString()}catch{}}
+async function openLink(url:string){const u=new URL(url);if(u.searchParams.get('invite')){location.href='/'+u.search;return}const code=u.pathname.match(/^\/c\/([A-Za-z0-9]+)$/)?.[1];if(!code)return;const to=await codeTarget(code);if(to)location.href=to}
+/** A pasted invite (link, short link or code): open that group, or say why not. */
+async function openPasted(text:string){const p=parseInvite(text);if(!p)return L('That doesn’t look like an invite link.','Bu bir davet linkine benzemiyor.');
+ if('invite' in p){location.href='/?invite='+encodeURIComponent(p.invite);return}
+ const to=await codeTarget(p.code);if(!to)return L('That link has expired or doesn’t exist. Ask your friend to send it again.','Bu link geçersiz ya da süresi dolmuş. Arkadaşından tekrar göndermesini iste.');location.href=to}
 
 export default function Home(){
  const [deviceLang,setDeviceLang]=useState<'tr'|'en'>('en');useEffect(()=>setDeviceLang(uiLang()),[]);
@@ -46,13 +54,17 @@ export default function Home(){
  const [plusOpen,setPlusOpen]=useState(false),[firstOpen,setFirstOpen]=useState(false),[momentId,setMomentId]=useState(''),[newMoment,setNewMoment]=useState<''|'any'|MomentKind>(''),[ceremony,setCeremony]=useState(''),[createdMoment,setCreatedMoment]=useState('');
  const [setupFriends,setSetupFriends]=useState<string[]>([]),[setupColor,setSetupColor]=useState<string>(GROUP_COLORS.coral),[firstCall,setFirstCall]=useState(false);
  const [footballOn,setFootballOn]=useState(false),[apple,setApple]=useState<{servicesId:string|null;storeUrl:string|null}>({servicesId:null,storeUrl:null}),[saving,setSaving]=useState(false);
+ const [groupsOpen,setGroupsOpen]=useState(false),[mine,setMine]=useState<{me:string|null;groups:MyGroup[]}|null>(null);
  const selectedRound=useRef(''),focused=useRef(''),requestId=useRef('');
+ async function loadGroups(){try{const r=await api('/api?groups');if(r.ok)setMine(await r.json())}catch{}}
+ const goGroup=(code:string)=>{location.href='/?invite='+encodeURIComponent(code)};
 
  async function load(code:string){const r=await api('/api?invite='+encodeURIComponent(code)+(selectedRound.current?'&round='+encodeURIComponent(selectedRound.current):'')+(focusRef.current?'&question='+encodeURIComponent(focusRef.current):''));const d=await r.json();if(!r.ok)throw Error(d.error);setData(d);void rememberInvite(code);}
  const focusRef=useRef('');
  useEffect(()=>{void api('/api?config').then(r=>r.json()).then(c=>{setPracticeAllowed(!!c.practiceAllowed);setApple({servicesId:c.appleServicesId||null,storeUrl:c.appStoreUrl||null});setFootballOn(!!c.football)}).catch(()=>{})},[]);
- useEffect(()=>{setOrigin(webOrigin());void (async()=>{const params=new URLSearchParams(location.search);focusRef.current=params.get('question')||'';setFocusQuestion(focusRef.current);if(params.get('view')==='winner')setTab('ranking');const code=params.get('invite')||(await lastInvite())||'';selectedRound.current=params.get('round')||'';setInvite(code);if(code)await load(code).catch(e=>setError(e.message));setLoading(false);if(NATIVE)void initNative({onOpen:url=>{void openLink(url)}});})()},[]);
- async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(d.momentId)setCreatedMoment(d.momentId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
+ useEffect(()=>{setOrigin(webOrigin());void (async()=>{const params=new URLSearchParams(location.search);focusRef.current=params.get('question')||'';setFocusQuestion(focusRef.current);if(params.get('view')==='winner')setTab('ranking');const code=params.get('invite')||(params.get('new')?'':await lastInvite())||'';selectedRound.current=params.get('round')||'';setInvite(code);if(code)await load(code).catch(e=>setError(e.message));setLoading(false);if(NATIVE)void initNative({onOpen:url=>{void openLink(url)}});})()},[]);
+ async function act(payload:Record<string,unknown>,message?:string){setError('');setBusy(true);try{const r=await api('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,invite})});const d=await r.json();if(!r.ok)throw Error(d.error);if(d.session)await setSession(d.session);if(payload.action==='predict'||payload.action==='predictLongterm')void haptic('pick');if(NATIVE&&(payload.action==='join'||payload.action==='create'))void initNative({register:true});if(d.focusTab)setFeatureFocus(v=>({name:d.focusTab,tick:v.tick+1}));if(d.invite){setInvite(d.invite);const next=new URL(location.href);next.searchParams.set('invite',d.invite);next.searchParams.delete('new');history.replaceState(null,'',next);await load(d.invite);}if(d.questionId&&(payload.action==='question'||payload.action==='longterm'))setCreatedId(d.questionId);if(d.momentId)setCreatedMoment(d.momentId);if(message)setNotice(message);return true;}catch(e){setError((e as Error).message);return false;}finally{setBusy(false);}}
+ useEffect(()=>{if(!loading&&!invite)void loadGroups()},[loading,invite]);
  useEffect(()=>{if(!invite)return;const timer=setInterval(()=>{void load(invite).catch(()=>{})},15000);return ()=>clearInterval(timer)},[invite]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),3200);return ()=>clearTimeout(t)},[notice]);
  useEffect(()=>{if(!error)return;const t=setTimeout(()=>setError(''),6000);return ()=>clearTimeout(t)},[error]);
@@ -138,6 +150,8 @@ export default function Home(){
   <div className="c-landing-top"><Wordmark on="light" h={34}/><span className="c-pill">{t('Free. No money. Ever.')}</span></div>
   <h1>{t('Your friends.')}<br/><em>{t('Your calls.')}</em></h1>
   <p className="c-lead">{t('Make calls about your friends and your plans. See who said what when picks close. The fewer friends who saw it coming, the more you score.')}</p>
+  {!!mine?.groups.length&&<section className="c-landing-groups"><h2>{L('Your groups','Grupların')}</h2><GroupList groups={mine.groups} onOpen={goGroup}/></section>}
+  <InviteBox busy={busy} onOpen={openPasted}/>
   <form className="c-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);const practice=f.get('practice')==='1';const payload:Record<string,unknown>={action:'create',name:f.get('name'),groupName:f.get('groupName'),practice,friends:setupFriends,color:setupColor,lang:uiLang(),startNow:!practice};if(!practice&&f.get('groupType'))payload.groupType=f.get('groupType');try{payload.timezone=Intl.DateTimeFormat().resolvedOptions().timeZone}catch{}const region=navigator.languages?.map(l=>l.split('-')[1]).find(r=>r&&/^[A-Za-z]{2}$/.test(r));if(region)payload.country=region.toUpperCase();void act(payload).then(ok=>{if(ok&&!practice)setFirstCall(true)});}}>
    <h2>{t('Start your group')}</h2>
    <label>{t('Your name')}<input name="name" required maxLength={60} placeholder={t("What do your friends call you?")} autoComplete="given-name"/></label>
@@ -201,7 +215,7 @@ export default function Home(){
  return <div className="c-shell" style={{['--group' as string]:groupColor(data.group.name,(data.group as {color?:string|null}).color)}}>
   <header className={'c-top'+(tab==='calls'?'':' compact')}>
    <div className="c-top-row">
-    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">{t('Practice · a week in an hour')}</b>:data.members===1?t('Just you so far'):data.members+L(' friends',' arkadaş')}</span><h1>{data.group.name}</h1>{tab==='calls'&&<Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>}</div>
+    <div className="c-top-main"><span className="c-top-kicker">{practice?<b className="c-practice">{t('Practice · a week in an hour')}</b>:data.members===1?t('Just you so far'):data.members+L(' friends',' arkadaş')}</span><button className="c-top-switch" onClick={()=>{setMine(null);setGroupsOpen(true);void loadGroups()}} aria-label={L('Switch group','Grup değiştir')}><h1>{data.group.name}</h1><Icon name="down" size={18}/></button>{tab==='calls'&&<Faces names={members.filter(m=>m.active).map(m=>m.name)} size={26} ring="#17201B" max={7}/>}</div>
     <div className="c-top-side"><button className="c-bell" aria-label={unread?unread+' unread notifications':t('Notifications')} onClick={()=>{go('group');setNotificationFocus(n=>n+1)}}><Icon name="bell" size={20}/>{unread>0&&<i>{unread}</i>}</button>
      <button className="c-rank" onClick={()=>go('ranking')} aria-label={t("Ranking")}>{myRow&&anyPoints?<><b>#{myRow.rank}</b><span>{L('this month','bu ay')}</span></>:<><b>{sections.yourTurn.length+momentPicks}</b><span>{L('to call','bekliyor')}</span></>}</button></div>
    </div>
@@ -255,6 +269,7 @@ export default function Home(){
   <NewMomentSheet open={!!newMoment} preset={newMoment&&newMoment!=='any'?newMoment:undefined} now={clock} lang={groupLang} friends={friendNames} busy={busy} onClose={()=>setNewMoment('')} onCreate={(m:NewMoment)=>act({action:'createMoment',moment:m})}/>
   <ProfileSheet c={data.careers?.find(c=>c.user_id===profile)||null} name={names[profile]||''} me={profile===me} onClose={()=>setProfile('')}/>
   <LevelUpSheet c={levelUp&&myCareer?myCareer:null} from={levelUp} onClose={()=>setLevelUp('')} onShare={()=>{const url=groupLink;setLevelUp('');if(myCareer)setSharing({title:t('Tell the group'),url,text:`Just levelled up to ${myCareer.level.name} in ${data.group.name} (${myCareer.points.toLocaleString('en-GB')} career points). ${url}`})}}/>
+  <GroupsSheet open={groupsOpen} onClose={()=>setGroupsOpen(false)} groups={mine?.groups??null} current={invite} busy={busy} onOpen={code=>{if(code===invite)setGroupsOpen(false);else goGroup(code)}} onPaste={openPasted} onNew={()=>{location.href='/?new=1'}}/>
   <ShareSheet open={!!sharing} title={sharing?.title||''} text={sharing?.text||''} url={sharing?.url||''} preview={sharing?.preview} tags={sharing?.tags} tag={sharing?.tag} onTag={sharing?.retag} onClose={()=>setSharing(null)} onDone={m=>{setNotice(m);setSharing(null)}}/>
  </div>;
 }
@@ -267,8 +282,8 @@ function ComingUp({c,zone,now}:{c:NonNullable<GroupView['comingUp']>;zone:string
 }
 
 function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:boolean;clock:number;onJoin:(name:string,answer:string,p:Preview|null)=>void;error:string;notice:string}){
- const p=data.preview||null;const [answer,setAnswer]=useState(''),[name,setName]=useState(''),[other,setOther]=useState(false);
- const pending=data.pendingNames||[],claimed=!other&&pending.includes(name);
+ const p=data.preview||null;const known=(data as {me?:string|null}).me||'';const [answer,setAnswer]=useState(''),[name,setName]=useState(known),[other,setOther]=useState(false);
+ const pending=known?[]:data.pendingNames||[],claimed=!other&&pending.includes(name);
  const pickedMe=claimed&&p?.pickedYou?(Object.entries(p.pickedYou).find(([k])=>k.toLowerCase()===name.toLowerCase())?.[1]||0):0;
  const locked=!!p&&(clock>=Date.parse(p.locks_at)||p.state!=='open');const long=p?.scope==='longterm';
  const people=data.memberNames||[];
@@ -290,7 +305,7 @@ function JoinScreen({data,busy,clock,onJoin,error,notice}:{data:GroupView;busy:b
   <form className="c-join-form" onSubmit={e=>{e.preventDefault();onJoin(name.trim(),locked?'':answer,p)}}>
    {pending.length>0&&!other&&<section className="c-claim"><p>{t('Which one are you?')}</p><div className="c-chips">{pending.map(n=><button type="button" key={n} className={'c-chip-name'+(name===n?' on':'')} aria-pressed={name===n} onClick={()=>setName(n)}><Face name={n} size={28}/>{n}</button>)}<button type="button" className="c-chip-name ghost" onClick={()=>{setOther(true);setName('')}}>{t('Someone else')}</button></div>
    {pickedMe>0&&<div className="c-picked-you"><b>{pickedMe===1?t('A friend picked you'):pickedMe+L(' friends picked you',' arkadaşın seni seçti')}</b> {t('in this one. Make your own pick to see the rest when picks close.')}</div>}</section>}
-   {(!pending.length||other)?<><label htmlFor="join-name">{t('What do your friends call you?')}</label>
+   {known?<p className="c-join-known">{L('You’ll join as ','Şu isimle katılacaksın: ')}<b>{known}</b></p>:(!pending.length||other)?<><label htmlFor="join-name">{t('What do your friends call you?')}</label>
    <input id="join-name" value={name} onChange={e=>setName(e.target.value)} required maxLength={60} placeholder={t("Your name")} autoComplete="given-name"/></>:null}
    <button className="c-btn" disabled={busy||!name.trim()||(!!p&&!locked&&!answer)}>{p&&!locked?(answer?t('I’m in: ')+(opts.find(o=>o.value===answer)?.label||label(answer)):t('Pick an answer first')):name.trim()?L('Join as '+name.trim(),name.trim()+' olarak katıl'):t('Tap your name')}</button>
    <small>{t('No sign-up. Free: points are only for being right, never bought or cashed out. 18+.')}</small>

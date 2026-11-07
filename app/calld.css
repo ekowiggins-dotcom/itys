@@ -634,3 +634,25 @@ header.c-top>*{position:relative;z-index:1}
 .c-stamp.slam{position:absolute;top:52px;right:22px;z-index:2;animation:c-slam .45s cubic-bezier(.3,1.6,.5,1) .35s both;pointer-events:none}
 @keyframes c-slam{from{transform:scale(2.2) rotate(14deg);opacity:0}60%{opacity:1}to{transform:scale(1) rotate(0);opacity:.95}}
 @media (prefers-reduced-motion:reduce){.c-stamp.slam{animation:none;opacity:.95}}
+/* Your groups: switcher sheet, start screen list, and the paste-an-invite box. */
+.c-groups{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.c-group-row{width:100%;display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--line2);border-radius:16px;padding:12px 14px;text-align:left;color:var(--ink);cursor:pointer}
+.c-group-row.on{border:2px solid var(--ink)}
+.c-group-row>i{flex:none;width:14px;height:14px;border-radius:50%}
+.c-group-row>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.c-group-row b{font:700 17px/1.2 'Space Grotesk',sans-serif;overflow-wrap:anywhere}
+.c-group-row small{font-size:13px;color:var(--muted)}
+.c-group-row em{font-style:normal;font-size:12px;font-weight:700;color:var(--muted)}
+.c-invite-box{background:#fff;border:1.5px solid var(--line2);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.c-invite-box.compact{border:0;padding:0;background:none}
+.c-invite-box h2{font:700 20px 'Space Grotesk',sans-serif;margin:0}
+.c-invite-box .c-sub{margin:-6px 0 0}
+.c-invite-row{display:flex;gap:8px;align-items:center}
+.c-invite-row .c-input{flex:1;min-width:0;min-height:48px;border:1.5px solid var(--line2);border-radius:12px;font-size:16px}
+.c-invite-err{margin:0;font-size:13.5px;color:#B3261E}
+.c-groups-join h3{font:700 16px 'Space Grotesk',sans-serif;margin:4px 0 10px}
+.c-landing-groups h2{font:700 20px 'Space Grotesk',sans-serif;margin:6px 0 10px}
+.c-top-switch{display:flex;align-items:center;gap:4px;background:none;border:0;padding:0;color:inherit;text-align:left;cursor:pointer;max-width:100%}
+.c-top-switch svg{flex:none;opacity:.6}
+.c-new-back{align-self:flex-start;background:none;border:0;padding:0;font-weight:700;text-decoration:underline;color:var(--ink);cursor:pointer}
+.c-join .c-join-known{margin:0;font-size:15px;color:#fff;opacity:.85}
