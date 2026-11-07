@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { execute, view, betPreview, RuleError } from '../../lib/service';
+import { execute, view, betPreview, myGroups, RuleError } from '../../lib/service';
 import { ZodError } from 'zod';
 import { LifecycleError } from '../../lib/lifecycle';
 import { corsHeaders, isNativeOrigin, sessionToken } from '../../lib/native-client';
@@ -18,6 +18,8 @@ export async function GET(req:NextRequest) {
     if(req.nextUrl.searchParams.get('config')!==null)return NextResponse.json({practiceAllowed:practiceAllowed(),appleServicesId:process.env.APPLE_SERVICES_ID||null,appStoreUrl:process.env.APP_STORE_URL||null,football:footballEnabled()},{headers:{'Cache-Control':'no-store',...cors}});
     // The app opens short links (/c/<code>) itself, so it asks what a code points at.
     const code=req.nextUrl.searchParams.get('code');if(code!==null){const target=await resolveCode(code);return NextResponse.json(target||{error:'This link has expired.'},{status:target?200:404,headers:{'Cache-Control':'no-store',...cors}});}
+    // Which groups this person is in (switcher, start screen). Read-only: nothing here can change points.
+    if(req.nextUrl.searchParams.get('groups')!==null)return NextResponse.json(await myGroups(await token(req)),{headers:{'Cache-Control':'no-store',...cors}});
     const invite=req.nextUrl.searchParams.get('invite')||'',question=req.nextUrl.searchParams.get('question');
     const result=await view(invite,await token(req),req.nextUrl.searchParams.get('round')||undefined);
     const preview=question&&!result.joined?await betPreview(invite,question):null;
