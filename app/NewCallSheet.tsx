@@ -55,7 +55,9 @@ export function NewCallSheet({seal:sealPreset,onSeal,isAdmin=false,open,now,prac
   {!canFriend&&<p className="c-hint">{t('Add friends in the Group tab to ask “who…?” calls.')}</p>}
   {multi&&<div className="c-opt-inputs">{opts.map((o,i)=><input key={i} aria-label={t('Option ')+(i+1)} maxLength={40} value={o} placeholder={['Aykut','Nagelsmann','Someone else','Nobody'][i]} onChange={e=>setOpts(opts.map((x,j)=>j===i?e.target.value:x))}/>)}{opts.length<4&&<button type="button" className="c-add" onClick={()=>setOpts([...opts,''])}>{t('+ Add')}</button>}</div>}
 
-  <label className={'c-seal'+(sealed?' on':'')}><input type="checkbox" checked={sealed} onChange={e=>setSealed(e.target.checked)}/><span className="c-seal-box" aria-hidden="true"><Icon name="check" size={16}/></span><span><b>🔒 {L('Seal it','Mühürle')}</b><small>{L('Nobody sees any answers until the day you open it. Then you open it together.','Açılış gününe kadar kimse cevapları göremez. O gün hep birlikte açarsınız.')}</small></span></label>
+  <span className="c-label">{L('Results','Sonuçlar')}</span>
+  <div className="c-seg c-mode"><button type="button" className={!sealed?'on':''} aria-pressed={!sealed} onClick={()=>setSealed(false)}>👀 {L('Live','Canlı')}</button><button type="button" className={sealed?'on':''} aria-pressed={sealed} onClick={()=>setSealed(true)}>🔒 {L('Sealed','Mühürlü')}</button></div>
+  <p className="c-mode-note">{sealed?L('Nobody sees a thing until the day you open it together.','Birlikte açacağınız güne kadar kimse hiçbir şey göremez.'):L('Pick, then watch the group’s split as it comes in.','Seçimini yap, grubun nasıl bölündüğünü canlı izle.')}</p>
   {sealed?<div className="c-seal-dates">
    <label>{L('Picks close','Seçimler kapanır')}<input className="c-input c-date" type="datetime-local" value={closes} onChange={e=>setCloses(e.target.value)}/></label>
    <label>{L('Opens on','Açılış')}<input className="c-input c-date" type="datetime-local" value={opens} onChange={e=>setOpens(e.target.value)}/></label>

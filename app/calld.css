@@ -680,3 +680,5 @@ input.c-date{display:block;width:100%;max-width:100%;min-width:0;box-sizing:bord
 input.c-date::-webkit-date-and-time-value{text-align:left}
 .c-sheet{overflow-x:hidden}
 .c-moment-top{flex-wrap:wrap;row-gap:8px}.c-moment-id{flex:1 1 60%}
+.c-seg.c-mode{grid-template-columns:1fr 1fr}
+.c-mode-note{margin:-6px 0 0;font-size:14px;line-height:1.45;color:var(--muted)}
