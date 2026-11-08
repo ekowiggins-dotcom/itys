@@ -112,9 +112,10 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  }
  await lockReminders(tx,group.id,now,t);
  // Sealed predictions: everyone hears at the same moment that they're open.
+ const tr=(await tx.query<{lang:string|null}>('SELECT lang FROM groups WHERE id=$1',[group.id])).rows[0]?.lang==='tr';
  for(const m of (await tx.query<{id:string;title:string;opens_at:Date}>("SELECT id,title,opens_at FROM moments WHERE group_id=$1 AND sealed AND opens_at<=$2 AND opens_at>$2::timestamptz-interval '7 days'",[group.id,now])).rows)
   for(const u of (await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active',[group.id])).rows)
-   await emitNotification(tx,{groupId:group.id,userId:u.user_id,key:'opened:'+m.id,kind:'moment_open',text:`${m.title}: your sealed predictions are open. See what everyone said.`,eventAt:new Date(m.opens_at)},now);
+   await emitNotification(tx,{groupId:group.id,userId:u.user_id,key:'opened:'+m.id,kind:'moment_open',text:tr?`🔒 Mühürlü tahminler açıldı: “${m.title}”. Bakalım kim ne demiş.`:`🔒 Sealed predictions are open: “${m.title}”. See what everyone said.`,eventAt:new Date(m.opens_at)},now);
  if(!t.practice)await weekendReminders(tx,group.id,now);
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
