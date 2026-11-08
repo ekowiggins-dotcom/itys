@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from 'next/server';import {timingSafeEqual,createHash} from 'node:crypto';import {z} from 'zod';
 import {parseMatches,addMatches,publishWeek,setResult,listMatches,manualMode} from '../../../lib/football/manual';
+import {metrics} from '../../../lib/metrics';
 import {selectWeek,favouritesFor} from '../../../lib/football/selection';import {leaguePack} from '../../../lib/locale';
 export const runtime='nodejs';export const dynamic='force-dynamic';
 // Operator tools for the manual match list. Protected by ADMIN_KEY (Railway variable); never reachable without it.
@@ -8,7 +9,7 @@ function allowed(req:NextRequest){const key=process.env.ADMIN_KEY||'',given=req.
 const deny=()=>NextResponse.json({error:'Wrong admin key, or ADMIN_KEY (12+ characters) isn’t set in Railway.'},{status:401});
 async function state(){const now=new Date();const matches=await listMatches(now);const upcoming=matches.filter(f=>f.status==='scheduled'&&Date.parse(f.kickoff)>now.getTime());const {picks,motw}=selectWeek(upcoming,favouritesFor(leaguePack(203)));
  return{manual:manualMode(),matches,preview:picks.map(p=>({id:p.fixture.id,reason:p.reason,block:p.block,motw:p.fixture.id===motw?.fixture.id}))}}
-export async function GET(req:NextRequest){if(!allowed(req))return deny();return NextResponse.json(await state(),{headers:{'Cache-Control':'no-store'}})}
+export async function GET(req:NextRequest){if(!allowed(req))return deny();if(req.nextUrl.searchParams.get('metrics')!==null)return NextResponse.json(await metrics(),{headers:{'Cache-Control':'no-store'}});return NextResponse.json(await state(),{headers:{'Cache-Control':'no-store'}})}
 const body=z.discriminatedUnion('action',[
  z.object({action:z.literal('adminAddMatches'),text:z.string().max(20000),zone:z.string().max(60).optional()}),
  z.object({action:z.literal('adminPublishWeek')}),

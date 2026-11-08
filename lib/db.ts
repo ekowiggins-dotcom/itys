@@ -18,7 +18,7 @@ export function db() {
       CREATE TABLE IF NOT EXISTS predictions (question_id TEXT REFERENCES questions(id), user_id TEXT REFERENCES users(id), answer TEXT NOT NULL CHECK(answer IN ('yes','no')), stake INTEGER NOT NULL CHECK(stake BETWEEN 5 AND 30 AND stake % 5 = 0), PRIMARY KEY(question_id,user_id));
     `);
     await database.exec('CREATE TABLE IF NOT EXISTS migrations (id TEXT PRIMARY KEY)');
-    for (const file of ['002-lifecycle.sql','003-judge-and-retries.sql','004-weekly-loop.sql','005-resolution-history.sql','006-notifications.sql','007-season-freezing.sql','008-football.sql','009-football-rankings.sql','010-moderation.sql','011-proposer.sql','012-bet-options.sql','013-devices.sql','014-practice-groups.sql','015-share-codes.sql','016-fixture-round.sql','017-league-pack.sql','018-retire-extra-markets.sql','019-apple-sign-in.sql','020-social-pivot.sql','021-friend-calls.sql','022-moments.sql','023-sealed.sql','024-resolver.sql','025-teal.sql']) {
+    for (const file of ['002-lifecycle.sql','003-judge-and-retries.sql','004-weekly-loop.sql','005-resolution-history.sql','006-notifications.sql','007-season-freezing.sql','008-football.sql','009-football-rankings.sql','010-moderation.sql','011-proposer.sql','012-bet-options.sql','013-devices.sql','014-practice-groups.sql','015-share-codes.sql','016-fixture-round.sql','017-league-pack.sql','018-retire-extra-markets.sql','019-apple-sign-in.sql','020-social-pivot.sql','021-friend-calls.sql','022-moments.sql','023-sealed.sql','024-resolver.sql','025-teal.sql','026-created-at.sql']) {
       const id=file.slice(0,3);
       if (!(await database.query('SELECT 1 FROM migrations WHERE id=$1',[id])).rows.length) {
         await database.transaction(async tx => {
