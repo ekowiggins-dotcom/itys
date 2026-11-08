@@ -6,11 +6,9 @@ export async function friendOptions(tx:Transaction,groupId:string){
  const seen=new Set<string>();const all=[...members,...pending].filter(n=>{const k=n.toLocaleLowerCase('tr');if(seen.has(k))return false;seen.add(k);return true}).slice(0,30);
  if(all.length<2)throw new Error('Add at least one friend to the group first.');return all;
 }
-/** When the admin makes a call, they can hand it to someone else to say what happened. Others' calls go to the admin. */
+/** Whoever posts a call says what happened, unless they hand it to someone else in the group. */
 export async function assignResolver(tx:Transaction,groupId:string,userId:string,questionId:string,resolverId?:string){
- if(!resolverId)return;
- const admin=(await tx.query<{admin:string}>('SELECT admin FROM groups WHERE id=$1',[groupId])).rows[0]?.admin;
- if(userId!==admin||resolverId===admin)return;
+ if(!resolverId||resolverId===userId)return;
  if(!(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[groupId,resolverId])).rows.length)return;
  await tx.query('UPDATE questions SET resolver_id=$1 WHERE id=$2',[resolverId,questionId]);
 }

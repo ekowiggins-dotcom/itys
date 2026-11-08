@@ -123,7 +123,11 @@ export async function view(invite:string,token?:string,selectedRound?:string,now
  // Calls about you: you see the call, but not how anyone answered (no split, no who-said-what, no proposed result) until it's settled.
  const secret=new Set((await tx.query<{id:string}>("SELECT id FROM questions WHERE group_id=$1 AND subject_id=$2 AND NOT superseded AND state NOT IN ('settled','void')",[group.id,user!.id])).rows.map(r=>r.id));
  const visible=<T extends Record<string,unknown>>(rows:T[],key='id')=>rows.filter(r=>!secret.has(String(r[key])));
+ // Disputed results: the group's votes, in the open (that's what keeps them honest).
+ const votes=(await tx.query<{question_id:string;user_id:string;answer:string}>("SELECT v.question_id,v.user_id,v.answer FROM result_votes v JOIN questions q ON q.id=v.question_id WHERE q.group_id=$1 AND q.state='disputed' ORDER BY v.voted_at",[group.id])).rows;
+ for(const row of bets as Record<string,unknown>[])if(row.state==='disputed')row.votes=votes.filter(v=>v.question_id===row.id).map(v=>({user_id:v.user_id,answer:v.answer}));
  for(const row of [...questions,...bets] as Record<string,unknown>[])if(secret.has(String(row.id))){row.about_you=true;if(row.proposed_by!==user!.id)row.proposed_answer=null}
+ for(const row of bets as Record<string,unknown>[])if(secret.has(String(row.id)))row.votes=[];
  // Sealed predictions: nobody sees how the group answered (not even the split) until the opening date.
  const sealedIds=new Set((await tx.query<{id:string}>('SELECT q.id FROM questions q JOIN moments m ON m.id=q.moment_id WHERE m.group_id=$1 AND m.sealed AND m.opens_at>$2',[group.id,now])).rows.map(r=>r.id));
  const shownQuestions=questions,shownBets=bets as Record<string,unknown>[],shownSnapshots=visible(snapshots as Record<string,unknown>[],'question_id').filter(s=>!sealedIds.has(String(s.question_id)));

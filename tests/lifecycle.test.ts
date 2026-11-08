@@ -34,21 +34,21 @@ test('leaving preserves locked weekly results and eligibility, withdraws unlocke
  assert.equal((await d.query('SELECT * FROM members WHERE group_id=$1 AND user_id=$2 AND active',[f.g,f.ids[1]])).rows.length,1);
  assert.equal((await d.query('SELECT 1 FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows.length,1);
 });
-test('resolution deadline cuts short disputes; failed late judgment cannot roll back automatic void',async()=>{
+test('the resolution deadline cuts a group vote short: with no votes, the settler’s answer stands',async()=>{
  const f=await fixture(),d=await db(),event=new Date(now.getTime()-7*DAY+3600000),q=await question(f.g,f.ids[0],'weekly',event);await pick(q,f.ids[1]);
  await lifecycle({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.ids[0],now);
  await lifecycle({action:'dispute',invite:f.invite,questionId:q},f.ids[1],new Date(now.getTime()+1000));
- await assert.rejects(lifecycle({action:'judge',invite:f.invite,questionId:q,answer:'yes'},f.ids[2],new Date(now.getTime()+3600000)),/settled|deadline/);
- assert.equal((await d.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[q])).rows[0].state,'void');
- assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1',[q])).rows[0].points_tenths,0);
+ await assert.rejects(lifecycle({action:'judge',invite:f.invite,questionId:q,answer:'no'},f.ids[2],new Date(now.getTime()+2000)),/group vote/);
+ await assert.rejects(lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},f.ids[2],new Date(now.getTime()+3600000)),/settled|no vote/);
+ assert.deepEqual((await d.query('SELECT state,result_answer FROM questions WHERE id=$1',[q])).rows[0],{state:'settled',result_answer:'yes'});
 });
 test('blocking preserves essential proposal, dispute and settlement alerts with deduplication',async()=>{
  const f=await fixture(),q=await question(f.g,f.ids[0]);await pick(q,f.ids[1]);
  await lifecycle({action:'block',invite:f.invite,targetId:f.ids[0]},f.ids[1],now);
  await lifecycle({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.ids[0],now);
  await lifecycle({action:'dispute',invite:f.invite,questionId:q},f.ids[1],now);
- await lifecycle({action:'judge',invite:f.invite,questionId:q,answer:'yes'},f.ids[2],now);
- await lifecycle({action:'tick',invite:f.invite},f.ids[2],now);
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'yes'},f.ids[2],now);
+ await lifecycle({action:'tick',invite:f.invite},f.ids[2],new Date(now.getTime()+2*DAY));
  const alerts=(await(await db()).query<{stage:string;essential:boolean}>('SELECT stage,essential FROM alerts WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows;
  assert.deepEqual(alerts.map(a=>a.stage).sort(),['disputed','proposed','settled']);assert.ok(alerts.every(a=>a.essential));
 });

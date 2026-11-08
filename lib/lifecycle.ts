@@ -16,7 +16,7 @@ import {disputeCutoff} from './rules';
 const DAY=86400000;
 export class LifecycleError extends Error {}
 function check(ok:unknown,message:string):asserts ok{if(!ok)throw new LifecycleError(message)}
-type Question={moment_id?:string|null;moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;resolver_id?:string|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
+type Question={moment_id?:string|null;moderation_state:string;market:string;fixture_id:string|null;result_revision:string|null;void_reason:string|null;round_id:string|null;id:string;group_id:string;creator:string;scope:string;locks_at:Date;event_at:Date|null;subject_id:string|null;resolver_id?:string|null;disputed_at?:Date|null;text:string;state:string;proposed_answer:string|null;proposed_at:Date|null;proposed_by:string|null;options:string[]|null;settled_at:Date|null;slot?:string|null};
 export function deadline(q:{event_at:Date|null;scope:string},opens:Date|null,t:Timing=NORMAL){return q.event_at?new Date(q.event_at).getTime()+t.resolutionMs:new Date(opens!).getTime()+(t.practice?PRACTICE_ROUND.lockByMs+t.resolutionMs:14*DAY-60000)}
 async function audit(tx:Transaction,g:string,q:string|null,u:string|null,action:string,now:Date,details:unknown=null){await tx.query('INSERT INTO audit(id,group_id,question_id,actor_id,action,created_at,details) VALUES($1,$2,$3,$4,$5,$6,$7)',[randomUUID(),g,q,u,action,now,JSON.stringify(details)])}
 async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,now:Date,processingNow=now){
@@ -25,6 +25,30 @@ async function alert(tx:Transaction,q:Question,stage:string,actor:string|null,no
  const kind=stage==='proposed'?'proposal':stage==='disputed'?'dispute':'settlement';
  const text=(stage==='proposed'?'The result’s in: ':stage==='disputed'?'Someone said that’s not right: ':'Final result: ')+q.text;
  for(const m of recipients.rows)await emitNotification(tx,{groupId:q.group_id,userId:m.user_id,key:'bet:'+q.id+':'+stage,kind,questionId:q.id,roundId:q.round_id||undefined,text,eventAt:now},processingNow);
+}
+/** The end of a group vote on a disputed result: most votes wins; a tie or no votes keeps the settler's answer. */
+async function closeVote(tx:Transaction,q:Question,now:Date,processingNow=now){
+ const votes=(await tx.query<{answer:string;n:number}>('SELECT answer,count(*)::int n FROM result_votes WHERE question_id=$1 GROUP BY answer ORDER BY n DESC',[q.id])).rows;
+ const top=votes[0],tie=votes.length>1&&votes[1].n===top.n;
+ const answer=top&&!tie?top.answer:q.proposed_answer;
+ const changed=answer!==q.proposed_answer;
+ await settle(tx,q,answer,now,processingNow);
+ const label=(a:string|null)=>a==='yes'?'Yes':a==='no'?'No':a||'';
+ for(const m of (await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active AND user_id<>COALESCE($2::text,\'\')',[q.group_id,q.subject_id])).rows)
+  await emitNotification(tx,{groupId:q.group_id,userId:m.user_id,key:'vote:'+q.id+':closed',kind:'settlement',questionId:q.id,roundId:q.round_id||undefined,text:changed?`The group changed the result: “${q.text}” · ${label(answer)}.`:`The group kept the result: “${q.text}” · ${label(answer)}.`,eventAt:now},processingNow);
+ await audit(tx,q.group_id,q.id,null,'vote closed',now,{answer,changed,votes});
+}
+/** When a call's time has passed and nobody has said what happened: nudge the settler, again a day later,
+ *  and after two days tell the group that anyone can settle it. */
+async function settleNudges(tx:Transaction,q:Question,adminId:string,now:Date,t:Timing){
+ if(q.state!=='open'||q.fixture_id||q.moment_id)return;
+ const at=new Date(q.scope==='longterm'&&q.event_at?q.event_at:q.locks_at).getTime();if(now.getTime()<at||now.getTime()<new Date(q.locks_at).getTime())return;
+ const resolver=q.resolver_id||q.creator,base={groupId:q.group_id,questionId:q.id,roundId:q.round_id||undefined,kind:'judgment_request' as const};
+ await emitNotification(tx,{...base,userId:resolver,key:'settle:'+q.id+':1',text:`Time’s up on “${q.text}”. What happened?`,eventAt:new Date(at)},now);
+ if(now.getTime()>=at+t.takeoverMs/2)await emitNotification(tx,{...base,userId:resolver,key:'settle:'+q.id+':2',text:`Still waiting on you: what happened with “${q.text}”?`,eventAt:new Date(at+t.takeoverMs/2)},now);
+ if(now.getTime()>=at+t.takeoverMs)for(const m of (await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active AND user_id<>$2 AND user_id<>COALESCE($3::text,\'\')',[q.group_id,resolver,q.subject_id])).rows)
+  await emitNotification(tx,{...base,userId:m.user_id,key:'settle:'+q.id+':anyone',text:`Nobody has settled “${q.text}” yet. Anyone in the group can say what happened now.`,eventAt:new Date(at+t.takeoverMs)},now);
+ void adminId;
 }
 async function settle(tx:Transaction,q:Question,answer:string|null,now:Date,processingNow=now,fixture?:Fixture){
  if(answer===null&&new Date(q.locks_at)>now){q.locks_at=now;await tx.query('UPDATE questions SET locks_at=$2 WHERE id=$1',[q.id,now]);}
@@ -79,8 +103,12 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  const cutoff=deadline(q,group.opens_at,t);
  // The dispute window closes at proposal+24h or the resolution deadline, whichever is first (rules.disputeCutoff).
  const settleAt=q.proposed_at?disputeCutoff(new Date(q.proposed_at).getTime(),cutoff,t.disputeMs):Infinity;
- if(q.moderation_state!=='pending'&&q.state==='proposed'&&now.getTime()>=settleAt)await settle(tx,q,q.proposed_answer,new Date(settleAt),now);
+ const voteEnds=q.state==='disputed'?Math.min(new Date(q.disputed_at||q.proposed_at||now).getTime()+t.disputeMs,cutoff):Infinity;
+ if(q.moderation_state!=='pending'&&q.state==='disputed'&&now.getTime()>=voteEnds)await closeVote(tx,q,new Date(voteEnds),now);
+ else if(q.state==='disputed')continue;
+ else if(q.moderation_state!=='pending'&&q.state==='proposed'&&now.getTime()>=settleAt)await settle(tx,q,q.proposed_answer,new Date(settleAt),now);
  else if(now.getTime()>=cutoff)await settle(tx,q,null,new Date(cutoff),now);
+ else await settleNudges(tx,q,'',now,t);
  }
  await lockReminders(tx,group.id,now,t);
  // Sealed predictions: everyone hears at the same moment that they're open.
@@ -91,7 +119,7 @@ export async function maintain(tx:Transaction,group:{id:string;opens_at:Date|nul
  await finalizeRounds(tx,group.id,now);
  await maintainSeasons(tx,group.id,now);
 }
-const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment','addMomentCall','setResolver']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),momentId:z.string().max(64).optional(),call:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional(),resolverId:z.uuid().optional()});
+const schema=z.object({action:z.enum(['report','unblock','subjectRemoval','reviewRemoval','removeBet','appealRemoval','recoverAdmin','respondRecovery','leave','transfer','propose','dispute','judge','block','season','longterm','predictLongterm','judgeSettings','notificationPreferences','notificationRead','seasonNoticeRead','tick','startFirstWeek','addNames','createMoment','addMomentCall','setResolver','voteResult']),invite:z.string(),questionId:z.string().optional(),answer:z.string().max(40).optional(),options:z.array(z.string().max(60)).max(4).optional(),answerType:z.enum(['choice','friend']).optional(),moment:z.unknown().optional(),momentId:z.string().max(64).optional(),call:z.unknown().optional(),names:z.array(z.string().trim().min(1).max(60)).max(29).optional(),name:z.string().trim().min(1).max(60).optional(),text:z.string().trim().min(3).max(240).optional(),locksAt:z.iso.datetime().optional(),eventAt:z.iso.datetime().optional(),startsAt:z.iso.datetime().optional(),endsAt:z.iso.datetime().optional(),targetId:z.string().optional(),reason:z.string().trim().min(3).max(1000).optional(),decision:z.enum(['restore','remove']).optional(),muted:z.boolean().optional(),roundOpen:z.boolean().optional(),lockReminder:z.boolean().optional(),weeklyFinal:z.boolean().optional(),notificationId:z.uuid().optional(),noticeId:z.uuid().optional(),subjectId:z.uuid().optional(),resolverId:z.uuid().optional()});
 export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const data=schema.parse(input),d=await db();
  // Commit due settlements independently of an action that may subsequently fail.
@@ -178,11 +206,11 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  const option=()=>{const a=data.answer||'';check(customAnswers(q.options).includes(a),'Choose one of this call’s options.');return a};check(q.moderation_state==='visible','This call is hidden pending moderation.');
  if(data.action==='setResolver'){
  // The admin hands a call to someone who'll know what happened. It only changes who reports the outcome; scoring is untouched.
- check(userId===g.admin,'Only the admin can choose who settles a call.');
+ check(userId===g.admin||userId===q.creator,'Only whoever posted the call (or the admin) can choose who settles it.');
  check(q.state==='open'&&!q.fixture_id,'This call already has a result.');
- const target=data.targetId&&data.targetId!==g.admin?data.targetId:null;
+ const target=data.targetId&&data.targetId!==q.creator?data.targetId:null;
  if(target)check((await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,target])).rows.length,'Pick someone in the group.');
- await tx.query('UPDATE questions SET resolver_id=$1 WHERE id=$2',[target,q.id]);await audit(tx,g.id,q.id,userId,'resolver set',now,{resolver:target||g.admin});
+ await tx.query('UPDATE questions SET resolver_id=$1 WHERE id=$2',[target,q.id]);await audit(tx,g.id,q.id,userId,'resolver set',now,{resolver:target||q.creator});
  if(target)await emitNotification(tx,{groupId:g.id,userId:target,key:'resolver:'+q.id+':'+target,kind:'judgment_request',questionId:q.id,roundId:q.round_id||undefined,text:'You’ll say what happened: '+q.text},now);
  return {invite:data.invite,questionId:q.id};
  }else if(data.action==='predictLongterm'){
@@ -198,25 +226,34 @@ export async function lifecycle(input:unknown,userId:string,now=new Date()){
  if(data.action==='propose'){
  // The admin says what happened, unless they handed the call to someone else. If that person has left, or is
  // late after the event, the admin can step in.
- const resolver=q.resolver_id||g.admin!,resolverActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,resolver])).rows.length;
- const event=q.event_at?new Date(q.event_at).getTime():new Date(g.opens_at!).getTime()+7*DAY-60000;
+ const resolver=q.resolver_id||q.creator,resolverActive=(await tx.query('SELECT 1 FROM members WHERE group_id=$1 AND user_id=$2 AND active',[g.id,resolver])).rows.length;
+ const event=new Date(q.scope==='longterm'&&q.event_at?q.event_at:q.locks_at).getTime();
  // Sealed predictions: nobody settles them before the opening; after it, the group decides together, so anyone in it can.
  const opens=await sealedUntil(tx,q.id);if(opens)check(now>=opens,'These open on '+opens.toISOString().slice(0,10)+'.');
- check(!!opens||userId===resolver||(userId===g.admin&&(!resolverActive||now.getTime()>=event+t.takeoverMs)),'Only the person settling this call can say what happened.');
+ check(!!opens||userId===resolver||!resolverActive||now.getTime()>=event+t.takeoverMs,'Only the person settling this call can say what happened (anyone can, two days after).');
+ check(userId!==q.subject_id||userId===resolver,'This call is about you, so someone else says what happened.');
  check(q.state==='open','A proposal already exists.');
- if(!opens&&userId!==resolver)await audit(tx,g.id,q.id,userId,'admin takeover',now,{resolver});
+ if(!opens&&userId!==resolver)await audit(tx,g.id,q.id,userId,'settled for the settler',now,{resolver});
  await tx.query("UPDATE questions SET state='proposed',proposed_answer=$1,proposed_at=$2,proposed_by=$4 WHERE id=$3",[option(),now,q.id,userId]);await alert(tx,q,'proposed',userId,now);
  }else if(data.action==='dispute'){
- check(q.proposed_at&&['proposed','disputed'].includes(q.state)&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+t.disputeMs,deadline(q,g.opens_at,t)),'The dispute window has closed.');
- check(!(await tx.query('SELECT 1 FROM disputes WHERE question_id=$1 AND user_id=$2',[q.id,userId])).rows.length,'You already disputed this call.');
- await tx.query('INSERT INTO disputes VALUES($1,$2,$3)',[q.id,userId,now]);await tx.query("UPDATE questions SET state='disputed' WHERE id=$1",[q.id]);await alert(tx,q,'disputed',userId,now);
- const judge=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ($3::text IS NULL OR m.user_id<>$3) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes di WHERE di.question_id=$4 AND di.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id LIMIT 1`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows[0];
- if(!judge)await settle(tx,q,null,now);
- else{const inserted=await tx.query('INSERT INTO alerts VALUES($1,$2,$3,$4,$5,true,$6,$7) ON CONFLICT(question_id,user_id,stage) DO NOTHING RETURNING id',[randomUUID(),g.id,q.id,judge.user_id,'judgment requested',userId,now]);if(inserted.rows.length)await emitNotification(tx,{groupId:g.id,userId:judge.user_id,key:'bet:'+q.id+':judgment',kind:'judgment_request',questionId:q.id,roundId:q.round_id||undefined,text:'You’re the judge: '+q.text},now);}
+ // "Not right?" opens a group vote on what actually happened. One vote per call; it runs for a day.
+ check(q.proposed_at&&q.state==='proposed'&&now.getTime()<Math.min(new Date(q.proposed_at).getTime()+t.disputeMs,deadline(q,g.opens_at,t)),'The window to say it’s not right has closed.');
+ check(userId!==q.subject_id,'This call is about you, so you sit the result out.');
+ await tx.query('INSERT INTO disputes VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[q.id,userId,now]);
+ await tx.query("UPDATE questions SET state='disputed',disputed_at=$2 WHERE id=$1",[q.id,now]);
+ const who=(await tx.query<{name:string}>('SELECT name FROM users WHERE id=$1',[userId])).rows[0]?.name||'Someone';
+ for(const m of (await tx.query<{user_id:string}>('SELECT user_id FROM members WHERE group_id=$1 AND active AND user_id<>$2 AND user_id<>COALESCE($3::text,\'\')',[g.id,userId,q.subject_id])).rows)
+  await emitNotification(tx,{groupId:g.id,userId:m.user_id,key:'bet:'+q.id+':disputed',kind:'dispute',questionId:q.id,roundId:q.round_id||undefined,text:`${who} says the result of “${q.text}” isn’t right. Vote: what actually happened?`,eventAt:now},now);
+ await alert(tx,q,'disputed',userId,now);
+ }else if(data.action==='voteResult'){
+ // Votes are public: that's what keeps them honest between friends. You can change yours until the vote closes.
+ check(q.state==='disputed','There’s no vote on this call.');
+ check(userId!==q.subject_id,'This call is about you, so you sit the vote out.');
+ await tx.query('INSERT INTO result_votes VALUES($1,$2,$3,$4) ON CONFLICT(question_id,user_id) DO UPDATE SET answer=EXCLUDED.answer,voted_at=EXCLUDED.voted_at',[q.id,userId,option(),now]);
+ const left=(await tx.query<{n:number}>('SELECT count(*)::int n FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>COALESCE($2::text,\'\') AND NOT EXISTS(SELECT 1 FROM result_votes v WHERE v.question_id=$3 AND v.user_id=m.user_id)',[g.id,q.subject_id,q.id])).rows[0].n;
+ if(!left)await closeVote(tx,q,now);
  }else if(data.action==='judge'){
- check(q.state==='disputed','No open dispute.');
- const judges=(await tx.query<{user_id:string}>(`SELECT m.user_id FROM members m WHERE m.group_id=$1 AND m.active AND m.user_id<>$2 AND ( $3::text IS NULL OR m.user_id<>$3 ) AND m.user_id<>COALESCE($7::text,$2) AND NOT EXISTS(SELECT 1 FROM disputes d WHERE d.question_id=$4 AND d.user_id=m.user_id) ORDER BY (m.user_id=$5) DESC,(m.user_id=$6) DESC,m.joined_at,m.user_id`,[g.id,q.creator,q.subject_id,q.id,g.admin,g.fallback_id,q.proposed_by])).rows;
- if(!judges.length)await settle(tx,q,null,now);else{check(judges[0].user_id===userId,'Only the eligible judge can decide.');await settle(tx,q,option(),now);}
+ check(false,'Disputed results are decided by a group vote now.');
  }
  }
  }

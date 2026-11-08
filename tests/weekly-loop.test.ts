@@ -19,14 +19,14 @@ test('lock snapshot is immutable; scores use snapshot shares and decimal totals 
  for(const id of [a,b])await execute({action:'propose',invite:f2.invite,questionId:id,answer:'yes'},f2.tokens[0],at(0,2));
  await runScheduler(at(1,2));const state=await view(f2.invite,f2.tokens[0],undefined,at(1,2));assert.equal(state.roundScores?.find(s=>s.user_id===f2.ids[0])?.points_tenths,600,"alone in 3 on both: 30 + 30");
 });
-test('named fallback judges conflicts; takeover and detailed audit are enforced',async()=>{
+test('a disputed result goes to a group vote with an audit trail; a settler who left can be replaced',async()=>{
  const f=await fixture(),q=await question(f);await predict(f,q,1,'yes');
- await execute({action:'judgeSettings',invite:f.invite,targetId:f.ids[2]},f.tokens[0],monday);
  await execute({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.tokens[0],at(0,2));await execute({action:'dispute',invite:f.invite,questionId:q},f.tokens[1],at(0,3));
- await assert.rejects(execute({action:'judge',invite:f.invite,questionId:q,answer:'yes'},f.tokens[0],at(0,4)),/eligible judge/);
- await execute({action:'judge',invite:f.invite,questionId:q,answer:'no'},f.tokens[2],at(0,4));
+ await assert.rejects(execute({action:'judge',invite:f.invite,questionId:q,answer:'yes'},f.tokens[2],at(0,4)),/group vote/);
+ await execute({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},f.tokens[2],at(0,4));await execute({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},f.tokens[1],at(0,4));
+ await runScheduler(at(1,4));
  const d=await db();assert.equal((await d.query<{result_answer:string}>('SELECT result_answer FROM questions WHERE id=$1',[q])).rows[0].result_answer,'no');
- const trail=(await d.query<{action:string;details:{answer:string}}>('SELECT action,details FROM audit WHERE question_id=$1',[q])).rows;assert.ok(trail.some(a=>a.action==='judge'&&a.details.answer==='no'));
+ const trail=(await d.query<{action:string;details:{answer:string;changed:boolean}}>('SELECT action,details FROM audit WHERE question_id=$1',[q])).rows;assert.ok(trail.some(a=>a.action==='vote closed'&&a.details.answer==='no'&&a.details.changed));
  const f2=await fixture(),q2=await question(f2,1);await predict(f2,q2,0,'yes');await execute({action:'leave',invite:f2.invite},f2.tokens[1],at(0,2));await execute({action:'propose',invite:f2.invite,questionId:q2,answer:'yes'},f2.tokens[0],at(0,3));
  assert.equal((await d.query<{state:string}>('SELECT state FROM questions WHERE id=$1',[q2])).rows[0].state,'proposed');
 });

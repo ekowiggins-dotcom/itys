@@ -48,7 +48,7 @@ test('a whole practice week runs in an hour; normal groups keep the weekly sched
  assert.equal(new Date((nv.group as {opens_at:Date}).opens_at).toISOString(),'2030-04-14T21:00:00.000Z','Monday 00:00 Istanbul');
 });
 
-test('practice disputes are judged on the fast clock and unresolved calls void after 10 minutes',async()=>{
+test('practice disputes go to a group vote on the fast clock and unresolved calls void after 10 minutes',async()=>{
  process.env.PRACTICE_GROUPS='1';
  const t0=new Date('2030-05-01T10:00:00Z'),m=(x:number)=>new Date(t0.getTime()+x*MIN);
  const a=await execute({action:'create',name:'Ada',groupName:'Fast',practice:true},undefined,t0),invite=a.invite!;
@@ -59,7 +59,8 @@ test('practice disputes are judged on the fast clock and unresolved calls void a
  await runScheduler(m(3));
  await execute({action:'propose',invite,questionId:q,answer:'no'},a.session,m(3));
  await execute({action:'dispute',invite,questionId:q},b.session,m(4));
- await execute({action:'judge',invite,questionId:q,answer:'yes'},c.session,m(5));
+ await execute({action:'voteResult',invite,questionId:q,answer:'yes'},c.session,m(5));await execute({action:'voteResult',invite,questionId:q,answer:'yes'},b.session,m(5));
+ await runScheduler(m(8));
  const d=await db();
  assert.equal((await d.query<{result_answer:string}>('SELECT result_answer FROM questions WHERE id=$1',[q])).rows[0].result_answer,'yes');
  // q2's event is the round deadline (+45 min); unresolved 10 minutes later it voids.
