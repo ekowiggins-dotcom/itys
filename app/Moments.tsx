@@ -1,5 +1,5 @@
 'use client';
-import {t,L} from './i18n';
+import {t,L,lang} from './i18n';
 // Moments: a birthday, a trip, a night out. A few calls that close together, one table, one card at the end.
 import {useEffect,useMemo,useState} from 'react';
 import {Sheet,Face,Faces,Icon,Badge,Split} from './ui';
@@ -67,13 +67,13 @@ export function NewMomentSheet({open,now,lang,friends,busy,preset,onCreate,onClo
    </div>
    {!drafts.length&&<p className="c-hint">{t('A “who…?” question lets everyone pick a friend; anything else is yes or no.')}</p>}
    {needsFriends&&<p className="c-hint warn">{t('Add friends in the Group tab first, for “who…?” calls.')}</p>}
-   <div className="c-sheet-foot"><span className="c-badge later">{title||'…'}{sealed&&opensMs?t(' · opens ')+new Date(opensMs).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):startMs?' · '+when(new Date(startMs).toISOString(),now):''}</span>
+   <div className="c-sheet-foot"><span className="c-badge later">{title||'…'}{sealed&&opensMs?t(' · opens ')+new Date(opensMs).toLocaleDateString(lang==='tr'?'tr-TR':'en-GB',{day:'numeric',month:'short',year:'numeric'}):startMs?' · '+when(new Date(startMs).toISOString(),now):''}</span>
     <button className="c-btn" disabled={!valid||busy} onClick={async()=>{if(await onCreate({kind,title:title.trim(),subject:who||undefined,startsAt:new Date(startMs).toISOString(),sealed:sealed||undefined,opensAt:sealed?new Date(opensMs).toISOString():undefined,calls:chosen.slice(0,8).map(d=>({text:d.text.trim(),answerType:d.answerType,options:d.options}))}))onClose()}}>{t('Create & share')} <Icon name="arrow"/></button></div>
  </Sheet>;
 }
 
 const days=(to:string,now:number)=>Math.max(0,Math.ceil((Date.parse(to)-now)/86400000));
-const dateLabel=(d:string)=>new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+const dateLabel=(d:string)=>new Date(d).toLocaleDateString(lang()==='tr'?'tr-TR':'en-GB',{day:'numeric',month:'short',year:'numeric'});
 /** "Seal yours by 31 Dec" · "Opens in 412 days" · "Open it!" */
 function sealBadge(m:Moment,status:string,now:number){if(status==='open')return L('Seal yours by ','Son mühür: ')+dateLabel(m.starts_at);if(status==='sealed'){const d=days(m.opens_at!,now);return d<=1?L('Opens in ','Açılışa ')+countdown(m.opens_at!,now):L('Opens in '+d+' days',d+' gün sonra açılıyor')}return status==='done'?t('All settled'):L('Open it!','Aç!')}
 
@@ -130,7 +130,7 @@ export function PastMoments({moments,calls,snaps,now,meName,onOpen}:{moments:Mom
  const past=moments.filter(m=>momentView(m,calls,now).status==='done');
  if(!past.length)return null;
  return <section className="c-card past"><span className="c-kicker dark">{t('Past Moments')}</span><div className="c-past">{past.map(m=>{const v=momentView(m,calls,now),l=momentLeaders(v.calls,snaps),top=l[0];const k=KIND[m.kind as MomentKind]||KIND.own;
-  return <button key={m.id} className="c-past-row" onClick={()=>onOpen(m)}><span className="c-moment-emoji" aria-hidden="true">{k.emoji}</span><span className="c-past-main"><b>{m.title}</b><small>{new Date(m.starts_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}{top?' · '+(top.name===meName?t('You'):top.name)+' called '+top.right+'/'+v.settled:''}</small></span><Icon name="arrow" size={16}/></button>})}</div></section>;
+  return <button key={m.id} className="c-past-row" onClick={()=>onOpen(m)}><span className="c-moment-emoji" aria-hidden="true">{k.emoji}</span><span className="c-past-main"><b>{m.title}</b><small>{new Date(m.starts_at).toLocaleDateString(lang()==='tr'?'tr-TR':'en-GB',{day:'numeric',month:'short',year:'numeric'})}{top?' · '+(top.name===meName?t('You'):top.name)+' called '+top.right+'/'+v.settled:''}</small></span><Icon name="arrow" size={16}/></button>})}</div></section>;
 }
 
 /** Opening day: one prediction at a time, tap to see who said what, then say what happened. */
@@ -147,7 +147,7 @@ export function OpeningSheet({m,calls,snaps,meName,now,onResolve,onClose}:{m:Mom
   <h2 className="c-title big">{c.text}</h2>
   {!shown?<button className="c-reveal-btn" onClick={()=>setShown(true)}><span aria-hidden="true">🔓</span>{t('Tap to see what everyone said')}</button>
   :<><div className="c-reveal">{groups.length?groups.map(g=>{const mine=g.names.some(n=>n.name===meName);return <div key={g.answer} className={'c-group'+(mine?' mine':'')}>
-    <div className="c-group-head"><b>{label(g.answer,c)}</b><span>{g.names.length} {g.names.length===1?'friend':'friends'}</span></div>
+    <div className="c-group-head"><b>{label(g.answer,c)}</b><span>{L(g.names.length+' '+(g.names.length===1?'friend':'friends'),g.names.length+' kişi')}</span></div>
     <div className="c-names">{g.names.map(n=><span key={n.name}><Face name={n.name} size={26}/>{n.name===meName?t('You'):n.name}</span>)}</div></div>}):<p className="c-sub light">{t('Nobody sealed an answer for this one.')}</p>}</div>
    {c.state==='settled'?<p className="c-sub light"><b>{label(c.result_answer||'',c)}</b> {t('it was.')} {total?groups.find(g=>g.answer===c.result_answer)?.names.length||0:0} of {total} {t('saw it coming.')}</p>
    :c.state==='proposed'?<p className="c-sub light">{t('Someone said:')} <b>{label(c.proposed_answer||'',c)}</b>{t('. Counts in a day unless someone says it’s not right.')}</p>

@@ -1,11 +1,12 @@
 'use client';
 import {useState} from 'react';
+import {lang} from './i18n';
 export type SeasonRound={id:string;opens_at:string;state:string;eligible:boolean;missed:boolean;points_tenths:number;dropped:boolean};
 export type SeasonStanding={user_id:string;name:string;active:boolean;rank:number;rounds:SeasonRound[];completedEligible:number;dropCount:number;weeklyTenths:number;keptWeeklyTenths:number;droppedTenths:number;longTermTenths:number;totalTenths:number};
 export type SeasonView={id:string;name:string;starts_at:string;ends_at:string;state:string;frozen_at:string|null;pendingRounds:number;completedRounds:number;standings:SeasonStanding[];myStanding?:SeasonStanding;dropNotices:{id:string;text:string}[]};
 export default function SeasonsPanel({seasons,userId,admin,busy,act,clock}:{seasons:SeasonView[];userId?:string;admin:boolean;busy:boolean;act:(p:Record<string,unknown>)=>Promise<boolean>;clock:number}){
  const [selected,setSelected]=useState('');const season=seasons.find(s=>s.id===selected)||seasons.find(s=>s.state==='active')||seasons[0],mine=season?.myStanding;
- const fmt=(value:number)=>(value/10).toFixed(1);const date=(value:string)=>new Date(value).toLocaleDateString('en-GB',{year:'numeric',month:'short',day:'numeric'});
+ const fmt=(value:number)=>(value/10).toFixed(1);const date=(value:string)=>new Date(value).toLocaleDateString(lang()==='tr'?'tr-TR':'en-GB',{year:'numeric',month:'short',day:'numeric'});
  async function schedule(e:React.FormEvent<HTMLFormElement>){e.preventDefault();const el=e.currentTarget,form=new FormData(el);await act({action:'season',name:form.get('name'),startsAt:new Date(String(form.get('startsAt'))).toISOString(),endsAt:new Date(String(form.get('endsAt'))).toISOString()}).then(ok=>{if(ok)el.reset()})}
  return <section className="seasons-panel"><div className="page-head"><h2>Season</h2>{season&&<span className="count-pill">{date(season.starts_at).replace(/ \d{4}$/,'')} – {date(season.ends_at)}</span>}</div>{seasons.length>1&&<div className="chips">{seasons.map(s=><button key={s.id} className={s.id===season?.id?'on':''} onClick={()=>setSelected(s.id)}>{s.name}</button>)}</div>}
  {season?<>{season.state!=='active'&&<div className={'round-status '+(season.state==='frozen'?'final':'provisional')}><span className="status-dot"/>{season.state==='frozen'?'Final':season.state==='provisional'?season.pendingRounds+' rounds still settling':'Starts '+date(season.starts_at)}</div>}
