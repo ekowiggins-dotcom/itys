@@ -33,16 +33,17 @@ test('an undisputed late proposal settles with its answer when the shortened win
  assert.equal((await d.query<{points_tenths:number}>('SELECT points_tenths FROM scores WHERE question_id=$1 AND user_id=$2',[q,f.ids[1]])).rows[0].points_tenths,100);
 });
 
-test('a late proposal disputed before the deadline is still voided at the deadline',async()=>{
+test('a late proposal disputed before the deadline: the vote closes at the deadline, most votes wins',async()=>{
  const f=await group(['Creator','Player','Third']);
  const q=await bet(f.g,f.ids[0],new Date(now.getTime()-7*DAY+2*HOUR));
  await lifecycle({action:'propose',invite:f.invite,questionId:q,answer:'yes'},f.ids[0],now);
  await lifecycle({action:'dispute',invite:f.invite,questionId:q},f.ids[1],new Date(now.getTime()+HOUR));
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},f.ids[1],new Date(now.getTime()+HOUR));
  await lifecycle({action:'tick',invite:f.invite},f.ids[0],new Date(now.getTime()+3*HOUR));
- assert.equal((await state(q)).state,'void');
+ assert.deepEqual(await state(q),{state:'settled',result_answer:'no'});
 });
 
-test('an admin who took over a proposal cannot judge the dispute on it',async()=>{
+test('two days late anyone can settle; a dispute then goes to a public group vote',async()=>{
  const f=await group(['Creator','Disputer','Admin','Neutral']),d=await db();
  const [creator,disputer,admin,neutral]=f.ids;
  await d.query('UPDATE groups SET admin=$1,fallback_id=NULL WHERE id=$2',[admin,f.g]);
@@ -50,9 +51,18 @@ test('an admin who took over a proposal cannot judge the dispute on it',async()=
  await lifecycle({action:'propose',invite:f.invite,questionId:q,answer:'yes'},admin,now);
  assert.equal((await d.query<{proposed_by:string}>('SELECT proposed_by FROM questions WHERE id=$1',[q])).rows[0].proposed_by,admin);
  await lifecycle({action:'dispute',invite:f.invite,questionId:q},disputer,new Date(now.getTime()+HOUR));
- await assert.rejects(lifecycle({action:'judge',invite:f.invite,questionId:q,answer:'yes'},admin,new Date(now.getTime()+2*HOUR)),/eligible judge/);
- const request=(await d.query<{user_id:string}>("SELECT user_id FROM alerts WHERE question_id=$1 AND stage='judgment requested'",[q])).rows;
- assert.deepEqual(request.map(r=>r.user_id),[neutral]);
- await lifecycle({action:'judge',invite:f.invite,questionId:q,answer:'no'},neutral,new Date(now.getTime()+2*HOUR));
- assert.deepEqual(await state(q),{state:'settled',result_answer:'no'});
+ await assert.rejects(lifecycle({action:'dispute',invite:f.invite,questionId:q},neutral,new Date(now.getTime()+HOUR)),/closed/,'one vote per call');
+ // Everyone but the disputer is asked; votes are public and can change until the vote closes.
+ const asked=(await d.query<{user_id:string}>("SELECT user_id FROM notifications WHERE question_id=$1 AND kind='dispute' ORDER BY user_id",[q])).rows.map(r=>r.user_id);
+ assert.deepEqual(asked,[creator,admin,neutral].sort());
+ const at=new Date(now.getTime()+2*HOUR);
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'yes'},admin,at);
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},disputer,at);
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},neutral,at);
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'yes'},neutral,at);
+ assert.equal((await state(q)).state,'disputed','2–2 so far is still open: Creator hasn’t voted');
+ await lifecycle({action:'voteResult',invite:f.invite,questionId:q,answer:'no'},creator,at);
+ assert.deepEqual(await state(q),{state:'settled',result_answer:'yes'},'everyone voted: 3 yes, 1 no');
+ const told=(await d.query<{text:string}>("SELECT text FROM notifications WHERE question_id=$1 AND user_id=$2 AND kind='settlement' ORDER BY created_at DESC LIMIT 1",[q,disputer])).rows[0].text;
+ assert.match(told,/The group kept the result/);
 });

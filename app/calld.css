@@ -742,3 +742,12 @@ main.mx{max-width:960px;margin:0 auto;padding:28px 20px 60px;color:var(--ink);fo
 .mx th,.mx td{padding:9px 12px;text-align:left;border-bottom:1px solid #EEECE4;white-space:nowrap}
 .mx th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:#FAF9F5}
 .mx td.warn{color:#B3261E;font-weight:700}.mx .mx-dim{color:#B4B9B2}
+/* Group vote on a disputed result (inside the dark locked card). */
+.c-vote{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.c-vote-q{margin:0;color:#fff;font-size:14.5px;line-height:1.4}.c-vote-q b{display:block;font:700 17px 'Space Grotesk',sans-serif}.c-vote-q span{color:rgba(255,255,255,.7)}
+.c-vote-opt{display:flex;align-items:center;gap:10px;width:100%;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.18);border-radius:14px;padding:10px 12px;color:#fff;text-align:left;cursor:pointer;font:600 15px 'DM Sans',sans-serif}
+.c-vote-opt>span{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.c-vote-opt em{font-style:normal;font-size:11px;font-weight:700;background:rgba(255,255,255,.16);border-radius:99px;padding:1px 7px}
+.c-vote-opt b{font:700 16px 'Space Grotesk',sans-serif;min-width:16px;text-align:right}
+.c-vote-opt.on{background:var(--lime);border-color:var(--lime);color:var(--ink)}.c-vote-opt.on em{background:rgba(23,32,27,.12)}
+.c-vote small{color:rgba(255,255,255,.6);font-size:12.5px}
