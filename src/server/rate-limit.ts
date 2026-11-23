@@ -12,6 +12,7 @@ export const LIMITS = {
   createGroup: { name: "group:create", max: 5, windowSeconds: 3600 },
   joinByIp: { name: "group:join:ip", max: 20, windowSeconds: 3600 },
   invitePreviewByIp: { name: "invite:preview:ip", max: 60, windowSeconds: 3600 },
+  createCall: { name: "call:create", max: 20, windowSeconds: 86400 },
 } satisfies Record<string, Limit>;
 
 /**

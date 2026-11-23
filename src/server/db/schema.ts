@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -89,6 +90,59 @@ export const members = pgTable(
       .on(t.groupId, sql`lower(${t.displayName})`)
       .where(sql`${t.leftAt} IS NULL`),
   ],
+);
+
+/**
+ * What kind of answers a call takes:
+ * - yes_no: "Yes" / "No"
+ * - choice: 2–4 options written by the author
+ * - member: pick a person from the group (option keys are user ids; names are looked up when shown)
+ */
+export const callKind = pgEnum("call_kind", ["yes_no", "choice", "member"]);
+/** Whether a call is open/locked is derived from lock_at and now; status holds only what time can't tell. */
+export const callStatus = pgEnum("call_status", ["active", "cancelled", "settled", "void"]);
+
+export type CallOption = { key: string; label: string };
+
+export const calls = pgTable(
+  "calls",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id),
+    /** The member this call is about, if any. They can't pick on it. */
+    subjectId: uuid("subject_id").references(() => users.id),
+    text: text("text").notNull(),
+    kind: callKind("kind").notNull(),
+    /** For member calls, label is empty: the current display name is looked up when shown. */
+    options: jsonb("options").$type<CallOption[]>().notNull(),
+    /** Picks close at this moment. */
+    lockAt: ts("lock_at").notNull(),
+    /** When the answer should be known (settling opens then, in step 3). */
+    eventAt: ts("event_at").notNull(),
+    status: callStatus("status").notNull().default("active"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("calls_group_lock").on(t.groupId, t.lockAt), index("calls_author").on(t.authorId)],
+);
+
+export const picks = pgTable(
+  "picks",
+  {
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    optionKey: text("option_key").notNull(),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.callId, t.userId] }), index("picks_user").on(t.userId)],
 );
 
 /** Fixed-window rate limit counters. Old windows are deleted opportunistically. */

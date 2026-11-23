@@ -20,7 +20,7 @@ A free social prediction game between friends. Read README.md first.
 ## Engineering rules
 - Business logic lives in `src/server/*` as plain functions that take a `db` and `now`. Pages and server actions stay thin.
 - Every function that reads group data checks active membership first (`requireMember`). Outsiders get "not found".
-- Visibility of picks and results will be decided in one place (`src/server/visibility.ts`, step 2). Never filter data ad hoc.
+- Visibility of calls, picks and results is decided only in `src/server/visibility.ts` (tested as a table in `tests/visibility.test.ts`). Never filter data ad hoc.
 - Reading a page must not write to the database.
 - Schema changes: edit `src/server/db/schema.ts`, run `npm run db:generate`, commit the new file in `drizzle/`.
 - `npm test`, `npm run typecheck`, `npm run lint` and `npm run build` must pass.

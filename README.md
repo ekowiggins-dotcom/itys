@@ -7,8 +7,8 @@ This is a clean rebuild, made step by step:
 | Step | What | Status |
 |---|---|---|
 | 1 | Sign-in (email link), groups, invites | ✅ |
-| 2 | Calls and picks (split hidden until lock) | next |
-| 3 | Settling, disputes, votes, job runner | |
+| 2 | Calls and picks (split hidden until lock) | ✅ |
+| 3 | Settling, disputes, votes, job runner | next |
 | 4 | Scoring and weekly ranking | |
 | 5 | Notifications (outbox) | |
 | 6 | Moderation and reporting | |

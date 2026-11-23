@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import * as auth from "@/server/auth";
+import * as calls from "@/server/calls";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -121,6 +122,45 @@ export async function resetInviteAction(_: FormState, form: FormData): Promise<F
   }
   revalidatePath(`/groups/${groupId}`);
   return { ok: "New invite link created. The old one no longer works." };
+}
+
+export async function createCallAction(_: FormState, form: FormData): Promise<FormState> {
+  const groupId = str(form, "groupId");
+  const user = await requireUser(`/groups/${groupId}`);
+  try {
+    const kind = str(form, "kind") as "yes_no" | "choice" | "member";
+    await calls.createCall(await getDb(), user, groupId, {
+      text: str(form, "text"),
+      kind,
+      options: kind === "choice" ? form.getAll("option").map(String) : undefined,
+      subjectId: str(form, "subjectId") || undefined,
+      lockAt: str(form, "lockAt"),
+      eventAt: str(form, "eventAt") || str(form, "lockAt"),
+    });
+  } catch (e) {
+    return toState(e);
+  }
+  revalidatePath(`/groups/${groupId}`);
+  return { ok: "Call posted." };
+}
+
+/** Pick, change pick, take back, or cancel. One action keeps the call card's buttons simple. */
+export async function callAction(_: FormState, form: FormData): Promise<FormState> {
+  const groupId = str(form, "groupId");
+  const callId = str(form, "callId");
+  const user = await requireUser(`/groups/${groupId}`);
+  try {
+    const db = await getDb();
+    const op = str(form, "op");
+    if (op === "pick") await calls.pick(db, user, callId, str(form, "option"));
+    else if (op === "unpick") await calls.unpick(db, user, callId);
+    else if (op === "cancel") await calls.cancelCall(db, user, callId);
+    else return { error: "Unknown action." };
+  } catch (e) {
+    return toState(e);
+  }
+  revalidatePath(`/groups/${groupId}`);
+  return undefined;
 }
 
 export async function leaveGroupAction(_: FormState, form: FormData): Promise<FormState> {
