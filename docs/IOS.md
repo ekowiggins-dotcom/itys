@@ -55,7 +55,17 @@ In Xcode, pick your team under Signing & Capabilities for both targets, choose a
 
 To point the app at your computer while developing, use `APP_ORIGIN=http://<your-mac-ip>:3000` for `cap sync`. The simulator can also use `http://localhost:3000`.
 
-## Releasing
+## Releasing to TestFlight
+
+Actions → **TestFlight** → **Run workflow** (or push a tag like `ios-v1.0.1`). On a GitHub-hosted Mac with Xcode 26 it:
+
+1. Syncs the project with `API_BASE` (the live site the app loads) and runs `scripts/ios-setup.mjs`.
+2. Makes a fresh Apple Distribution certificate and App Store profiles for the app and widget through the App Store Connect API (`scripts/ci-signing.py`). Older CI certificates and "CI …" profiles are rotated out.
+3. Archives with a timestamp build number (always higher than earlier builds) and uploads to App Store Connect.
+
+It needs the `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8` secrets and the `API_BASE` variable. It warns if the live site's `/api/health` isn't OK, because the app shows the live site.
+
+## Other release notes
 
 - App Store Connect requires a recent Xcode/iOS SDK. CI currently builds with the runner's default Xcode (16.4 on `macos-15`). Before uploading to TestFlight, build with the newest Xcode (for example on a `macos-26` runner).
 - Set `aps-environment` to `production` in `ios/App/App/App.entitlements` for App Store builds (Xcode does this automatically when archiving with a distribution profile).

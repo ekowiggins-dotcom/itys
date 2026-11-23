@@ -1,0 +1,203 @@
+name: TestFlight
+
+# Builds, signs and uploads the iOS app (with its widget) to TestFlight from a GitHub-hosted Mac.
+# Run it from Actions → TestFlight → Run workflow (or push a tag like ios-v1.0.3).
+# No Mac, certificates or registered devices needed: each run makes an Apple Distribution certificate and
+# App Store profiles through the App Store Connect API key (scripts/ci-signing.py) and signs manually.
+#
+# Repository secrets: APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (full .p8 contents)
+# Repository variables: API_BASE (the live site the app loads, e.g. https://your-app.up.railway.app)
+#
+# Without the secrets, the run does an unsigned Release device build and stops (checks a release build compiles).
+on:
+  workflow_dispatch:
+  push:
+    tags: ["ios-v*"]
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      BUNDLE_ID: app.wholl.ios
+    steps:
+      - name: Use Xcode 26 (App Store Connect requires the iOS 26 SDK)
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$X" ]; then echo "::error::No Xcode 26 on this runner"; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check signing secrets
+        id: cfg
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+          KEY: ${{ secrets.ASC_KEY_P8 }}
+          API_BASE: ${{ vars.API_BASE }}
+        run: |
+          echo "origin=${API_BASE%/}" >> "$GITHUB_OUTPUT"
+          echo "build=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_OUTPUT"
+          if [ -n "$TEAM" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER" ] && [ -n "$KEY" ] && [ -n "$API_BASE" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=TestFlight not configured::Add the APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 secrets and the API_BASE variable to upload. Running an unsigned Release build only."
+          fi
+
+      - name: Check the live site the app will load
+        if: steps.cfg.outputs.signed == 'true'
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${{ steps.cfg.outputs.origin }}/api/health" || true)
+          if [ "$code" != "200" ]; then
+            echo "::warning title=Site not healthy::${{ steps.cfg.outputs.origin }}/api/health returned $code. The app loads the live site, so testers will see errors until it is up."
+          fi
+
+      - run: npm ci
+
+      - name: Prepare the Xcode project
+        env:
+          APP_ORIGIN: ${{ steps.cfg.outputs.origin || 'https://wholl.example' }}
+          IOS_BUNDLE_ID: ${{ env.BUNDLE_ID }}
+        run: |
+          npx cap sync ios
+          node scripts/ios-setup.mjs
+
+      - name: Unsigned Release build (no secrets)
+        if: steps.cfg.outputs.signed != 'true'
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Wholl.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO archive | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"
+          test -d "$RUNNER_TEMP/Wholl.xcarchive/Products/Applications/App.app/PlugIns/WhollWidget.appex"
+
+      - name: Install the API key
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          KEY: ${{ secrets.ASC_KEY_P8 }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          # Rebuild a clean PEM however the key was pasted. Prints only shape checks, never the key.
+          python3 - "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" <<'PY'
+          import os,re,sys,base64,textwrap
+          raw=os.environ['KEY'].strip()
+          if 'BEGIN' not in raw:
+              try: raw=base64.b64decode(re.sub(r'\s','',raw)).decode()
+              except Exception: pass
+          body=re.sub(r'-----(BEGIN|END)[A-Z ]*-----','',raw)
+          body=re.sub(r'[^A-Za-z0-9+/=]','',body)
+          print('has BEGIN line:', 'BEGIN PRIVATE KEY' in raw, '| key body length:', len(body))
+          if len(body)<150: sys.exit('ASC_KEY_P8 does not look like the .p8 file contents.')
+          pem='-----BEGIN PRIVATE KEY-----\n'+'\n'.join(textwrap.wrap(body,64))+'\n-----END PRIVATE KEY-----\n'
+          open(sys.argv[1],'w').write(pem)
+          PY
+
+      - name: Make App Store signing (certificate + profiles)
+        if: steps.cfg.outputs.signed == 'true'
+        id: sign
+        env:
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q pyjwt cryptography
+          "$RUNNER_TEMP/venv/bin/python" scripts/ci-signing.py setup "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" "$KEY_ID" "$ISSUER" \
+            "$RUNNER_TEMP/signing" "${{ github.run_id }}" "$BUNDLE_ID" "$BUNDLE_ID.widget" | tee "$RUNNER_TEMP/profiles.txt"
+          APP_PROFILE=$(grep "^$BUNDLE_ID=" "$RUNNER_TEMP/profiles.txt" | cut -d= -f2-)
+          WIDGET_PROFILE=$(grep "^$BUNDLE_ID.widget=" "$RUNNER_TEMP/profiles.txt" | cut -d= -f2-)
+          echo "app_profile=$APP_PROFILE" >> "$GITHUB_OUTPUT"
+          echo "widget_profile=$WIDGET_PROFILE" >> "$GITHUB_OUTPUT"
+
+          # A throwaway keychain holding only this run's certificate.
+          KC="$RUNNER_TEMP/signing.keychain-db"; KCPW=$(uuidgen)
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          curl -fsSL -o "$RUNNER_TEMP/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer
+          security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -T /usr/bin/codesign || true
+          security import "$RUNNER_TEMP/signing/signing.p12" -P "$(cat "$RUNNER_TEMP/signing/signing.pw")" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+
+          # App Store builds use production APNs; each target gets its own profile.
+          plutil -replace aps-environment -string production ios/App/App/App.entitlements
+          python3 - "$BUNDLE_ID" "$APP_PROFILE" "$WIDGET_PROFILE" <<'PY2'
+          import re,sys
+          bid,app,widget=sys.argv[1:]
+          p='ios/App/App.xcodeproj/project.pbxproj';s=open(p).read()
+          for b,name in((bid+'.widget',widget),(bid,app)):
+              s=re.sub(r'(\n(\s*)PRODUCT_BUNDLE_IDENTIFIER = '+re.escape(b)+r';)',lambda m:m.group(1)+'\n'+m.group(2)+'PROVISIONING_PROFILE_SPECIFIER = "'+name+'";',s)
+          open(p,'w').write(s)
+          print(s.count('PROVISIONING_PROFILE_SPECIFIER'),'build configurations got a profile')
+          PY2
+
+      - name: Archive (signed)
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Wholl.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="Apple Distribution" \
+            CURRENT_PROJECT_VERSION="${{ steps.cfg.outputs.build }}" \
+            archive | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"
+          test -d "$RUNNER_TEMP/Wholl.xcarchive/Products/Applications/App.app/PlugIns/WhollWidget.appex"
+
+      - name: Upload to TestFlight
+        if: steps.cfg.outputs.signed == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$BUNDLE_ID</key><string>${{ steps.sign.outputs.app_profile }}</string>
+              <key>$BUNDLE_ID.widget</key><string>${{ steps.sign.outputs.widget_profile }}</string>
+            </dict>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Wholl.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$KEY_ID.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" | tee export.log | grep -E "error|Upload|EXPORT (SUCCEEDED|FAILED)"
+          echo "::notice title=Uploaded::Build ${{ steps.cfg.outputs.build }} is processing in App Store Connect. It appears in TestFlight in about 10-30 minutes."
+
+      - name: Remove the API key and signing files
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/keys" "$RUNNER_TEMP/signing"
+
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testflight-logs
+          path: |
+            archive.log
+            export.log
+          if-no-files-found: ignore
