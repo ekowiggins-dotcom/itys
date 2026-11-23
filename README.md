@@ -12,8 +12,8 @@ This is a clean rebuild, made step by step:
 | 4 | Scoring and weekly ranking | ✅ |
 | 5 | Notifications (outbox) | ✅ |
 | 6 | Moderation and reporting | ✅ |
-| 7 | Share cards | next |
-| 8 | iOS app (Capacitor) and widget | |
+| 7 | Share cards | ✅ |
+| 8 | iOS app (Capacitor) and widget | next |
 
 ## Stack
 
@@ -102,6 +102,14 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - **Removing members:** the admin can remove someone, who can't rejoin until let back in.
 - **Word filter:** explicit words are refused, including common disguises (`src/server/content-filter.ts`). The list is a starter; replace it with a maintained list before launch.
 - **Deleting your account** (Settings) removes you everywhere: memberships and names, picks, votes, points, notifications and sign-in links. Calls about you are taken down. Calls you wrote stay, shown as by "Former member". The admin role passes on.
+
+## Sharing
+
+- **Results:** members can share a settled call as a public link (`/r/<token>`) with a preview image for chat apps. It shows the call, the answer, how many picked and how many called it, and the sharer's own result. Never who picked what, other names, or the group's name.
+- **Who may share:** a call about someone can only be shared by that person; a "who" call only by the person it named.
+- **Always re-checked:** every view re-applies the rules, so a hidden/removed call, the sharer leaving or deleting their account takes the link down.
+- **Invites:** invite links get a preview image with the group's name and size (the same as the join page).
+- Images are made with `next/og` and the Inter font (Latin + Latin Extended for Turkish letters). Set `APP_ORIGIN` so preview URLs are absolute.
 
 ## How a call ends
 

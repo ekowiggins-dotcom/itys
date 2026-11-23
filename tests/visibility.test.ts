@@ -17,7 +17,7 @@ type Row = [string, Partial<CallState>, { userId: string | null; isMember: boole
 const table: Row[] = [
   ["member, open", { lockAt: before }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canPick: true }],
   ["member, locked", { lockAt: after }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
-  ["member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true }],
+  ["member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true, canShare: true }],
   ["member, cancelled", { lockAt: before, status: "cancelled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeeOwnPick: true }],
   ["member, void", { lockAt: after, status: "void" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeVoteTally: true }],
   ["member, result proposed", { lockAt: after, status: "proposed" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
@@ -29,6 +29,10 @@ const table: Row[] = [
   ["member, hidden for review", { lockAt: before, moderation: "hidden" }, { userId: ME, isMember: true }, {}],
   ["member, removed after settling", { lockAt: after, status: "settled", moderation: "removed" }, { userId: ME, isMember: true }, {}],
   ["subject, hidden", { lockAt: after, subjectId: SUBJECT, moderation: "hidden" }, { userId: SUBJECT, isMember: true }, {}],
+  ["member, settled call about someone else", { lockAt: after, status: "settled", subjectId: SUBJECT }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true }],
+  ["subject, settled call about them", { lockAt: after, status: "settled", subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true, canShare: true }],
+  ["member, settled 'who' call naming someone else", { lockAt: after, status: "settled", kind: "member", result: SUBJECT }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true }],
+  ["member named by a settled 'who' call", { lockAt: after, status: "settled", kind: "member", result: ME }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true, canShare: true }],
   ["signed out, settled", { lockAt: after, status: "settled" }, { userId: null, isMember: false }, {}],
 ];
 
@@ -40,6 +44,7 @@ const NONE: CallVisibility = {
   canSeeWhoPicked: false,
   canSeeVoteTally: false,
   canPick: false,
+  canShare: false,
 };
 
 describe("callVisibility", () => {

@@ -330,6 +330,25 @@ export const blocks = pgTable(
   (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index("blocks_blocked").on(t.blockedId)],
 );
 
+/**
+ * Public links to a settled call's result. Created by a member on purpose; what the link shows is decided
+ * again on every view (src/server/sharing.ts), so a later removal or account deletion takes it down.
+ */
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    token: text("token").primaryKey(),
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("share_links_once").on(t.callId, t.createdBy)],
+);
+
 /** Fixed-window rate limit counters. Old windows are deleted opportunistically. */
 export const rateLimits = pgTable(
   "rate_limits",

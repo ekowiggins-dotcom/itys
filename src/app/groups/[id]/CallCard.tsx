@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { callAction } from "../../actions";
+import { ShareLink } from "../../ui";
 import type { CallView } from "@/server/call-views";
 
 const VOID = "void";
@@ -192,6 +193,15 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
           )}
         </form>
       ) : null}
+      {call.canShare && (
+        <form action={action} className="row">
+          {hidden}
+          <button type="submit" name="op" value="share" className="secondary" disabled={pending}>
+            Share result
+          </button>
+        </form>
+      )}
+      {state?.shareUrl && <ShareLink url={state.shareUrl} text={call.text} />}
       {call.canHide && (
         <form action={action} className="row">
           {hidden}

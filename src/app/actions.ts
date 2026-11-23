@@ -9,6 +9,7 @@ import * as lifecycle from "@/server/lifecycle";
 import * as notifications from "@/server/notifications";
 import * as moderation from "@/server/moderation";
 import * as account from "@/server/account";
+import * as sharing from "@/server/sharing";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -23,7 +24,7 @@ import {
   setSessionCookie,
 } from "@/server/session";
 
-export type FormState = { error?: string; ok?: string; devLink?: string } | undefined;
+export type FormState = { error?: string; ok?: string; devLink?: string; shareUrl?: string } | undefined;
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -162,7 +163,10 @@ export async function callAction(_: FormState, form: FormData): Promise<FormStat
     else if (op === "settle") await lifecycle.proposeResult(db, user, callId, str(form, "option"));
     else if (op === "dispute") await lifecycle.disputeResult(db, user, callId, str(form, "option"));
     else if (op === "vote") await lifecycle.voteOnResult(db, user, callId, str(form, "option"));
-    else if (op === "hide") {
+    else if (op === "share") {
+      const token = await sharing.createShareLink(db, user, callId);
+      return { shareUrl: `${await appOrigin()}/r/${token}` };
+    } else if (op === "hide") {
       await moderation.reportCall(db, user, callId, "about_me");
       revalidatePath(`/groups/${groupId}`);
       return { ok: "Hidden. Nobody can see it while it's reviewed." };

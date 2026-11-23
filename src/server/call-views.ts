@@ -64,6 +64,8 @@ export type CallView = {
   canReport: boolean;
   /** Group admin, when the call isn't theirs: can remove its author from the group. */
   authorId: string | null;
+  /** Can make a public link to the result (see visibility.canShare). */
+  canShare: boolean;
 };
 
 /** The group's calls for this member: open ones first (closing soonest), then the rest (newest first). */
@@ -186,6 +188,7 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
       canHide: isSubject,
       canReport: !isSubject && c.authorId !== user.id && !reportedByMe.has(c.id),
       authorId: c.authorId,
+      canShare: v.canShare,
     };
   });
 

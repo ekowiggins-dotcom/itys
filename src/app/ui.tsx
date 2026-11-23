@@ -69,3 +69,28 @@ export function CopyButton({ text }: { text: string }) {
     </button>
   );
 }
+
+/** Opens the phone's share sheet when available; otherwise shows the link with a copy button. */
+export function ShareLink({ url, text }: { url: string; text: string }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({ url, text }).catch(() => setShown(true));
+    } else {
+      setShown(true); // eslint-disable-line react-hooks/set-state-in-effect -- one-off fallback after a browser check
+    }
+  }, [url, text]);
+  if (!shown) return null;
+  return (
+    <div className="stack">
+      <p className="invite">{url}</p>
+      <div className="row">
+        <CopyButton text={url} />
+        <a href={url} target="_blank" rel="noreferrer" className="small">
+          Open
+        </a>
+      </div>
+      <p className="muted small">Shows the call, the answer and how many called it. No one else&apos;s name or pick.</p>
+    </div>
+  );
+}

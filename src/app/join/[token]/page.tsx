@@ -7,6 +7,12 @@ import { AppError } from "@/server/errors";
 import { invitePreview } from "@/server/groups";
 import { clientIp, currentUser } from "@/server/session";
 
+export const metadata = {
+  title: "You're invited to Who’ll",
+  description: "Join your friends' group and make your calls. Free points, no money, just bragging rights.",
+  robots: { index: false },
+};
+
 export default async function Join({ params }: PageProps<"/join/[token]">) {
   const { token } = await params;
   const user = await currentUser();

@@ -9,6 +9,9 @@ export type CallState = {
   lockAt: Date;
   status: CallStatus;
   subjectId: string | null;
+  /** Needed for sharing rules on "who" calls; optional elsewhere. */
+  kind?: "yes_no" | "choice" | "member";
+  result?: string | null;
   /** Hidden (under review) and removed calls are shown to nobody; reviewers use the review queue. */
   moderation: "visible" | "hidden" | "removed";
 };
@@ -34,6 +37,11 @@ export type CallVisibility = {
   canSeeVoteTally: boolean;
   /** Whether this viewer may pick or change their pick right now. */
   canPick: boolean;
+  /**
+   * Whether this viewer may make a public link to the call's result. Only settled calls, and a call about a
+   * person can only be shared by that person (for "who" calls: the person who turned out to be the answer).
+   */
+  canShare: boolean;
 };
 
 export function isLocked(call: Pick<CallState, "lockAt">, now: Date) {
@@ -42,6 +50,22 @@ export function isLocked(call: Pick<CallState, "lockAt">, now: Date) {
 
 /** Calls that are still in play or settled show their split after lock; cancelled and void ones don't. */
 const LIVE: CallStatus[] = ["active", "proposed", "disputed", "settled"];
+
+function sharerIsAllowed(call: CallState, userId: string) {
+  if (call.subjectId) return call.subjectId === userId;
+  if (call.kind === "member") return call.result === userId;
+  return true;
+}
+
+/** What a public share link may show: only a settled, visible call. Names of who picked what are never shown. */
+export function publicShareAllowed(call: CallState & { sharedBy: string; sharerIsMember: boolean }) {
+  return (
+    call.moderation === "visible" &&
+    call.status === "settled" &&
+    call.sharerIsMember &&
+    sharerIsAllowed(call, call.sharedBy)
+  );
+}
 
 export function callVisibility(call: CallState, viewer: Viewer, now: Date): CallVisibility {
   const member = viewer.isMember && viewer.userId !== null && call.moderation === "visible";
@@ -57,5 +81,6 @@ export function callVisibility(call: CallState, viewer: Viewer, now: Date): Call
     canSeeWhoPicked: member && call.status === "settled",
     canSeeVoteTally: member && final,
     canPick: member && !isSubject && call.status === "active" && !locked,
+    canShare: member && call.status === "settled" && sharerIsAllowed(call, viewer.userId!),
   };
 }

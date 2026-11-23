@@ -6,6 +6,8 @@ import { currentUser } from "@/server/session";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Absolute URLs for share images. Production sets APP_ORIGIN (never derived from the request's Host header).
+  metadataBase: new URL(process.env.APP_ORIGIN ?? "http://localhost:3000"),
   title: "Who’ll",
   description: "Friendly predictions with your friends. Free points, no money, just bragging rights.",
 };
