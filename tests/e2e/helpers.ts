@@ -40,6 +40,18 @@ export async function audit(page: Page, info: TestInfo, label: string, width?: n
     (w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w,
     screenWidth,
   );
+  if (overflow > 0) {
+    // Name the elements sticking out, so a failure says what to fix.
+    const culprits = await page.evaluate(
+      (w) =>
+        [...document.querySelectorAll<HTMLElement>("body *")]
+          .filter((el) => el.getBoundingClientRect().right > w + 0.5 && el.getBoundingClientRect().width > 0)
+          .slice(-5)
+          .map((el) => `${el.tagName.toLowerCase()}.${el.className} → ${Math.round(el.getBoundingClientRect().right)}px`),
+      screenWidth,
+    );
+    console.log(`${label} overflow:`, culprits);
+  }
   expect(overflow, `${label}: page is ${overflow}px wider than the screen`).toBeLessThanOrEqual(0);
 
   const small = await page.evaluate(() => {

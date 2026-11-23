@@ -93,7 +93,7 @@ export function CallCard({
       <div className="call-head">
         <Chip tone={chip.tone}>{chip.text}</Chip>
         <span className="person-line small muted">
-          by {call.author}
+          <span className="author-name">by {call.author}</span>
           <Avatar name={call.author} color={call.authorId ? faces[call.authorId] : undefined} size={24} />
           {hasMenu && (
             <button type="button" className="icon-button" aria-label="More options" onClick={() => setMenuOpen(true)}>

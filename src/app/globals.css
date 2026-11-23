@@ -1462,3 +1462,16 @@ ul.notifs li a span {
   line-height: 44px;
   padding: 0 var(--s1);
 }
+
+/* Long author names shorten with "…" instead of widening the card (Linux fonts render a little wider). */
+.call-head .person-line {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.call-head .author-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
