@@ -1,0 +1,44 @@
+name: iOS
+on:
+  push:
+    paths: ["ios/**", "capacitor.config.ts", "native-shell/**", "scripts/ios-setup.mjs", "package.json", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", "capacitor.config.ts", "native-shell/**", "scripts/ios-setup.mjs", "package.json", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Builds the app and its widget for the simulator, unsigned: checks the native code compiles without
+    # needing a Mac or Apple certificates. Signing and TestFlight come later (see docs/IOS.md).
+    runs-on: macos-15
+    env:
+      APP_ORIGIN: https://wholl.example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Sync web shell and plugins into the iOS project
+        run: npx cap sync ios
+      - name: Check the project setup script changes nothing (it was run and committed)
+        run: |
+          node scripts/ios-setup.mjs
+          git diff --exit-code ios/App/App.xcodeproj/project.pbxproj
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Build app + widget for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee xcodebuild.log | grep -E "error|warning: .*WhollWidget|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" xcodebuild.log
+      - name: Check the widget is embedded in the app
+        run: test -d build/Build/Products/Debug-iphonesimulator/App.app/PlugIns/WhollWidget.appex
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: xcodebuild.log

@@ -10,6 +10,7 @@ import * as notifications from "@/server/notifications";
 import * as moderation from "@/server/moderation";
 import * as account from "@/server/account";
 import * as sharing from "@/server/sharing";
+import * as devices from "@/server/devices";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -240,6 +241,20 @@ export async function deleteAccountAction(_: FormState, form: FormData): Promise
   await account.deleteAccount(await getDb(), user);
   await clearSessionCookie();
   redirect("/");
+}
+
+/** The iOS app registers its push token for this session. */
+export async function registerDeviceAction(deviceToken: string) {
+  const user = await requireUser("/groups");
+  const token = await sessionToken();
+  if (!token) return;
+  await devices.registerDevice(await getDb(), user, token, deviceToken);
+}
+
+/** The iOS app asks for a read-only widget token, which it stores for the home-screen widget. */
+export async function widgetTokenAction() {
+  const user = await requireUser("/groups");
+  return devices.createWidgetToken(await getDb(), user);
 }
 
 export async function leaveGroupAction(_: FormState, form: FormData): Promise<FormState> {

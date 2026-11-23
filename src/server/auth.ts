@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { hashToken, randomToken } from "./crypto";
-import { loginTokens, sessions, users } from "./db/schema";
+import { loginTokens, sessions, users, widgetTokens } from "./db/schema";
 import type { Db } from "./db/types";
 import { AppError } from "./errors";
 import { hit, LIMITS } from "./rate-limit";
@@ -109,6 +109,7 @@ export async function logout(db: Db, token: string) {
 /** Signs out on every device. */
 export async function logoutEverywhere(db: Db, user: User) {
   await db.delete(sessions).where(eq(sessions.userId, user.id));
+  await db.delete(widgetTokens).where(eq(widgetTokens.userId, user.id)); // the widget stops too
 }
 
 function toUser(u: typeof users.$inferSelect): User {

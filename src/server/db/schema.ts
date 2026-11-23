@@ -349,6 +349,38 @@ export const shareLinks = pgTable(
   (t) => [uniqueIndex("share_links_once").on(t.callId, t.createdBy)],
 );
 
+/**
+ * Phones registered for push. Each device belongs to the session that registered it, so signing out
+ * (or "sign out everywhere", or deleting the account) stops its pushes automatically.
+ */
+export const devices = pgTable(
+  "devices",
+  {
+    token: text("token").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sessionHash: text("session_hash")
+      .notNull()
+      .references(() => sessions.tokenHash, { onDelete: "cascade" }),
+    /** APNs environment that accepted this token; learned on first send. */
+    environment: text("environment"),
+    disabledAt: ts("disabled_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("devices_user").on(t.userId).where(sql`${t.disabledAt} IS NULL`)],
+);
+
+/** Read-only tokens for the home-screen widget (hash only). One per person; replaced on each sign-in. */
+export const widgetTokens = pgTable("widget_tokens", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: createdAt(),
+});
+
 /** Fixed-window rate limit counters. Old windows are deleted opportunistically. */
 export const rateLimits = pgTable(
   "rate_limits",

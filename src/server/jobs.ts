@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { getDb } from "./db";
 import { deliverOutbox } from "./delivery";
 import { runDueCalls } from "./lifecycle";
+import { sendPush } from "./apns";
 import { sendEmail } from "./mailer";
 
 /** Runs every due step once. Called by the cron endpoint, the worker, and the in-process loop. */
@@ -9,8 +10,8 @@ export async function runJobsOnce(now = new Date()) {
   const db = await getDb();
   const calls = await runDueCalls(db, now);
   // Deliver after the call steps, so emails for events created this tick go out right away.
-  const emails = await deliverOutbox(db, sendEmail, now);
-  return { calls, emails };
+  const deliveries = await deliverOutbox(db, { email: sendEmail, push: sendPush }, now);
+  return { calls, deliveries };
 }
 
 /** Constant-time check of the cron secret (hashing first makes lengths equal). */

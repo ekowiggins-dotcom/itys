@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "./actions";
+import { nativeShare } from "./NativeBridge";
 
 type Action = (state: FormState, form: FormData) => Promise<FormState>;
 
@@ -74,11 +75,15 @@ export function CopyButton({ text }: { text: string }) {
 export function ShareLink({ url, text }: { url: string; text: string }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    if (typeof navigator !== "undefined" && navigator.share) {
-      navigator.share({ url, text }).catch(() => setShown(true));
-    } else {
-      setShown(true); // eslint-disable-line react-hooks/set-state-in-effect -- one-off fallback after a browser check
-    }
+    (async () => {
+      try {
+        if (await nativeShare(url, text)) return; // iOS app: native share sheet
+        if (navigator.share) return await navigator.share({ url, text });
+      } catch {
+        // dismissed or unavailable: show the link instead
+      }
+      setShown(true);
+    })();
   }, [url, text]);
   if (!shown) return null;
   return (

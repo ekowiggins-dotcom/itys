@@ -1,4 +1,5 @@
-import { deleteAccountAction, logoutAction, logoutEverywhereAction, memberAction, setEmailAlertsAction } from "../actions";
+import { deleteAccountAction, memberAction, setEmailAlertsAction } from "../actions";
+import { SignOutButtons } from "./SignOut";
 import { getDb } from "@/server/db";
 import { blockedPeople } from "@/server/moderation";
 import { ActionForm, Submit } from "../ui";
@@ -28,18 +29,7 @@ export default async function Settings() {
           <br />
           <span className="muted">{user.email}</span>
         </p>
-        <div className="row">
-          <form action={logoutAction}>
-            <button type="submit" className="secondary">
-              Sign out
-            </button>
-          </form>
-          <form action={logoutEverywhereAction}>
-            <button type="submit" className="danger">
-              Sign out everywhere
-            </button>
-          </form>
-        </div>
+        <SignOutButtons />
       </div>
 
       {blocked.length > 0 && (

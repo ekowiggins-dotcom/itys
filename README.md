@@ -13,7 +13,7 @@ This is a clean rebuild, made step by step:
 | 5 | Notifications (outbox) | ✅ |
 | 6 | Moderation and reporting | ✅ |
 | 7 | Share cards | ✅ |
-| 8 | iOS app (Capacitor) and widget | next |
+| 8 | iOS app (Capacitor) and widget | ✅ (builds in CI; not yet run on a device) |
 
 ## Stack
 
@@ -64,6 +64,7 @@ CI runs all four on every push (`.github/workflows/ci.yml`).
 | `EMAIL_FROM` | Sender, e.g. `Who'll <login@wholl.app>`. |
 
 | `CRON_SECRET` | 16+ random characters. Protects `POST /api/jobs`. |
+| `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY`, `IOS_BUNDLE_ID` | Push notifications and universal links for the iOS app (see docs/IOS.md). |
 | `RUN_JOBS_IN_PROCESS` | Set to `1` to run the job runner inside the web server (simplest single-service setup). |
 
 Run `npm run db:migrate` before starting a new release.
@@ -110,6 +111,10 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - **Always re-checked:** every view re-applies the rules, so a hidden/removed call, the sharer leaving or deleting their account takes the link down.
 - **Invites:** invite links get a preview image with the group's name and size (the same as the join page).
 - Images are made with `next/og` and the Inter font (Latin + Latin Extended for Turkish letters). Set `APP_ORIGIN` so preview URLs are absolute.
+
+## iOS app
+
+A Capacitor 8 shell around the live site, with push notifications (APNs), a home-screen widget, the native share sheet and universal links. CI builds the app and widget for the simulator on every iOS change. Setup, Apple account steps and server settings: [docs/IOS.md](docs/IOS.md).
 
 ## How a call ends
 

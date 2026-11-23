@@ -4,11 +4,23 @@
  * (dedupe key). Only "needs you" events also go out by email, and only to people who keep email alerts on.
  */
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { blocks, members, notifications, outbox, users, type NotificationType } from "./db/schema";
+import { blocks, devices, members, notifications, outbox, users, type NotificationType } from "./db/schema";
 import type { Tx } from "./db/types";
 
 /** Events worth an email: someone needs to act, or a call is about them. */
 export const EMAIL_TYPES: NotificationType[] = ["about_you", "settle_prompt", "vote_needed", "review_needed"];
+/** Events worth a push on the phone (the app's core loop). Joins and removals stay in the app. */
+export const PUSH_TYPES: NotificationType[] = [
+  "call_created",
+  "about_you",
+  "lock_reminder",
+  "settle_prompt",
+  "result_proposed",
+  "vote_needed",
+  "settled",
+  "called_off",
+  "review_needed",
+];
 
 export type Emit = {
   type: NotificationType;
@@ -56,15 +68,20 @@ export async function emit(tx: Tx, e: Emit) {
     .onConflictDoNothing()
     .returning({ id: notifications.id, userId: notifications.userId });
 
-  if (!EMAIL_TYPES.includes(e.type)) return;
-  const wantsEmail = new Set(active.filter((a) => a.emailAlerts).map((a) => a.userId));
-  const rows = inserted.filter((n) => wantsEmail.has(n.userId));
-  if (rows.length) {
-    await tx
-      .insert(outbox)
-      .values(rows.map((n) => ({ notificationId: n.id, channel: "email", nextTryAt: e.now, createdAt: e.now })))
-      .onConflictDoNothing();
+  const queue: { notificationId: string; channel: string; nextTryAt: Date; createdAt: Date }[] = [];
+  if (EMAIL_TYPES.includes(e.type)) {
+    const wantsEmail = new Set(active.filter((a) => a.emailAlerts).map((a) => a.userId));
+    for (const n of inserted) if (wantsEmail.has(n.userId)) queue.push({ notificationId: n.id, channel: "email", nextTryAt: e.now, createdAt: e.now });
   }
+  if (PUSH_TYPES.includes(e.type) && inserted.length) {
+    const withPhone = await tx
+      .selectDistinct({ userId: devices.userId })
+      .from(devices)
+      .where(and(isNull(devices.disabledAt), inArray(devices.userId, inserted.map((n) => n.userId))));
+    const has = new Set(withPhone.map((d) => d.userId));
+    for (const n of inserted) if (has.has(n.userId)) queue.push({ notificationId: n.id, channel: "push", nextTryAt: e.now, createdAt: e.now });
+  }
+  if (queue.length) await tx.insert(outbox).values(queue).onConflictDoNothing();
 }
 
 /** Active members of a group, optionally without some people. */

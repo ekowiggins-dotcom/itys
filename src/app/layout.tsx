@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { NativeBridge } from "./NativeBridge";
 import { getDb } from "@/server/db";
 import { unreadCount } from "@/server/notifications";
 import { currentUser } from "@/server/session";
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           )}
         </header>
         <main>{children}</main>
+        {user && <NativeBridge userId={user.id} />}
       </body>
     </html>
   );

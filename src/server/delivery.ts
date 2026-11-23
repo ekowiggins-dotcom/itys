@@ -5,11 +5,12 @@
  * - Failures retry with backoff (2, 4, 8, 16 minutes), then give up after MAX_ATTEMPTS.
  * - Anything older than MAX_AGE is expired rather than sent late.
  */
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
-import { notifications, outbox, users } from "./db/schema";
+import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import type { SendPush } from "./apns";
+import { devices, notifications, outbox, users } from "./db/schema";
 import type { Db } from "./db/types";
 import type { SendEmail } from "./mailer";
-import { renderNotifications } from "./notifications";
+import { renderNotifications, unreadCount } from "./notifications";
 
 export const LEASE_MS = 5 * 60_000;
 export const MAX_ATTEMPTS = 5;
@@ -21,7 +22,10 @@ function origin() {
   return (process.env.APP_ORIGIN ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
-export async function deliverOutbox(db: Db, send: SendEmail, now = new Date(), limit = 50) {
+export type Senders = { email: SendEmail; push?: SendPush };
+
+export async function deliverOutbox(db: Db, senders: SendEmail | Senders, now = new Date(), limit = 50) {
+  const { email: send, push } = typeof senders === "function" ? { email: senders, push: undefined } : senders;
   await db
     .update(outbox)
     .set({ status: "expired", leaseUntil: null })
@@ -55,13 +59,42 @@ export async function deliverOutbox(db: Db, send: SendEmail, now = new Date(), l
   let skipped = 0;
   for (const row of rows) {
     const [rendered] = await renderNotifications(db, row.notification.userId, [row.notification]);
+    const isPush = row.outbox.channel === "push";
     // Left the group, turned email alerts off, or it's no longer needed (e.g. already settled): don't send.
-    if (!rendered || !row.emailAlerts || !rendered.stillNeeded) {
+    if (!rendered || (!isPush && !row.emailAlerts) || !rendered.stillNeeded || (isPush && !push)) {
       await db.update(outbox).set({ status: "expired", leaseUntil: null }).where(eq(outbox.id, row.outbox.id));
       skipped++;
       continue;
     }
     try {
+      if (isPush) {
+        const phones = await db
+          .select({ token: devices.token, environment: devices.environment })
+          .from(devices)
+          .where(and(eq(devices.userId, row.notification.userId), isNull(devices.disabledAt)));
+        if (phones.length === 0) {
+          await db.update(outbox).set({ status: "expired", leaseUntil: null }).where(eq(outbox.id, row.outbox.id));
+          skipped++;
+          continue;
+        }
+        const results = await push!(phones, {
+          title: rendered.groupName,
+          body: rendered.text,
+          href: rendered.href,
+          badge: await unreadCount(db, { id: row.notification.userId, email: "", name: null }),
+        });
+        for (const r of results) {
+          if (r.gone) await db.update(devices).set({ disabledAt: now }).where(eq(devices.token, r.token));
+          else if (r.ok && r.environment) await db.update(devices).set({ environment: r.environment }).where(eq(devices.token, r.token));
+        }
+        // Retry only if no phone got it and at least one failure might be temporary.
+        if (!results.some((r) => r.ok) && results.some((r) => !r.gone)) {
+          throw new Error(results.find((r) => !r.ok && !r.gone)?.error ?? "push failed");
+        }
+        await db.update(outbox).set({ status: "sent", leaseUntil: null, lastError: null }).where(eq(outbox.id, row.outbox.id));
+        sent++;
+        continue;
+      }
       await send(
         row.email,
         `${rendered.groupName}: ${rendered.text.length > 70 ? rendered.text.slice(0, 67) + "…" : rendered.text}`,
