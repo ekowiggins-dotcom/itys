@@ -8,7 +8,7 @@ import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { emit, groupMemberIds } from "./notify";
 import { hit, LIMITS } from "./rate-limit";
-import { faceColors, GROUP_COLOR_KEYS, groupColorKey, type GroupColor } from "@/lib/faces";
+import { faceColors, GROUP_COLOR_KEYS, GROUP_COLORS, groupColorKey, type GroupColor } from "@/lib/faces";
 
 export const MAX_MEMBERS = 30;
 /** 16 bytes = 128 bits: invite links can't be guessed. */
@@ -142,7 +142,8 @@ export async function invitePreview(db: Db, token: string, ip: string, user: Use
       .where(and(eq(members.groupId, group.id), eq(members.userId, user.id), isNull(members.leftAt)));
     alreadyMember = !!m;
   }
-  return { groupId: group.id, name: group.name, memberCount: n, full: n >= MAX_MEMBERS, alreadyMember };
+  const color = GROUP_COLORS[groupColorKey(group.color, group.id)];
+  return { groupId: group.id, name: group.name, color, memberCount: n, full: n >= MAX_MEMBERS, alreadyMember };
 }
 
 export async function joinGroup(

@@ -85,5 +85,16 @@ const doneSettler = [ada, bo, cem, dee].find((u) => u.id === s.settlerId)!;
 await proposeResult(db, doneSettler, done, "no", ago(90));
 await runDueCalls(db, new Date(now));
 
+// 6. One Ada called right (shows the "Called it" stamp and confetti).
+const win = await createCall(db, bo, groupId, { text: "Will the pizza arrive within 30 minutes?", kind: "yes_no", lockAt: ago(30), eventAt: ago(29) }, ago(40));
+await pick(db, ada, win, "yes", ago(35));
+await pick(db, cem, win, "no", ago(35));
+await pick(db, dee, win, "no", ago(35));
+await runDueCalls(db, ago(30));
+const [w] = await db.select().from(schema.calls).where(eq(schema.calls.id, win));
+const winSettler = [ada, bo, cem, dee].find((u) => u.id === w.settlerId)!;
+await proposeResult(db, winSettler, win, "yes", ago(28));
+await runDueCalls(db, new Date(now));
+
 await pg.close();
 console.log(`Seeded "Demo flat". Sign in as ada@example.com and open /groups/${groupId}`);

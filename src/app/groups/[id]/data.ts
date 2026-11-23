@@ -58,5 +58,9 @@ export function cardTimes(c: CallView, timeZone: string, now = new Date()) {
     voteCloses: c.voteClosesAt ? fmt(c.voteClosesAt) : null,
     lockUrgency: urgency(c.lockAt, now),
     lockCountdown: countdown(c.lockAt, now),
+    /** For the stamp: "23 NOV". */
+    settledStamp: c.settledAt
+      ? new Intl.DateTimeFormat("en-GB", { timeZone, day: "2-digit", month: "short" }).format(c.settledAt).toUpperCase()
+      : null,
   };
 }

@@ -87,3 +87,15 @@ export async function nativeShare(url: string, text: string) {
   await Share.share({ url, text });
   return true;
 }
+
+/** A small vibration in the iOS app (no-op on the web): light for taps, success for good news. */
+export async function haptic(kind: "light" | "success") {
+  if (!isNativeApp()) return;
+  try {
+    const { Haptics, ImpactStyle, NotificationType } = await import("@capacitor/haptics");
+    if (kind === "success") await Haptics.notification({ type: NotificationType.Success });
+    else await Haptics.impact({ style: ImpactStyle.Light });
+  } catch {
+    // haptics are a nicety
+  }
+}

@@ -17,5 +17,5 @@ export default async function Image({ params }: { params: Promise<{ token: strin
   } catch {
     // rate-limited: fall back to the generic card
   }
-  return new ImageResponse(preview ? <InviteCard name={preview.name} memberCount={preview.memberCount} /> : <GenericCard />, { ...size, fonts: await cardFonts() });
+  return new ImageResponse(preview ? <InviteCard name={preview.name} memberCount={preview.memberCount} color={preview.color} /> : <GenericCard />, { ...size, fonts: await cardFonts() });
 }

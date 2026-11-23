@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { Sheet } from "../../components/Sheet";
 import { Toast } from "../../components/Toast";
 import { NewCallForm } from "./NewCallForm";
+import { haptic } from "../../NativeBridge";
 
 const icons = {
   calls: (
@@ -63,6 +64,7 @@ export function GroupChrome({
   const done = useCallback((message: string) => {
     setOpen(false);
     setToast(message);
+    void haptic("success");
   }, []);
 
   return (

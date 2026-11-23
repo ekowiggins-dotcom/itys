@@ -1302,3 +1302,54 @@ button.menu-item.danger {
   background: var(--surface-2);
   color: var(--text-2);
 }
+
+/* ---------- Called it ---------- */
+.result-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.stamp {
+  flex: none;
+  transform: rotate(-10deg);
+  filter: drop-shadow(0 3px 0 var(--shadow));
+}
+
+/* Played once, when the card first scrolls into view (see Celebrate.tsx). */
+.celebrate .stamp {
+  animation: stamp-in 480ms var(--ease) both;
+}
+
+.stamp-ring {
+  font: 700 21px var(--font-display);
+  letter-spacing: 0.22em;
+}
+
+.stamp-points {
+  font: 700 46px var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.stamp-date {
+  font: 700 15px var(--font-display);
+  letter-spacing: 0.1em;
+}
+
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-24deg) scale(1.7);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(0.94);
+  }
+  100% {
+    transform: rotate(-10deg) scale(1);
+  }
+}
+
+.result-text strong {
+  font-family: var(--font-display);
+}

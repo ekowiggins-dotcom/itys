@@ -7,6 +7,9 @@ import { Avatar } from "../../components/Avatar";
 import { Chip } from "../../components/Chip";
 import { Toast } from "../../components/Toast";
 import { Sheet } from "../../components/Sheet";
+import { CalledItStamp } from "../../components/Stamp";
+import { Celebrate } from "../../components/Celebrate";
+import { haptic } from "../../NativeBridge";
 import type { CallView } from "@/server/call-views";
 
 const VOID = "void";
@@ -19,6 +22,7 @@ type Times = {
   voteCloses: string | null;
   lockUrgency: "soon" | "later" | "past";
   lockCountdown: string;
+  settledStamp: string | null;
 };
 
 /** The chip at the top of a card: what stage the call is in and the next time that matters. */
@@ -54,6 +58,7 @@ export function CallCard({
 }) {
   const [state, action, pending] = useActionState(callAction, undefined);
   const chip = stageChip(call, times);
+  const won = call.status === "settled" && !!call.counted && (call.myPoints ?? 0) > 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const hasMenu = (call.canPick && !!call.myPick) || call.canCancel || call.canShare || call.canHide || call.canReport;
@@ -174,7 +179,7 @@ export function CallCard({
       {call.subject && <p className="muted small">About {call.isAboutMe ? "you" : call.subject}</p>}
 
       {call.kind === "member" ? (
-        <form action={action} className="people-options">
+        <form action={action} className="people-options" onSubmit={() => void haptic("light")}>
           {hidden}
           <input type="hidden" name="op" value="pick" />
           {call.options.map((o) => {
@@ -204,7 +209,7 @@ export function CallCard({
           })}
         </form>
       ) : (
-      <form action={action} className="options">
+      <form action={action} className="options" onSubmit={() => void haptic("light")}>
         {hidden}
         <input type="hidden" name="op" value="pick" />
         {call.options.map((o) => {
@@ -324,18 +329,29 @@ export function CallCard({
 
       {/* Final */}
       {call.status === "settled" && (
-        <p className="small">
-          <span className="ok">Settled: {labelOf(call.result)}</span>
-          {" · "}
-          {call.counted ? (
-            <>
-              {call.myPoints !== null && <strong>{call.myPoints > 0 ? `+${call.myPoints}` : "0"} for you · </strong>}
-              {call.rightCount} of {call.pickCount} called it
-            </>
-          ) : (
-            <span className="muted">didn&apos;t count for points (fewer than 2 picks)</span>
-          )}
-        </p>
+        <div className="phase result-row">
+          {won && <CalledItStamp points={call.myPoints!} date={times.settledStamp ?? ""} size={96} />}
+          <p className="small result-text">
+            <span className="ok">Settled: {labelOf(call.result)}</span>
+            <br />
+            {call.counted ? (
+              <>
+                {won ? (
+                  <strong>You called it! +{call.myPoints}</strong>
+                ) : call.myPick ? (
+                  <span>Not this time.</span>
+                ) : null}
+                {(won || call.myPick) && <br />}
+                <span className="muted">
+                  {call.rightCount} of {call.pickCount} called it
+                </span>
+              </>
+            ) : (
+              <span className="muted">Didn&apos;t count for points (fewer than 2 picks).</span>
+            )}
+          </p>
+          {won && <Celebrate id={call.id} />}
+        </div>
       )}
       {call.status === "void" && (
         <p className="small muted">

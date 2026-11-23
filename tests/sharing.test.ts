@@ -56,6 +56,8 @@ describe("sharing results", () => {
       sharerName: "Ada",
       sharerCalledIt: true,
       sharerPoints: 30,
+      color: expect.stringMatching(/^#[0-9A-F]{6}$/),
+      sharerColor: expect.stringMatching(/^#[0-9A-F]{6}$/),
     });
     const json = JSON.stringify(r);
     for (const secret of ["Bo", "Cem", "Secret Club"]) expect(json).not.toContain(secret);

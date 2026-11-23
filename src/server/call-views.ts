@@ -54,6 +54,8 @@ export type CallView = {
   voidReason: string | null;
   /** option key → names, only once settled. */
   whoPicked: Record<string, string[]> | null;
+  /** When the result became final (settled or called off). */
+  settledAt: Date | null;
   /** Your points on a settled call that counted (0 if wrong); null otherwise. */
   myPoints: number | null;
   /** Settled calls: how many got it right, and whether the call counted for points. */
@@ -182,6 +184,7 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
       result: c.status === "settled" ? c.result : null,
       voidReason: c.status === "void" ? c.voidReason : null,
       whoPicked,
+      settledAt: c.status === "settled" || c.status === "void" ? c.settledAt : null,
       myPoints: c.status === "settled" ? (myPointsOf.get(c.id) ?? null) : null,
       rightCount: c.status === "settled" ? pickers.filter((p) => p.optionKey === c.result).length : null,
       counted: c.status === "settled" ? pickers.length >= MIN_PICKERS : null,

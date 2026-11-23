@@ -79,7 +79,14 @@ describe("visibility", () => {
   it("shows outsiders only the name and size in the invite preview", async () => {
     const { invite } = await groupWithAdmin("Preview");
     const preview = await invitePreview(db, invite, ip(), null);
-    expect(preview).toEqual({ groupId: expect.any(String), name: "Preview", memberCount: 1, full: false, alreadyMember: false });
+    expect(preview).toEqual({
+      groupId: expect.any(String),
+      name: "Preview",
+      color: expect.stringMatching(/^#[0-9A-F]{6}$/),
+      memberCount: 1,
+      full: false,
+      alreadyMember: false,
+    });
     expect(await invitePreview(db, "x".repeat(22), ip(), null)).toBeNull();
     expect(await invitePreview(db, "short", ip(), null)).toBeNull();
   });

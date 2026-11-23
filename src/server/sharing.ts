@@ -7,11 +7,12 @@
  * - Every view re-checks these rules, so removing a call, leaving the group or deleting the account takes the
  *   link down.
  */
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { faceColors, GROUP_COLORS, groupColorKey } from "@/lib/faces";
 import { z } from "zod";
 import type { User } from "./auth";
 import { randomToken } from "./crypto";
-import { calls, members, picks, scores, shareLinks } from "./db/schema";
+import { calls, groups, members, picks, scores, shareLinks } from "./db/schema";
 import type { Db } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { requireMember } from "./groups";
@@ -52,6 +53,9 @@ export type PublicResult = {
   /** The sharer's own outcome, theirs to share. Null if they didn't pick. */
   sharerCalledIt: boolean | null;
   sharerPoints: number | null;
+  /** The group's colour and the sharer's face colour (colours only: no names). */
+  color: string;
+  sharerColor: string;
 };
 
 /** What a public link shows, or null when it shouldn't show anything (any more). */
@@ -66,6 +70,13 @@ export async function publicResult(db: Db, token: string, ip: string | null, now
     .select({ name: members.displayName })
     .from(members)
     .where(and(eq(members.groupId, c.groupId), eq(members.userId, link.createdBy), isNull(members.leftAt)));
+  const [group] = await db.select({ color: groups.color }).from(groups).where(eq(groups.id, c.groupId));
+  const order = await db
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.groupId, c.groupId), isNull(members.leftAt)))
+    .orderBy(asc(members.joinedAt));
+  const colorKey = groupColorKey(group?.color, c.groupId);
   if (!publicShareAllowed({ ...c, sharedBy: link.createdBy, sharerIsMember: !!sharer })) return null;
 
   const pickRows = await db.select({ userId: picks.userId, optionKey: picks.optionKey }).from(picks).where(eq(picks.callId, c.id));
@@ -84,6 +95,8 @@ export async function publicResult(db: Db, token: string, ip: string | null, now
     sharerName: sharer.name,
     sharerCalledIt: mine ? mine.optionKey === c.result : null,
     sharerPoints: myScore?.points ?? null,
+    color: GROUP_COLORS[colorKey],
+    sharerColor: faceColors(order.map((o) => o.userId), colorKey)[link.createdBy] ?? "#d7f25a",
   };
 }
 
