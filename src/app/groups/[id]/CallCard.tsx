@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { callAction } from "../../actions";
 import { ShareLink } from "../../ui";
 import { Avatar } from "../../components/Avatar";
 import { Chip } from "../../components/Chip";
 import { Toast } from "../../components/Toast";
+import { Sheet } from "../../components/Sheet";
 import type { CallView } from "@/server/call-views";
 
 const VOID = "void";
@@ -53,6 +54,9 @@ export function CallCard({
 }) {
   const [state, action, pending] = useActionState(callAction, undefined);
   const chip = stageChip(call, times);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const hasMenu = (call.canPick && !!call.myPick) || call.canCancel || call.canShare || call.canHide || call.canReport;
   const total = call.split ? Object.values(call.split).reduce((a, b) => a + b, 0) : 0;
   const labelOf = (key: string | null) =>
     key === VOID ? "Called off (didn't happen or unclear)" : (call.options.find((o) => o.key === key)?.label ?? "");
@@ -86,8 +90,86 @@ export function CallCard({
         <span className="person-line small muted">
           by {call.author}
           <Avatar name={call.author} color={call.authorId ? faces[call.authorId] : undefined} size={24} />
+          {hasMenu && (
+            <button type="button" className="icon-button" aria-label="More options" onClick={() => setMenuOpen(true)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
+              </svg>
+            </button>
+          )}
         </span>
       </div>
+      {hasMenu && (
+        <Sheet title="Call options" open={menuOpen} onClose={() => setMenuOpen(false)}>
+          <div className="menu" onSubmit={() => setMenuOpen(false)}>
+            {call.canShare && (
+              <form action={action}>
+                {hidden}
+                <button type="submit" name="op" value="share" className="menu-item">
+                  Share result
+                </button>
+              </form>
+            )}
+            {call.canPick && call.myPick && (
+              <form action={action}>
+                {hidden}
+                <button type="submit" name="op" value="unpick" className="menu-item">
+                  Take back my pick
+                </button>
+              </form>
+            )}
+            {call.canHide && (
+              <form action={action}>
+                {hidden}
+                <button type="submit" name="op" value="hide" className="menu-item">
+                  This is about me: hide it
+                  <span className="small muted">Nobody sees it while it&apos;s reviewed.</span>
+                </button>
+              </form>
+            )}
+            {call.canCancel && (
+              <form action={action}>
+                {hidden}
+                <button
+                  type="submit"
+                  name="op"
+                  value="cancel"
+                  className="menu-item danger"
+                  onClick={(e) => {
+                    if (!confirm("Cancel this call for everyone? Picks on it are dropped.")) e.preventDefault();
+                  }}
+                >
+                  Cancel call
+                </button>
+              </form>
+            )}
+            {call.canReport && (
+              <form action={action} className="stack report-form">
+                {hidden}
+                <input type="hidden" name="op" value="report" />
+                <span className="label">Report this call</span>
+                {[
+                  ["hurtful", "Hurtful or mean"],
+                  ["private", "Too personal or private"],
+                  ["spam", "Spam"],
+                  ["other", "Something else"],
+                ].map(([v, l], i) => (
+                  <label key={v} className="row check">
+                    <input type="radio" name="reason" value={v} defaultChecked={i === 0} />
+                    {l}
+                  </label>
+                ))}
+                <button type="submit" className="secondary">
+                  Report
+                </button>
+                <span className="small muted">Two reports hide a call until it&apos;s reviewed.</span>
+              </form>
+            )}
+          </div>
+        </Sheet>
+      )}
       <p className="call-text">{call.text}</p>
       {call.subject && <p className="muted small">About {call.isAboutMe ? "you" : call.subject}</p>}
 
@@ -203,11 +285,21 @@ export function CallCard({
             {times.disputeEnds} unless someone disputes.
           </p>
           {call.canDispute && (
-            <details>
-              <summary className="small">Think that&apos;s wrong? Dispute it</summary>
-              <p className="small muted">Pick the right answer. Everyone who picked gets a vote.</p>
-              {answerButtons("dispute", call.proposedResult)}
-            </details>
+            <Sheet
+              title="What really happened?"
+              open={disputeOpen}
+              onClose={() => setDisputeOpen(false)}
+              trigger={() => (
+                <button type="button" className="secondary" onClick={() => setDisputeOpen(true)}>
+                  That&apos;s wrong: dispute it
+                </button>
+              )}
+            >
+              <p className="small muted">
+                Pick the right answer. Everyone who picked gets a vote, and more than half decides. A tie calls it off.
+              </p>
+              <div onSubmit={() => setDisputeOpen(false)}>{answerButtons("dispute", call.proposedResult)}</div>
+            </Sheet>
           )}
         </div>
       )}
@@ -261,21 +353,6 @@ export function CallCard({
         </p>
       )}
 
-      {(call.canPick && call.myPick) || call.canCancel ? (
-        <form action={action} className="row">
-          {hidden}
-          {call.canPick && call.myPick && (
-            <button type="submit" name="op" value="unpick" className="link" disabled={pending}>
-              Take back my pick
-            </button>
-          )}
-          {call.canCancel && (
-            <button type="submit" name="op" value="cancel" className="link danger-link" disabled={pending}>
-              Cancel call
-            </button>
-          )}
-        </form>
-      ) : null}
       {call.canShare && (
         <form action={action} className="row">
           {hidden}
@@ -285,32 +362,6 @@ export function CallCard({
         </form>
       )}
       {state?.shareUrl && <ShareLink url={state.shareUrl} text={call.text} />}
-      {call.canHide && (
-        <form action={action} className="row">
-          {hidden}
-          <button type="submit" name="op" value="hide" className="link" disabled={pending}>
-            This is about me: hide it
-          </button>
-        </form>
-      )}
-      {call.canReport && (
-        <details className="report">
-          <summary className="small muted">Report</summary>
-          <form action={action} className="row">
-            {hidden}
-            <input type="hidden" name="op" value="report" />
-            <select name="reason" defaultValue="hurtful" aria-label="Reason">
-              <option value="hurtful">Hurtful or mean</option>
-              <option value="private">Too personal or private</option>
-              <option value="spam">Spam</option>
-              <option value="other">Something else</option>
-            </select>
-            <button type="submit" className="secondary" disabled={pending}>
-              Report
-            </button>
-          </form>
-        </details>
-      )}
       {state?.error && (
         <p className="error small" role="alert">
           {state.error}

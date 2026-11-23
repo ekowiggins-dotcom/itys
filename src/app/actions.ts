@@ -127,7 +127,7 @@ export async function resetInviteAction(_: FormState, form: FormData): Promise<F
   } catch (e) {
     return toState(e);
   }
-  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}`, "layout");
   return { ok: "New invite link created. The old one no longer works." };
 }
 
@@ -147,7 +147,7 @@ export async function createCallAction(_: FormState, form: FormData): Promise<Fo
   } catch (e) {
     return toState(e);
   }
-  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}`, "layout");
   return { ok: "Call posted." };
 }
 
@@ -170,20 +170,20 @@ export async function callAction(_: FormState, form: FormData): Promise<FormStat
       return { shareUrl: `${await appOrigin()}/r/${token}` };
     } else if (op === "hide") {
       await moderation.reportCall(db, user, callId, "about_me");
-      revalidatePath(`/groups/${groupId}`);
+      revalidatePath(`/groups/${groupId}`, "layout");
       return { ok: "Hidden. Nobody can see it while it's reviewed." };
     } else if (op === "report") {
       const reason = str(form, "reason");
       const valid = ["hurtful", "private", "spam", "other"] as const;
       const hidden = await moderation.reportCall(db, user, callId, valid.find((r) => r === reason) ?? "other");
-      revalidatePath(`/groups/${groupId}`);
+      revalidatePath(`/groups/${groupId}`, "layout");
       return { ok: hidden ? "Thanks. The call is hidden while it's reviewed." : "Thanks. If someone else reports it too, it's hidden for review." };
     }
     else return { error: "Unknown action." };
   } catch (e) {
     return toState(e);
   }
-  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}`, "layout");
   return undefined;
 }
 
@@ -231,7 +231,7 @@ export async function memberAction(_: FormState, form: FormData): Promise<FormSt
   } catch (e) {
     return toState(e);
   }
-  revalidatePath(`/groups/${groupId}`);
+  revalidatePath(`/groups/${groupId}`, "layout");
   revalidatePath("/settings");
   return undefined;
 }
