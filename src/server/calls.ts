@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { User } from "./auth";
 import { calls, members, picks, type CallOption } from "./db/schema";
@@ -86,6 +86,7 @@ export async function createCall(db: Db, user: User, groupId: string, input: New
         options,
         lockAt: data.lockAt,
         eventAt: data.eventAt,
+        nextActionAt: data.lockAt,
         createdAt: now,
       })
       .returning({ id: calls.id });
@@ -94,7 +95,7 @@ export async function createCall(db: Db, user: User, groupId: string, input: New
 }
 
 /** Loads a call the user can act on, locked for update. Non-members get "not found". */
-async function callForUpdate(tx: Tx, user: User, callId: string) {
+export async function callForUpdate(tx: Tx, user: User, callId: string) {
   if (!z.uuid().safeParse(callId).success) throw notFound("Call");
   const [call] = await tx.select().from(calls).where(eq(calls.id, callId)).for("update");
   if (!call) throw notFound("Call");
@@ -144,89 +145,6 @@ export async function cancelCall(db: Db, user: User, callId: string, now = new D
     }
     if (call.status !== "active") throw new AppError("conflict", "This call is no longer open.");
     if (isLocked(call, now)) throw new AppError("conflict", "Picks have closed; this call will be settled instead.");
-    await tx.update(calls).set({ status: "cancelled" }).where(eq(calls.id, callId));
+    await tx.update(calls).set({ status: "cancelled", nextActionAt: null }).where(eq(calls.id, callId));
   });
-}
-
-/** A call as one member sees it. Built only from what callVisibility allows. */
-export type CallView = {
-  id: string;
-  text: string;
-  kind: "yes_no" | "choice" | "member";
-  options: CallOption[];
-  author: string;
-  subject: string | null;
-  isAboutMe: boolean;
-  lockAt: Date;
-  eventAt: Date;
-  status: "active" | "cancelled" | "settled" | "void";
-  locked: boolean;
-  canPick: boolean;
-  canCancel: boolean;
-  myPick: string | null;
-  pickCount: number | null;
-  eligibleCount: number;
-  /** option key → number of picks; null while hidden. */
-  split: Record<string, number> | null;
-};
-
-/** The group's calls for this member: open ones first (closing soonest), then closed ones (newest first). */
-export async function callsForMember(db: Db, user: User, groupId: string, now = new Date()): Promise<CallView[]> {
-  const me = await requireMember(db, user, groupId);
-  const rows = await db
-    .select()
-    .from(calls)
-    .where(and(eq(calls.groupId, groupId), sql`${calls.status} <> 'cancelled'`))
-    .orderBy(desc(calls.lockAt))
-    .limit(100);
-  if (rows.length === 0) return [];
-
-  const memberRows = await db
-    .select({ userId: members.userId, displayName: members.displayName, leftAt: members.leftAt })
-    .from(members)
-    .where(eq(members.groupId, groupId));
-  const nameOf = new Map(memberRows.map((m) => [m.userId, m.displayName]));
-  const activeCount = memberRows.filter((m) => !m.leftAt).length;
-  const label = (id: string | null) => (id ? (nameOf.get(id) ?? "Former member") : null);
-
-  const ids = rows.map((r) => r.id);
-  const counts = await db
-    .select({ callId: picks.callId, optionKey: picks.optionKey, n: count() })
-    .from(picks)
-    .where(inArray(picks.callId, ids))
-    .groupBy(picks.callId, picks.optionKey);
-  const mine = await db
-    .select({ callId: picks.callId, optionKey: picks.optionKey })
-    .from(picks)
-    .where(and(inArray(picks.callId, ids), eq(picks.userId, user.id)));
-  const myPickOf = new Map(mine.map((p) => [p.callId, p.optionKey]));
-
-  const views = rows.map((c): CallView => {
-    const v = callVisibility(c, { userId: user.id, isMember: true }, now);
-    const perOption = counts.filter((x) => x.callId === c.id);
-    const total = perOption.reduce((s, x) => s + x.n, 0);
-    return {
-      id: c.id,
-      text: c.text,
-      kind: c.kind,
-      options: c.options.map((o) => (c.kind === "member" ? { key: o.key, label: label(o.key)! } : o)),
-      author: label(c.authorId)!,
-      subject: label(c.subjectId),
-      isAboutMe: c.subjectId === user.id,
-      lockAt: c.lockAt,
-      eventAt: c.eventAt,
-      status: c.status,
-      locked: isLocked(c, now),
-      canPick: v.canPick,
-      canCancel: c.status === "active" && !isLocked(c, now) && (c.authorId === user.id || me.role === "admin"),
-      myPick: v.canSeeOwnPick ? (myPickOf.get(c.id) ?? null) : null,
-      pickCount: v.canSeePickCount ? total : null,
-      eligibleCount: activeCount - (c.subjectId ? 1 : 0),
-      split: v.canSeeSplit ? Object.fromEntries(perOption.map((x) => [x.optionKey, x.n])) : null,
-    };
-  });
-
-  const open = views.filter((c) => !c.locked).sort((a, b) => a.lockAt.getTime() - b.lockAt.getTime());
-  const closed = views.filter((c) => c.locked);
-  return [...open, ...closed];
 }

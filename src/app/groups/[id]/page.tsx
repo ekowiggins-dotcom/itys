@@ -3,7 +3,7 @@ import { leaveGroupAction, resetInviteAction } from "../../actions";
 import { ActionForm, CopyButton, Submit } from "../../ui";
 import { CallCard } from "./CallCard";
 import { NewCallForm } from "./NewCallForm";
-import { callsForMember } from "@/server/calls";
+import { callsForMember, type CallView } from "@/server/call-views";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { groupForMember } from "@/server/groups";
@@ -21,7 +21,11 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
   }
   const callList = await callsForMember(await getDb(), user, id);
   const open = callList.filter((c) => !c.locked);
-  const closed = callList.filter((c) => c.locked);
+  const needsMe = callList.filter((c) => c.locked && (c.canSettle || c.canDispute || c.canVote));
+  const waiting = callList.filter(
+    (c) => c.locked && !needsMe.includes(c) && ["active", "proposed", "disputed"].includes(c.status),
+  );
+  const finished = callList.filter((c) => c.status === "settled" || c.status === "void");
   const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone: group.timeZone,
     weekday: "short",
@@ -31,6 +35,14 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
     minute: "2-digit",
   });
   const fmt = (d: Date) => formatter.format(d);
+  const times = (c: CallView) => ({
+    lock: fmt(c.lockAt),
+    event: fmt(c.eventAt),
+    openToAll: fmt(c.openToAllAt),
+    disputeEnds: c.disputeEndsAt ? fmt(c.disputeEndsAt) : null,
+    voteCloses: c.voteClosesAt ? fmt(c.voteClosesAt) : null,
+  });
+  const card = (c: CallView) => <CallCard key={c.id} call={c} groupId={group.id} times={times(c)} />;
   const inviteLink = group.inviteToken ? `${await appOrigin()}/join/${group.inviteToken}` : null;
   const isAdmin = group.me.role === "admin";
 
@@ -41,23 +53,33 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
         You&apos;re {group.me.displayName} here · times shown in {group.timeZone}
       </p>
 
-      <h2>Open calls</h2>
+      {needsMe.length > 0 && (
+        <>
+          <h2>Needs you</h2>
+          {needsMe.map(card)}
+        </>
+      )}
+
+      <h2>Open for picks</h2>
       {open.length === 0 && <p className="muted">No open calls. Make the first one below.</p>}
-      {open.map((c) => (
-        <CallCard key={c.id} call={c} groupId={group.id} times={{ lock: fmt(c.lockAt), event: fmt(c.eventAt) }} />
-      ))}
+      {open.map(card)}
 
       <h2>New call</h2>
       <div className="card">
         <NewCallForm groupId={group.id} members={group.members} />
       </div>
 
-      {closed.length > 0 && (
+      {waiting.length > 0 && (
         <>
-          <h2>Picks closed</h2>
-          {closed.map((c) => (
-            <CallCard key={c.id} call={c} groupId={group.id} times={{ lock: fmt(c.lockAt), event: fmt(c.eventAt) }} />
-          ))}
+          <h2>Waiting for results</h2>
+          {waiting.map(card)}
+        </>
+      )}
+
+      {finished.length > 0 && (
+        <>
+          <h2>Finished</h2>
+          {finished.map(card)}
         </>
       )}
 

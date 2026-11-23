@@ -15,6 +15,13 @@
       "when": 1795434595262,
       "tag": "0001_calls_and_picks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795435436814,
+      "tag": "0002_settling",
+      "breakpoints": true
     }
   ]
 }

@@ -100,7 +100,12 @@ export const members = pgTable(
  */
 export const callKind = pgEnum("call_kind", ["yes_no", "choice", "member"]);
 /** Whether a call is open/locked is derived from lock_at and now; status holds only what time can't tell. */
-export const callStatus = pgEnum("call_status", ["active", "cancelled", "settled", "void"]);
+/**
+ * active: picks open, then locked, waiting for the result · proposed: a result is in, open to dispute for 24h ·
+ * disputed: the group is voting · settled / void / cancelled: final.
+ */
+export const callStatus = pgEnum("call_status", ["active", "cancelled", "settled", "void", "proposed", "disputed"]);
+export type CallStatus = (typeof callStatus.enumValues)[number];
 
 export type CallOption = { key: string; label: string };
 
@@ -122,12 +127,47 @@ export const calls = pgTable(
     options: jsonb("options").$type<CallOption[]>().notNull(),
     /** Picks close at this moment. */
     lockAt: ts("lock_at").notNull(),
-    /** When the answer should be known (settling opens then, in step 3). */
+    /** When the answer should be known. Settling opens then. */
     eventAt: ts("event_at").notNull(),
     status: callStatus("status").notNull().default("active"),
+    /** Who settles the call. Chosen when picks close (see lifecycle.chooseSettler). */
+    settlerId: uuid("settler_id").references(() => users.id),
+    /** The proposed result while status is proposed/disputed: an option key, or "void". */
+    proposedResult: text("proposed_result"),
+    proposedBy: uuid("proposed_by").references(() => users.id),
+    proposedAt: ts("proposed_at"),
+    disputedBy: uuid("disputed_by").references(() => users.id),
+    voteClosesAt: ts("vote_closes_at"),
+    /** The final answer once settled (an option key). Null for void calls. */
+    result: text("result"),
+    /** Why a call ended void: the settler said so, a vote, or nobody settled in time. */
+    voidReason: text("void_reason"),
+    settledAt: ts("settled_at"),
+    /** When the job runner next needs to look at this call. Null once nothing more can happen. */
+    nextActionAt: ts("next_action_at"),
     createdAt: createdAt(),
   },
-  (t) => [index("calls_group_lock").on(t.groupId, t.lockAt), index("calls_author").on(t.authorId)],
+  (t) => [
+    index("calls_group_lock").on(t.groupId, t.lockAt),
+    index("calls_author").on(t.authorId),
+    index("calls_next_action").on(t.nextActionAt).where(sql`${t.nextActionAt} IS NOT NULL`),
+  ],
+);
+
+/** Votes in a disputed call. option_key is an option or "void". The disputer's vote is recorded automatically. */
+export const votes = pgTable(
+  "votes",
+  {
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    optionKey: text("option_key").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.callId, t.userId] })],
 );
 
 export const picks = pgTable(

@@ -2,14 +2,42 @@
 
 import { useActionState } from "react";
 import { callAction } from "../../actions";
-import type { CallView } from "@/server/calls";
+import type { CallView } from "@/server/call-views";
 
-export function CallCard({ call, groupId, times }: { call: CallView; groupId: string; times: { lock: string; event: string } }) {
+const VOID = "void";
+
+type Times = { lock: string; event: string; openToAll: string; disputeEnds: string | null; voteCloses: string | null };
+
+export function CallCard({ call, groupId, times }: { call: CallView; groupId: string; times: Times }) {
   const [state, action, pending] = useActionState(callAction, undefined);
   const total = call.split ? Object.values(call.split).reduce((a, b) => a + b, 0) : 0;
+  const labelOf = (key: string | null) =>
+    key === VOID ? "Called off (didn't happen or unclear)" : (call.options.find((o) => o.key === key)?.label ?? "");
+
+  const hidden = (
+    <>
+      <input type="hidden" name="groupId" value={groupId} />
+      <input type="hidden" name="callId" value={call.id} />
+    </>
+  );
+
+  /** A row of answer buttons for settling, disputing or voting. */
+  const answerButtons = (op: "settle" | "dispute" | "vote", exclude?: string | null) => (
+    <form action={action} className="options compact">
+      {hidden}
+      <input type="hidden" name="op" value={op} />
+      {[...call.options, { key: VOID, label: "Call it off" }]
+        .filter((o) => o.key !== exclude)
+        .map((o) => (
+          <button key={o.key} type="submit" name="option" value={o.key} disabled={pending} className="option" aria-label={o.label}>
+            <span className="option-label">{o.label}</span>
+          </button>
+        ))}
+    </form>
+  );
 
   return (
-    <div className="card call">
+    <div className={`card call status-${call.status}`}>
       <p className="call-text">{call.text}</p>
       <p className="muted small">
         by {call.author}
@@ -19,13 +47,13 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
       </p>
 
       <form action={action} className="options">
-        <input type="hidden" name="groupId" value={groupId} />
-        <input type="hidden" name="callId" value={call.id} />
+        {hidden}
         <input type="hidden" name="op" value="pick" />
         {call.options.map((o) => {
           const n = call.split?.[o.key] ?? 0;
           const pct = total ? Math.round((n / total) * 100) : 0;
           const mine = call.myPick === o.key;
+          const correct = call.result === o.key;
           return (
             <button
               key={o.key}
@@ -33,13 +61,16 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
               name="option"
               value={o.key}
               disabled={!call.canPick || pending}
-              className={`option${mine ? " mine" : ""}`}
+              className={`option${mine ? " mine" : ""}${correct ? " correct" : ""}`}
               aria-pressed={mine}
+              aria-label={`${o.label}${call.split ? `, ${pct}%` : ""}${mine ? ", your pick" : ""}${correct ? ", correct answer" : ""}`}
             >
               {call.split && <span className="bar" style={{ width: `${pct}%` }} />}
               <span className="option-label">
+                {correct ? "🏆 " : ""}
                 {o.label}
                 {mine ? " ✓" : ""}
+                {call.whoPicked?.[o.key] && <span className="who"> · {call.whoPicked[o.key].join(", ")}</span>}
               </span>
               {call.split && <span className="pct">{pct}%</span>}
             </button>
@@ -48,17 +79,94 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
       </form>
 
       <p className="muted small">
-        {call.isAboutMe
-          ? "This call is about you, so you can't pick. "
-          : ""}
+        {call.isAboutMe ? "This call is about you, so you can't pick. " : ""}
         {call.pickCount !== null && `${call.pickCount} of ${call.eligibleCount} picked`}
         {!call.locked && call.pickCount !== null && " · the split shows when picks close"}
       </p>
 
+      {/* Waiting for the event */}
+      {call.status === "active" && call.locked && !call.awaitingResult && (
+        <p className="small">
+          Result expected {times.event}
+          {call.settler ? ` · ${call.isSettler ? "you'll" : `${call.settler} will`} enter it` : ""}
+        </p>
+      )}
+
+      {/* Entering the result */}
+      {call.awaitingResult && (
+        <div className="phase">
+          {call.canSettle ? (
+            <>
+              <p className="small">
+                <strong>What happened?</strong>{" "}
+                {call.isSettler ? "You're the settler for this call." : "The settler hasn't entered a result, so anyone can."}
+              </p>
+              {answerButtons("settle")}
+            </>
+          ) : (
+            <p className="small">
+              Waiting for {call.settler ?? "someone"} to enter the result. Anyone can from {times.openToAll}.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Result entered, open to dispute */}
+      {call.status === "proposed" && (
+        <div className="phase">
+          <p className="small">
+            <strong>{call.proposedBy}</strong> says: <strong>{labelOf(call.proposedResult)}</strong>. Final{" "}
+            {times.disputeEnds} unless someone disputes.
+          </p>
+          {call.canDispute && (
+            <details>
+              <summary className="small">Think that&apos;s wrong? Dispute it</summary>
+              <p className="small muted">Pick the right answer. Everyone who picked gets a vote.</p>
+              {answerButtons("dispute", call.proposedResult)}
+            </details>
+          )}
+        </div>
+      )}
+
+      {/* Group vote */}
+      {call.status === "disputed" && (
+        <div className="phase">
+          <p className="small">
+            <strong>{call.disputedBy}</strong> disputed <strong>{call.proposedBy}</strong>&apos;s answer (
+            {labelOf(call.proposedResult)}). Group vote until {times.voteCloses} · {call.votesCast} of {call.eligibleVoters} voted.
+          </p>
+          {call.myVote && <p className="small muted">You voted: {labelOf(call.myVote)}</p>}
+          {call.canVote && (
+            <>
+              <p className="small">What really happened?</p>
+              {answerButtons("vote")}
+            </>
+          )}
+          <p className="small muted">More than half the votes decides it. A tie calls it off: nobody scores.</p>
+        </div>
+      )}
+
+      {/* Final */}
+      {call.status === "settled" && <p className="small ok">Settled: {labelOf(call.result)}</p>}
+      {call.status === "void" && (
+        <p className="small muted">
+          Called off: nobody scores.{" "}
+          {call.voidReason === "not settled in time" ? "Nobody entered a result within 7 days." : ""}
+          {call.voidReason === "vote" ? "The group vote didn't reach a majority." : ""}
+        </p>
+      )}
+      {call.voteTally && (
+        <p className="small muted">
+          Vote:{" "}
+          {Object.entries(call.voteTally)
+            .map(([k, n]) => `${labelOf(k)} ${n}`)
+            .join(" · ")}
+        </p>
+      )}
+
       {(call.canPick && call.myPick) || call.canCancel ? (
         <form action={action} className="row">
-          <input type="hidden" name="groupId" value={groupId} />
-          <input type="hidden" name="callId" value={call.id} />
+          {hidden}
           {call.canPick && call.myPick && (
             <button type="submit" name="op" value="unpick" className="link" disabled={pending}>
               Take back my pick

@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { cancelCall, callsForMember, createCall, pick, unpick, type NewCall } from "@/server/calls";
+import { cancelCall, createCall, pick, unpick, type NewCall } from "@/server/calls";
+import { callsForMember } from "@/server/call-views";
 import type { User } from "@/server/auth";
 import type { Db } from "@/server/db/types";
 import { createGroup, groupForMember, joinGroup, leaveGroup } from "@/server/groups";

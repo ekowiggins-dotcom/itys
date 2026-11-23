@@ -1,12 +1,13 @@
 /**
  * THE one place that decides who may see what about a call. Every surface that shows call data
- * (group page, share links, notifications, audit, widgets) must build its output from this.
+ * (group page, share links, notifications, widgets) must build its output from this.
  * The rules are tested as a table in tests/visibility.test.ts: a leak fix is a new row there.
  */
+import type { CallStatus } from "./db/schema";
 
 export type CallState = {
   lockAt: Date;
-  status: "active" | "cancelled" | "settled" | "void";
+  status: CallStatus;
   subjectId: string | null;
 };
 
@@ -25,8 +26,10 @@ export type CallVisibility = {
   canSeeOwnPick: boolean;
   /** How the group split across answers. Only once picks are closed, so nobody can pick by the crowd. */
   canSeeSplit: boolean;
-  /** Which person picked what. Only once the result is in. */
+  /** Which person picked what. Only once the result is final. */
   canSeeWhoPicked: boolean;
+  /** How a dispute vote went. Only once the vote is over, so nobody votes with the crowd. */
+  canSeeVoteTally: boolean;
   /** Whether this viewer may pick or change their pick right now. */
   canPick: boolean;
 };
@@ -35,19 +38,22 @@ export function isLocked(call: Pick<CallState, "lockAt">, now: Date) {
   return now.getTime() >= call.lockAt.getTime();
 }
 
+/** Calls that are still in play or settled show their split after lock; cancelled and void ones don't. */
+const LIVE: CallStatus[] = ["active", "proposed", "disputed", "settled"];
+
 export function callVisibility(call: CallState, viewer: Viewer, now: Date): CallVisibility {
   const member = viewer.isMember && viewer.userId !== null;
   const locked = isLocked(call, now);
   const isSubject = member && viewer.userId === call.subjectId;
-  const live = call.status === "active" || call.status === "settled";
-  const finished = call.status === "settled";
+  const final = call.status === "settled" || call.status === "void";
 
   return {
     canSeeCall: member,
     canSeePickCount: member && call.status !== "cancelled",
     canSeeOwnPick: member && !isSubject,
-    canSeeSplit: member && live && locked,
-    canSeeWhoPicked: member && finished,
+    canSeeSplit: member && LIVE.includes(call.status) && locked,
+    canSeeWhoPicked: member && call.status === "settled",
+    canSeeVoteTally: member && final,
     canPick: member && !isSubject && call.status === "active" && !locked,
   };
 }

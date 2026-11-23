@@ -17,9 +17,11 @@ type Row = [string, Partial<CallState>, { userId: string | null; isMember: boole
 const table: Row[] = [
   ["member, open", { lockAt: before }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canPick: true }],
   ["member, locked", { lockAt: after }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
-  ["member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true }],
+  ["member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true }],
   ["member, cancelled", { lockAt: before, status: "cancelled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeeOwnPick: true }],
-  ["member, void", { lockAt: after, status: "void" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true }],
+  ["member, void", { lockAt: after, status: "void" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeVoteTally: true }],
+  ["member, result proposed", { lockAt: after, status: "proposed" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
+  ["member, vote running", { lockAt: after, status: "disputed" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
   ["subject, open", { lockAt: before, subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true }],
   ["subject, locked", { lockAt: after, subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeSplit: true }],
   ["non-member, open", { lockAt: before }, { userId: ME, isMember: false }, {}],
@@ -33,6 +35,7 @@ const NONE: CallVisibility = {
   canSeeOwnPick: false,
   canSeeSplit: false,
   canSeeWhoPicked: false,
+  canSeeVoteTally: false,
   canPick: false,
 };
 

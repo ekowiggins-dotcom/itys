@@ -278,3 +278,33 @@ button.link {
 button.link.danger-link {
   color: var(--danger);
 }
+
+.options.compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.options.compact button.option {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+button.option.correct {
+  border-color: var(--ok);
+}
+
+.option-label .who {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.phase {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+details summary {
+  cursor: pointer;
+  color: var(--accent);
+}

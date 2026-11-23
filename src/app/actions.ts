@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import * as auth from "@/server/auth";
 import * as calls from "@/server/calls";
+import * as lifecycle from "@/server/lifecycle";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -155,6 +156,9 @@ export async function callAction(_: FormState, form: FormData): Promise<FormStat
     if (op === "pick") await calls.pick(db, user, callId, str(form, "option"));
     else if (op === "unpick") await calls.unpick(db, user, callId);
     else if (op === "cancel") await calls.cancelCall(db, user, callId);
+    else if (op === "settle") await lifecycle.proposeResult(db, user, callId, str(form, "option"));
+    else if (op === "dispute") await lifecycle.disputeResult(db, user, callId, str(form, "option"));
+    else if (op === "vote") await lifecycle.voteOnResult(db, user, callId, str(form, "option"));
     else return { error: "Unknown action." };
   } catch (e) {
     return toState(e);
