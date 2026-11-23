@@ -116,6 +116,17 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 
 A Capacitor 8 shell around the live site, with push notifications (APNs), a home-screen widget, the native share sheet and universal links. CI builds the app and widget for the simulator on every iOS change. Setup, Apple account steps and server settings: [docs/IOS.md](docs/IOS.md).
 
+## Deploying (Railway)
+
+Live at https://itys-production.up.railway.app (Railway project "reasonable-unity", service `itys`, which deploys every push to `main`).
+
+- **Database:** the project's Postgres service; `DATABASE_URL=${{Postgres.DATABASE_URL}}` on `itys`.
+- **Migrations:** `npm start` runs `npm run db:migrate` first (under a Postgres advisory lock), so every deploy has its tables before it serves anything.
+- **Background jobs:** `RUN_JOBS_IN_PROCESS=1` runs them inside the web service. To split them out later, add a second service from this repo with start command `npm run worker` and remove that variable.
+- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `RESEND_API_KEY` (sign-in emails), `APNS_KEY` (push).
+- **Health check:** `GET /api/health` (checks the database).
+- The service is configured in the Railway dashboard, not by a config file in this repo.
+
 ## How a call ends
 
 1. When picks close, a settler is chosen: someone neutral if possible (didn't pick, didn't write it, not the subject).
