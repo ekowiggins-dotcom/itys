@@ -8,6 +8,7 @@ import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { emit, groupMemberIds } from "./notify";
 import { hit, LIMITS } from "./rate-limit";
+import { faceColors, GROUP_COLOR_KEYS, groupColorKey, type GroupColor } from "@/lib/faces";
 
 export const MAX_MEMBERS = 30;
 /** 16 bytes = 128 bits: invite links can't be guessed. */
@@ -31,6 +32,9 @@ export type GroupView = {
   id: string;
   name: string;
   timeZone: string;
+  color: GroupColor;
+  /** Each current member's face colour, by user id (join order, so friends never share one). */
+  faces: Record<string, string>;
   me: { displayName: string; role: "admin" | "member" };
   members: { userId: string; displayName: string; role: "admin" | "member"; joinedAt: Date }[];
   inviteToken: string | null;
@@ -39,17 +43,18 @@ export type GroupView = {
 export async function createGroup(
   db: Db,
   user: User,
-  input: { name: string; timeZone: string; displayName: string },
+  input: { name: string; timeZone: string; displayName: string; color?: string },
   now = new Date(),
 ) {
   const name = groupNameSchema.parse(input.name);
   const timeZone = timeZoneSchema.parse(input.timeZone);
   const displayName = nameSchema.parse(input.displayName);
+  const color = input.color && (GROUP_COLOR_KEYS as string[]).includes(input.color) ? input.color : null;
   await hit(db, LIMITS.createGroup, user.id, now);
   return db.transaction(async (tx) => {
     const [group] = await tx
       .insert(groups)
-      .values({ name, timeZone, inviteToken: newInviteToken(), createdBy: user.id, createdAt: now })
+      .values({ name, timeZone, color, inviteToken: newInviteToken(), createdBy: user.id, createdAt: now })
       .returning({ id: groups.id });
     await tx.insert(members).values({ groupId: group.id, userId: user.id, displayName, role: "admin", joinedAt: now });
     return group.id;
@@ -68,6 +73,7 @@ export async function myGroups(db: Db, user: User) {
     .select({
       id: groups.id,
       name: groups.name,
+      color: groups.color,
       role: members.role,
       memberCount: memberCount.n,
     })
@@ -103,10 +109,13 @@ export async function groupForMember(db: Db, user: User, groupId: string): Promi
     .from(members)
     .where(and(eq(members.groupId, groupId), isNull(members.leftAt)))
     .orderBy(asc(members.joinedAt));
+  const color = groupColorKey(group.color, group.id);
   return {
     id: group.id,
     name: group.name,
     timeZone: group.timeZone,
+    color,
+    faces: faceColors(list.map((m) => m.userId), color),
     me: { displayName: me.displayName, role: me.role },
     members: list,
     inviteToken: me.role === "admin" ? group.inviteToken : null,

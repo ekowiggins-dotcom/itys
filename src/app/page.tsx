@@ -5,17 +5,17 @@ import { currentUser } from "@/server/session";
 export default async function Home() {
   if (await currentUser()) redirect("/groups");
   return (
-    <>
-      <h1>Call it before it happens.</h1>
-      <p className="muted">
-        Make friendly predictions about your group&apos;s plans and life with your friends. Points are free and only
-        earned by being right. No money, no prizes, just bragging rights.
+    <section className="hero">
+      {/* eslint-disable-next-line @next/next/no-img-element -- decorative SVG */}
+      <img src="/brand/stamp-lime.svg" alt="" className="hero-stamp" />
+      <h1 className="hero-title">Call it before it happens.</h1>
+      <p className="hero-text">
+        Friendly predictions about your group&apos;s plans and life. Points are free and only earned by being right. No
+        money, no prizes, just bragging rights.
       </p>
-      <p>
-        <Link href="/login">
-          <button type="button">Sign in with email</button>
-        </Link>
-      </p>
-    </>
+      <Link href="/login" className="btn">
+        Get started
+      </Link>
+    </section>
   );
 }

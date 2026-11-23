@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { memberAction } from "../../actions";
+import { Avatar } from "../../components/Avatar";
 
 type Props = {
   groupId: string;
@@ -12,15 +13,20 @@ type Props = {
   /** Whether the viewer is the group admin. */
   viewerIsAdmin: boolean;
   blocked: boolean;
+  color?: string;
 };
 
-export function MemberRow({ groupId, userId, name, isMe, isAdmin, viewerIsAdmin, blocked }: Props) {
+export function MemberRow({ groupId, userId, name, isMe, isAdmin, viewerIsAdmin, blocked, color }: Props) {
   const [state, action, pending] = useActionState(memberAction, undefined);
   return (
     <li>
-      <span>
-        {name}
-        {isMe ? " (you)" : ""} {isAdmin && <span className="tag">admin</span>}
+      <span className="person-line">
+        <Avatar name={name} color={color} size={36} me={isMe} />
+        <span>
+          {name}
+          {isMe ? " (you)" : ""}
+        </span>
+        {isAdmin && <span className="tag">admin</span>}
         {blocked && <span className="tag">blocked</span>}
         {state?.error && <span className="error small"> {state.error}</span>}
       </span>

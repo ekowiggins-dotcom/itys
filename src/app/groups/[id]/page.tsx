@@ -9,6 +9,9 @@ import { MemberRow, RemovedRow } from "./MemberRow";
 import { blockedIds, removedMembers, reviewQueue } from "@/server/moderation";
 import { rankingFor } from "@/server/rankings";
 import { callsForMember, type CallView } from "@/server/call-views";
+import { countdown, friendlyTime, urgency } from "@/lib/when";
+import { GROUP_COLORS } from "@/lib/faces";
+import { Faces } from "../../components/Avatar";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { groupForMember } from "@/server/groups";
@@ -35,31 +38,35 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
     (c) => c.locked && !needsMe.includes(c) && ["active", "proposed", "disputed"].includes(c.status),
   );
   const finished = callList.filter((c) => c.status === "settled" || c.status === "void");
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: group.timeZone,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const fmt = (d: Date) => formatter.format(d);
+  const now = new Date();
+  const fmt = (d: Date) => friendlyTime(d, now, group.timeZone);
   const times = (c: CallView) => ({
     lock: fmt(c.lockAt),
     event: fmt(c.eventAt),
     openToAll: fmt(c.openToAllAt),
     disputeEnds: c.disputeEndsAt ? fmt(c.disputeEndsAt) : null,
     voteCloses: c.voteClosesAt ? fmt(c.voteClosesAt) : null,
+    lockUrgency: urgency(c.lockAt, now),
+    lockCountdown: countdown(c.lockAt, now),
   });
-  const card = (c: CallView) => <CallCard key={c.id} call={c} groupId={group.id} times={times(c)} />;
+  const card = (c: CallView, turn = false) => (
+    <CallCard key={c.id} call={c} groupId={group.id} times={times(c)} faces={group.faces} turn={turn} />
+  );
   const inviteLink = group.inviteToken ? `${await appOrigin()}/join/${group.inviteToken}` : null;
   const isAdmin = group.me.role === "admin";
 
   return (
     <>
-      <h1>{group.name}</h1>
-      <p className="muted">
-        You&apos;re {group.me.displayName} here · times shown in {group.timeZone}
+      <h1 className="row">
+        <span className="swatch" style={{ background: GROUP_COLORS[group.color] }} aria-hidden="true" />
+        {group.name}
+      </h1>
+      <p className="row muted">
+        <Faces people={group.members.map((m) => ({ name: m.displayName, color: group.faces[m.userId] }))} />
+        <span>
+          {group.members.length} {group.members.length === 1 ? "person" : "people"}
+          {needsMe.length > 0 ? ` · ${needsMe.length} waiting for you` : ""}
+        </span>
       </p>
 
       {toReview.length > 0 && (
@@ -76,19 +83,19 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
             Full ranking →
           </Link>
         </div>
-        <RankingTable rows={week.rows} me={user.id} limit={3} />
+        <RankingTable rows={week.rows} me={user.id} limit={3} faces={group.faces} />
       </div>
 
       {needsMe.length > 0 && (
         <>
           <h2>Needs you</h2>
-          {needsMe.map(card)}
+          {needsMe.map((c) => card(c, true))}
         </>
       )}
 
       <h2>Open for picks</h2>
       {open.length === 0 && <p className="muted">No open calls. Make the first one below.</p>}
-      {open.map(card)}
+      {open.map((c) => card(c, c.canPick && !c.myPick))}
 
       <h2>New call</h2>
       <div className="card">
@@ -98,14 +105,14 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
       {waiting.length > 0 && (
         <>
           <h2>Waiting for results</h2>
-          {waiting.map(card)}
+          {waiting.map((c) => card(c))}
         </>
       )}
 
       {finished.length > 0 && (
         <>
           <h2>Finished</h2>
-          {finished.map(card)}
+          {finished.map((c) => card(c))}
         </>
       )}
 
@@ -122,6 +129,7 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
               isAdmin={m.role === "admin"}
               viewerIsAdmin={isAdmin}
               blocked={blocked.has(m.userId)}
+              color={group.faces[m.userId]}
             />
           ))}
         </ul>

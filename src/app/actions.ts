@@ -99,6 +99,7 @@ export async function createGroupAction(_: FormState, form: FormData): Promise<F
       name: str(form, "name"),
       timeZone: str(form, "timeZone"),
       displayName: str(form, "displayName") || user.name || "",
+      color: str(form, "color") || undefined,
     });
   } catch (e) {
     return toState(e);

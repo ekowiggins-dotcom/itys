@@ -62,6 +62,8 @@ export const groups = pgTable("groups", {
   timeZone: text("time_zone").notNull(),
   /** 128-bit random token used in invite links. The admin can reset it at any time. */
   inviteToken: text("invite_token").notNull().unique(),
+  /** One of GROUP_COLORS (src/lib/faces.ts). Null for groups made before colours: one is derived from the id. */
+  color: text("color"),
   /** Null once the creator deletes their account. */
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),

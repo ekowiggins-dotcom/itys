@@ -34,7 +34,17 @@ describe("creating groups", () => {
     expect(view.me).toEqual({ displayName: "Ada", role: "admin" });
     expect(view.members).toHaveLength(1);
     expect(view.timeZone).toBe("Europe/Istanbul");
-    expect(await myGroups(db, admin)).toEqual([{ id, name: "Flat", role: "admin", memberCount: 1 }]);
+    expect(await myGroups(db, admin)).toEqual([{ id, name: "Flat", color: null, role: "admin", memberCount: 1 }]);
+  });
+
+  it("stores a picked colour, ignores unknown ones, and gives every member a distinct face colour", async () => {
+    const { user } = await signUp(db, "Painter");
+    const id = await createGroup(db, user, { name: "Teal team", timeZone: "UTC", displayName: "P", color: "teal" });
+    const view = await groupForMember(db, user, id);
+    expect(view.color).toBe("teal");
+    expect(view.faces[user.id]).toMatch(/^#[0-9A-F]{6}$/);
+    const other = await createGroup(db, user, { name: "Odd", timeZone: "UTC", displayName: "P", color: "plaid" });
+    expect((await groupForMember(db, user, other)).color).toMatch(/^(coral|sky|violet|mint|sun|pink|teal)$/);
   });
 
   it("rejects unknown time zones and empty names", async () => {

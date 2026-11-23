@@ -49,7 +49,7 @@ export default async function RankingPage({ params, searchParams }: PageProps<"/
         </p>
       )}
       <div className="card">
-        <RankingTable rows={ranking.rows} me={user.id} />
+        <RankingTable rows={ranking.rows} me={user.id} faces={group.faces} />
       </div>
       <h2>How it works</h2>
       <ul className="small muted">

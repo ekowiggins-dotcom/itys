@@ -3,14 +3,56 @@
 import { useActionState } from "react";
 import { callAction } from "../../actions";
 import { ShareLink } from "../../ui";
+import { Avatar } from "../../components/Avatar";
+import { Chip } from "../../components/Chip";
+import { Toast } from "../../components/Toast";
 import type { CallView } from "@/server/call-views";
 
 const VOID = "void";
 
-type Times = { lock: string; event: string; openToAll: string; disputeEnds: string | null; voteCloses: string | null };
+type Times = {
+  lock: string;
+  event: string;
+  openToAll: string;
+  disputeEnds: string | null;
+  voteCloses: string | null;
+  lockUrgency: "soon" | "later" | "past";
+  lockCountdown: string;
+};
 
-export function CallCard({ call, groupId, times }: { call: CallView; groupId: string; times: Times }) {
+/** The chip at the top of a card: what stage the call is in and the next time that matters. */
+function stageChip(call: CallView, t: Times): { text: string; tone?: "soon" | "later" | "done" | "past" } {
+  // Things you need to do come first.
+  if (call.canSettle) return { text: "Your turn to settle", tone: "soon" };
+  if (call.canVote) return { text: `Vote until ${t.voteCloses}`, tone: "soon" };
+  if (call.canDispute) return { text: `Check by ${t.disputeEnds}`, tone: "later" };
+  if (call.canPick && !call.myPick) return { text: `Pick by ${t.lock}`, tone: t.lockUrgency };
+  if (call.status === "settled") return { text: "Settled", tone: "done" };
+  if (call.status === "void") return { text: "Called off" };
+  if (call.status === "disputed") return { text: `Vote until ${t.voteCloses}`, tone: "soon" };
+  if (call.status === "proposed") return { text: `Final ${t.disputeEnds}`, tone: "later" };
+  if (!call.locked) return { text: `Picks close ${t.lock}`, tone: t.lockUrgency };
+  if (call.awaitingResult) return { text: "Waiting for the result", tone: "soon" };
+  return { text: `Result ${t.event}` };
+}
+
+export function CallCard({
+  call,
+  groupId,
+  times,
+  faces,
+  turn = false,
+}: {
+  call: CallView;
+  groupId: string;
+  times: Times;
+  /** Face colour per user id. */
+  faces: Record<string, string>;
+  /** Highlight as the thing to do next. */
+  turn?: boolean;
+}) {
   const [state, action, pending] = useActionState(callAction, undefined);
+  const chip = stageChip(call, times);
   const total = call.split ? Object.values(call.split).reduce((a, b) => a + b, 0) : 0;
   const labelOf = (key: string | null) =>
     key === VOID ? "Called off (didn't happen or unclear)" : (call.options.find((o) => o.key === key)?.label ?? "");
@@ -38,15 +80,48 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
   );
 
   return (
-    <div id={`call-${call.id}`} className={`card call status-${call.status}`}>
+    <div id={`call-${call.id}`} className={`card call status-${call.status}${turn ? " turn" : ""}`}>
+      <div className="call-head">
+        <Chip tone={chip.tone}>{chip.text}</Chip>
+        <span className="person-line small muted">
+          by {call.author}
+          <Avatar name={call.author} color={call.authorId ? faces[call.authorId] : undefined} size={24} />
+        </span>
+      </div>
       <p className="call-text">{call.text}</p>
-      <p className="muted small">
-        by {call.author}
-        {call.subject ? ` · about ${call.isAboutMe ? "you" : call.subject}` : ""}
-        {" · "}
-        {call.locked ? `picks closed ${times.lock}` : `picks close ${times.lock}`}
-      </p>
+      {call.subject && <p className="muted small">About {call.isAboutMe ? "you" : call.subject}</p>}
 
+      {call.kind === "member" ? (
+        <form action={action} className="people-options">
+          {hidden}
+          <input type="hidden" name="op" value="pick" />
+          {call.options.map((o) => {
+            const n = call.split?.[o.key] ?? 0;
+            const pct = total ? Math.round((n / total) * 100) : 0;
+            const mine = call.myPick === o.key;
+            const correct = call.result === o.key;
+            return (
+              <button
+                key={o.key}
+                type="submit"
+                name="option"
+                value={o.key}
+                disabled={!call.canPick || pending}
+                className={`person${mine ? " mine" : ""}${correct ? " correct" : ""}`}
+                aria-pressed={mine}
+                aria-label={`${o.label}${call.split ? `, ${pct}%` : ""}${mine ? ", your pick" : ""}${correct ? ", correct answer" : ""}`}
+              >
+                <Avatar name={o.label} color={faces[o.key]} size={52} />
+                <span>
+                  {correct ? "🏆 " : ""}
+                  {o.label}
+                </span>
+                {call.split && <span className="pct">{pct}%</span>}
+              </button>
+            );
+          })}
+        </form>
+      ) : (
       <form action={action} className="options">
         {hidden}
         <input type="hidden" name="op" value="pick" />
@@ -78,6 +153,14 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
           );
         })}
       </form>
+      )}
+      {call.kind === "member" && call.whoPicked && (
+        <p className="small muted">
+          {Object.entries(call.whoPicked)
+            .map(([k, names]) => `${names.join(", ")} → ${call.options.find((o) => o.key === k)?.label ?? ""}`)
+            .join(" · ")}
+        </p>
+      )}
 
       <p className="muted small">
         {call.isAboutMe ? "This call is about you, so you can't pick. " : ""}
@@ -233,7 +316,7 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
           {state.error}
         </p>
       )}
-      {state?.ok && <p className="ok small">{state.ok}</p>}
+      <Toast message={state?.ok} />
     </div>
   );
 }
