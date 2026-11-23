@@ -5,7 +5,11 @@ export const AUTH_FILE = "tests/e2e/.auth/ada.json";
 
 /** Signs in as the demo user through the real email-link flow (development shows the link on the page). */
 export async function signIn(page: Page) {
+  // The first visit to a fresh dev server compiles the page and may reload it once: let that settle first.
   await page.goto("/login");
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
   await page.getByText("Use email instead").click();
   await page.getByLabel("Email").fill("ada@example.com");
   await page.getByRole("button", { name: "Send link" }).click();
