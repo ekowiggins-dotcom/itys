@@ -1401,3 +1401,38 @@ details[open] > summary::before {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- Overflow guards (found by the 320px browser tests) ---------- */
+/* The decorative stamp may hang over the edge visually but must never widen the page. */
+.hero {
+  overflow-x: clip;
+}
+
+/* Long names under faces wrap inside a fixed width instead of pushing the row wider. */
+button.person {
+  width: 76px;
+  min-width: 0;
+}
+
+button.person > span:not(.avatar) {
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+/* Very long words (Turkish compounds, names, URLs) break instead of overflowing. */
+.call-text,
+.option-label,
+.group-hero-name,
+.podium-name,
+.person-line,
+ul.list li > span,
+ul.notifs li a span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.people-picker button.pill {
+  max-width: 100%;
+}
