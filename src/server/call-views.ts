@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { User } from "./auth";
-import { calls, members, picks, scores, type CallOption, type CallStatus } from "./db/schema";
+import { calls, members, picks, reports, scores, type CallOption, type CallStatus } from "./db/schema";
+import { blockedIds } from "./moderation";
 import { MIN_PICKERS } from "./scoring";
 import type { Db } from "./db/types";
 import { requireMember } from "./groups";
@@ -58,6 +59,11 @@ export type CallView = {
   /** Settled calls: how many got it right, and whether the call counted for points. */
   rightCount: number | null;
   counted: boolean | null;
+  /** The person it's about can hide it with one tap; others can report it. Not the author. */
+  canHide: boolean;
+  canReport: boolean;
+  /** Group admin, when the call isn't theirs: can remove its author from the group. */
+  authorId: string | null;
 };
 
 /** The group's calls for this member: open ones first (closing soonest), then the rest (newest first). */
@@ -66,9 +72,17 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
   const rows = await db
     .select()
     .from(calls)
-    .where(and(eq(calls.groupId, groupId), sql`${calls.status} <> 'cancelled'`))
+    .where(and(eq(calls.groupId, groupId), sql`${calls.status} <> 'cancelled'`, eq(calls.moderation, "visible")))
     .orderBy(desc(calls.lockAt))
     .limit(100);
+  const blocked = await blockedIds(db, user.id);
+  const reportedRows = await db.select({ callId: reports.callId }).from(reports).where(eq(reports.userId, user.id));
+  const reportedByMe = new Set(reportedRows.map((r) => r.callId));
+  // Calls by people you've blocked don't show up for you, except one you're settling (so it still gets a result).
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (r.authorId && blocked.has(r.authorId) && r.settlerId !== user.id) rows.splice(i, 1);
+  }
   if (rows.length === 0) return [];
 
   const memberRows = await db
@@ -102,6 +116,7 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
 
   const views = rows.map((c): CallView => {
     const v = callVisibility(c, { userId: user.id, isMember: true }, now);
+    if (!v.canSeeCall) throw new Error("visibility mismatch"); // rows are already filtered to visible calls
     const perOption = counts.filter((x) => x.callId === c.id);
     const total = perOption.reduce((s, x) => s + x.n, 0);
     const pickers = allPicks.filter((p) => p.callId === c.id);
@@ -132,7 +147,7 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
       text: c.text,
       kind: c.kind,
       options: c.options.map((o) => (c.kind === "member" ? { key: o.key, label: label(o.key)! } : o)),
-      author: label(c.authorId)!,
+      author: label(c.authorId) ?? "Former member",
       subject: label(c.subjectId),
       isAboutMe: isSubject,
       lockAt: c.lockAt,
@@ -168,6 +183,9 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
       myPoints: c.status === "settled" ? (myPointsOf.get(c.id) ?? null) : null,
       rightCount: c.status === "settled" ? pickers.filter((p) => p.optionKey === c.result).length : null,
       counted: c.status === "settled" ? pickers.length >= MIN_PICKERS : null,
+      canHide: isSubject,
+      canReport: !isSubject && c.authorId !== user.id && !reportedByMe.has(c.id),
+      authorId: c.authorId,
     };
   });
 

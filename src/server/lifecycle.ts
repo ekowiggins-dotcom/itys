@@ -36,8 +36,12 @@ type Call = typeof calls.$inferSelect;
 
 /** When the job runner next needs to look at a call, or null when nothing more can happen on its own. */
 export function nextActionAt(
-  c: Pick<Call, "status" | "settlerId" | "lockAt" | "eventAt" | "proposedAt" | "voteClosesAt" | "remindedAt" | "settlePromptedAt">,
+  c: Pick<
+    Call,
+    "status" | "settlerId" | "lockAt" | "eventAt" | "proposedAt" | "voteClosesAt" | "remindedAt" | "settlePromptedAt" | "moderation"
+  >,
 ) {
+  if (c.moderation !== "visible") return null; // paused while hidden for review
   switch (c.status) {
     case "active":
       if (!c.settlerId) return c.remindedAt ? c.lockAt : new Date(c.lockAt.getTime() - REMINDER_BEFORE_LOCK_MS);
@@ -67,11 +71,12 @@ async function activeMemberIds(tx: Tx, groupId: string) {
  * The subject never settles. Within a tier the order is a stable shuffle, so tests are repeatable.
  */
 export function chooseSettler(c: Pick<Call, "id" | "authorId" | "subjectId">, active: Set<string>, pickers: Set<string>) {
+  const author = c.authorId ?? "";
   const shuffle = (ids: string[]) => ids.sort((a, b) => hashToken(c.id + a).localeCompare(hashToken(c.id + b)));
   const eligible = [...active].filter((id) => id !== c.subjectId);
-  const neutral = shuffle(eligible.filter((id) => !pickers.has(id) && id !== c.authorId));
-  const pickedOthers = shuffle(eligible.filter((id) => pickers.has(id) && id !== c.authorId));
-  return neutral[0] ?? pickedOthers[0] ?? (eligible.includes(c.authorId) ? c.authorId : null);
+  const neutral = shuffle(eligible.filter((id) => !pickers.has(id) && id !== author));
+  const pickedOthers = shuffle(eligible.filter((id) => pickers.has(id) && id !== author));
+  return neutral[0] ?? pickedOthers[0] ?? (eligible.includes(author) ? author : null);
 }
 
 async function save(tx: Tx, c: Call, patch: Partial<Call>) {
@@ -142,6 +147,7 @@ async function closeVote(tx: Tx, c: Call, now: Date) {
 export async function advance(tx: Tx, c: Call, now: Date): Promise<Call> {
   const t = now.getTime();
   for (;;) {
+    if (c.moderation !== "visible") return c;
     if (c.status === "active" && !c.settlerId && !c.remindedAt) {
       // Remind people who haven't picked, unless it's already too late to be useful.
       if (t < c.lockAt.getTime() - REMINDER_BEFORE_LOCK_MS) return c;

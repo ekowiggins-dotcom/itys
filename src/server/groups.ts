@@ -155,6 +155,7 @@ export async function joinGroup(
       .from(members)
       .where(and(eq(members.groupId, group.id), eq(members.userId, user.id)));
     if (existing && !existing.leftAt) return group.id;
+    if (existing?.bannedAt) throw new AppError("forbidden", "The admin removed you from this group, so you can't rejoin.");
 
     const [{ n }] = await tx
       .select({ n: count() })

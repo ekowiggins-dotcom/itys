@@ -26,6 +26,9 @@ const table: Row[] = [
   ["subject, locked", { lockAt: after, subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeSplit: true }],
   ["non-member, open", { lockAt: before }, { userId: ME, isMember: false }, {}],
   ["non-member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: false }, {}],
+  ["member, hidden for review", { lockAt: before, moderation: "hidden" }, { userId: ME, isMember: true }, {}],
+  ["member, removed after settling", { lockAt: after, status: "settled", moderation: "removed" }, { userId: ME, isMember: true }, {}],
+  ["subject, hidden", { lockAt: after, subjectId: SUBJECT, moderation: "hidden" }, { userId: SUBJECT, isMember: true }, {}],
   ["signed out, settled", { lockAt: after, status: "settled" }, { userId: null, isMember: false }, {}],
 ];
 
@@ -41,12 +44,12 @@ const NONE: CallVisibility = {
 
 describe("callVisibility", () => {
   it.each(table)("%s", (_name, call, viewer, expected) => {
-    const state: CallState = { lockAt: before, status: "active", subjectId: null, ...call };
+    const state: CallState = { lockAt: before, status: "active", subjectId: null, moderation: "visible", ...call };
     expect(callVisibility(state, viewer, now)).toEqual({ ...NONE, ...expected });
   });
 
   it("closes exactly at lock time", () => {
-    const v = callVisibility({ lockAt: now, status: "active", subjectId: null }, { userId: ME, isMember: true }, now);
+    const v = callVisibility({ lockAt: now, status: "active", subjectId: null, moderation: "visible" }, { userId: ME, isMember: true }, now);
     expect(v.canPick).toBe(false);
     expect(v.canSeeSplit).toBe(true);
   });

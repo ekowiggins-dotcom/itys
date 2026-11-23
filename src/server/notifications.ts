@@ -55,11 +55,17 @@ export function renderText(n: RenderInput): string {
       return `${q(n.callText)} was called off. Nobody scores.`;
     case "member_joined":
       return `${n.actor} joined ${n.groupName}.`;
+    case "review_needed":
+      return `A call in ${n.groupName} was hidden after a report. Please review it.`;
+    case "call_removed":
+      return `Your call in ${n.groupName} was removed after a review.`;
   }
 }
 
 /** Whether a "needs you" notification still asks for something that can be done. */
 function stillNeeded(type: NotificationType, c: typeof calls.$inferSelect | undefined) {
+  if (type === "review_needed") return c?.moderation === "hidden";
+  if (c && c.moderation !== "visible") return false;
   if (type === "settle_prompt") return c?.status === "active";
   if (type === "vote_needed") return c?.status === "disputed";
   if (type === "result_proposed") return c?.status === "proposed";
@@ -132,7 +138,8 @@ export async function renderNotifications(db: Db, userId: string, rows: (typeof 
   return visible.map((r): RenderedNotification => {
     const c = r.callId ? callOf.get(r.callId) : undefined;
     // Cancelled calls disappear from the group page, so their notifications show without the call's text.
-    const shownCall = c && c.status !== "cancelled" ? c : undefined;
+    // Hidden or removed calls never show their text in notifications.
+    const shownCall = c && c.status !== "cancelled" && c.moderation === "visible" ? c : undefined;
     const answer =
       shownCall && r.type === "result_proposed"
         ? label(r.groupId, shownCall, shownCall.proposedResult)
@@ -150,7 +157,7 @@ export async function renderNotifications(db: Db, userId: string, rows: (typeof 
         answer,
         myPoints: r.type === "settled" && c ? (pointsOf.get(c.id) ?? null) : null,
       }),
-      href: `/groups/${r.groupId}${shownCall ? `#call-${shownCall.id}` : ""}`,
+      href: r.type === "review_needed" ? "/review" : `/groups/${r.groupId}${shownCall ? `#call-${shownCall.id}` : ""}`,
       groupName: groupName.get(r.groupId) ?? "",
       createdAt: r.createdAt,
       read: !!r.readAt,

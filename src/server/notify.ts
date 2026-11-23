@@ -4,24 +4,33 @@
  * (dedupe key). Only "needs you" events also go out by email, and only to people who keep email alerts on.
  */
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { members, notifications, outbox, users, type NotificationType } from "./db/schema";
+import { blocks, members, notifications, outbox, users, type NotificationType } from "./db/schema";
 import type { Tx } from "./db/types";
 
 /** Events worth an email: someone needs to act, or a call is about them. */
-export const EMAIL_TYPES: NotificationType[] = ["about_you", "settle_prompt", "vote_needed"];
+export const EMAIL_TYPES: NotificationType[] = ["about_you", "settle_prompt", "vote_needed", "review_needed"];
 
 export type Emit = {
   type: NotificationType;
   groupId: string;
   callId?: string | null;
   actorId?: string | null;
-  userIds: string[];
+  userIds: (string | null | undefined)[];
   now: Date;
 };
 
 export async function emit(tx: Tx, e: Emit) {
   // Never notify people who have left, or the person who caused the event.
-  const ids = [...new Set(e.userIds)].filter((id) => id !== e.actorId);
+  let ids = [...new Set(e.userIds)].filter((id): id is string => !!id && id !== e.actorId);
+  // People who blocked the actor don't hear from them.
+  if (e.actorId && ids.length) {
+    const blockers = await tx
+      .select({ id: blocks.blockerId })
+      .from(blocks)
+      .where(and(eq(blocks.blockedId, e.actorId), inArray(blocks.blockerId, ids)));
+    const muted = new Set(blockers.map((b) => b.id));
+    ids = ids.filter((id) => !muted.has(id));
+  }
   if (ids.length === 0) return;
   const active = await tx
     .select({ userId: members.userId, emailAlerts: users.emailAlerts })

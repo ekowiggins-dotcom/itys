@@ -407,3 +407,21 @@ label.check {
 .call {
   scroll-margin-top: 16px;
 }
+
+details.report {
+  margin-top: 8px;
+}
+
+details.report form {
+  margin-top: 8px;
+  flex-wrap: nowrap;
+}
+
+details.report select {
+  flex: 1;
+}
+
+ul.list li form.row {
+  flex-wrap: nowrap;
+  gap: 12px;
+}

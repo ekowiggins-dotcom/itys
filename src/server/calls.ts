@@ -5,6 +5,8 @@ import { calls, members, picks, type CallOption } from "./db/schema";
 import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { requireMember } from "./groups";
+import { checkCallText } from "./content-filter";
+import { hasBlocked } from "./moderation";
 import { emit, groupMemberIds } from "./notify";
 import { REMINDER_BEFORE_LOCK_MS } from "./timing";
 import { hit, LIMITS } from "./rate-limit";
@@ -39,6 +41,7 @@ export type NewCall = z.input<typeof newCallSchema>;
 /** Creates a call. Returns its id. */
 export async function createCall(db: Db, user: User, groupId: string, input: NewCall, now = new Date()) {
   const data = newCallSchema.parse(input);
+  checkCallText(data.text, ...(data.options ?? []));
   if (data.lockAt.getTime() < now.getTime() + MIN_LOCK_LEAD_MS) {
     throw new AppError("invalid", "Picks need to stay open for at least an hour.");
   }
@@ -60,6 +63,9 @@ export async function createCall(db: Db, user: User, groupId: string, input: New
 
     if (data.subjectId && !activeIds.has(data.subjectId)) {
       throw new AppError("invalid", "The person this call is about must be in the group.");
+    }
+    if (data.subjectId && (await hasBlocked(tx, data.subjectId, user.id))) {
+      throw new AppError("forbidden", "You can't make calls about this person.");
     }
 
     let options: CallOption[];

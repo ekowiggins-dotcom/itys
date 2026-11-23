@@ -62,9 +62,8 @@ export const groups = pgTable("groups", {
   timeZone: text("time_zone").notNull(),
   /** 128-bit random token used in invite links. The admin can reset it at any time. */
   inviteToken: text("invite_token").notNull().unique(),
-  createdBy: uuid("created_by")
-    .notNull()
-    .references(() => users.id),
+  /** Null once the creator deletes their account. */
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 });
 
@@ -85,6 +84,8 @@ export const members = pgTable(
     joinedAt: ts("joined_at").notNull().defaultNow(),
     /** Set when the member leaves; null means active. */
     leftAt: ts("left_at"),
+    /** Set when the admin removes someone. They can't rejoin until the admin lets them back. */
+    bannedAt: ts("banned_at"),
   },
   (t) => [
     primaryKey({ columns: [t.groupId, t.userId] }),
@@ -107,6 +108,8 @@ export const callKind = pgEnum("call_kind", ["yes_no", "choice", "member"]);
  * active: picks open, then locked, waiting for the result · proposed: a result is in, open to dispute for 24h ·
  * disputed: the group is voting · settled / void / cancelled: final.
  */
+export const moderationState = pgEnum("moderation_state", ["visible", "hidden", "removed"]);
+
 export const callStatus = pgEnum("call_status", ["active", "cancelled", "settled", "void", "proposed", "disputed"]);
 export type CallStatus = (typeof callStatus.enumValues)[number];
 
@@ -119,11 +122,10 @@ export const calls = pgTable(
     groupId: uuid("group_id")
       .notNull()
       .references(() => groups.id, { onDelete: "cascade" }),
-    authorId: uuid("author_id")
-      .notNull()
-      .references(() => users.id),
+    /** Null once the author deletes their account (shown as "Former member"). */
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
     /** The member this call is about, if any. They can't pick on it. */
-    subjectId: uuid("subject_id").references(() => users.id),
+    subjectId: uuid("subject_id").references(() => users.id, { onDelete: "set null" }),
     text: text("text").notNull(),
     kind: callKind("kind").notNull(),
     /** For member calls, label is empty: the current display name is looked up when shown. */
@@ -134,12 +136,12 @@ export const calls = pgTable(
     eventAt: ts("event_at").notNull(),
     status: callStatus("status").notNull().default("active"),
     /** Who settles the call. Chosen when picks close (see lifecycle.chooseSettler). */
-    settlerId: uuid("settler_id").references(() => users.id),
+    settlerId: uuid("settler_id").references(() => users.id, { onDelete: "set null" }),
     /** The proposed result while status is proposed/disputed: an option key, or "void". */
     proposedResult: text("proposed_result"),
-    proposedBy: uuid("proposed_by").references(() => users.id),
+    proposedBy: uuid("proposed_by").references(() => users.id, { onDelete: "set null" }),
     proposedAt: ts("proposed_at"),
-    disputedBy: uuid("disputed_by").references(() => users.id),
+    disputedBy: uuid("disputed_by").references(() => users.id, { onDelete: "set null" }),
     voteClosesAt: ts("vote_closes_at"),
     /** The final answer once settled (an option key). Null for void calls. */
     result: text("result"),
@@ -148,6 +150,14 @@ export const calls = pgTable(
     settledAt: ts("settled_at"),
     /** When the "picks close soon" reminder went out (or was skipped). */
     remindedAt: ts("reminded_at"),
+    /**
+     * visible · hidden: taken down at once (the subject asked, or 2 reports) until a reviewer decides ·
+     * removed: confirmed; the call is called off and scores nobody.
+     */
+    moderation: moderationState("moderation").notNull().default("visible"),
+    hiddenAt: ts("hidden_at"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: ts("reviewed_at"),
     /** When the settler was told it's time to enter the result. */
     settlePromptedAt: ts("settle_prompted_at"),
     /** When the job runner next needs to look at this call. Null once nothing more can happen. */
@@ -225,6 +235,8 @@ export const notificationType = pgEnum("notification_type", [
   "settled",
   "called_off",
   "member_joined",
+  "review_needed",
+  "call_removed",
 ]);
 export type NotificationType = (typeof notificationType.enumValues)[number];
 
@@ -283,6 +295,39 @@ export const outbox = pgTable(
     index("outbox_due").on(t.nextTryAt).where(sql`${t.status} IN ('queued', 'sending')`),
     uniqueIndex("outbox_once").on(t.notificationId, t.channel),
   ],
+);
+
+export const reportReason = pgEnum("report_reason", ["about_me", "hurtful", "private", "spam", "other"]);
+
+/** Reports on calls. "about_me" comes from the subject and hides the call at once; 2 reports of any kind do too. */
+export const reports = pgTable(
+  "reports",
+  {
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reason: reportReason("reason").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.callId, t.userId] })],
+);
+
+/** Blocking is per person, across all groups. */
+export const blocks = pgTable(
+  "blocks",
+  {
+    blockerId: uuid("blocker_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    blockedId: uuid("blocked_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index("blocks_blocked").on(t.blockedId)],
 );
 
 /** Fixed-window rate limit counters. Old windows are deleted opportunistically. */

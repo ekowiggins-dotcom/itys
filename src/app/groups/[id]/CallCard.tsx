@@ -192,11 +192,38 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
           )}
         </form>
       ) : null}
+      {call.canHide && (
+        <form action={action} className="row">
+          {hidden}
+          <button type="submit" name="op" value="hide" className="link" disabled={pending}>
+            This is about me: hide it
+          </button>
+        </form>
+      )}
+      {call.canReport && (
+        <details className="report">
+          <summary className="small muted">Report</summary>
+          <form action={action} className="row">
+            {hidden}
+            <input type="hidden" name="op" value="report" />
+            <select name="reason" defaultValue="hurtful" aria-label="Reason">
+              <option value="hurtful">Hurtful or mean</option>
+              <option value="private">Too personal or private</option>
+              <option value="spam">Spam</option>
+              <option value="other">Something else</option>
+            </select>
+            <button type="submit" className="secondary" disabled={pending}>
+              Report
+            </button>
+          </form>
+        </details>
+      )}
       {state?.error && (
         <p className="error small" role="alert">
           {state.error}
         </p>
       )}
+      {state?.ok && <p className="ok small">{state.ok}</p>}
     </div>
   );
 }

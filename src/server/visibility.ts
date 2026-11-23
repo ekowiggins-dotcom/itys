@@ -9,6 +9,8 @@ export type CallState = {
   lockAt: Date;
   status: CallStatus;
   subjectId: string | null;
+  /** Hidden (under review) and removed calls are shown to nobody; reviewers use the review queue. */
+  moderation: "visible" | "hidden" | "removed";
 };
 
 export type Viewer = {
@@ -42,7 +44,7 @@ export function isLocked(call: Pick<CallState, "lockAt">, now: Date) {
 const LIVE: CallStatus[] = ["active", "proposed", "disputed", "settled"];
 
 export function callVisibility(call: CallState, viewer: Viewer, now: Date): CallVisibility {
-  const member = viewer.isMember && viewer.userId !== null;
+  const member = viewer.isMember && viewer.userId !== null && call.moderation === "visible";
   const locked = isLocked(call, now);
   const isSubject = member && viewer.userId === call.subjectId;
   const final = call.status === "settled" || call.status === "void";

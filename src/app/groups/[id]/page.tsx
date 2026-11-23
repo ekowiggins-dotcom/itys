@@ -5,6 +5,8 @@ import { ActionForm, CopyButton, Submit } from "../../ui";
 import { CallCard } from "./CallCard";
 import { NewCallForm } from "./NewCallForm";
 import { RankingTable } from "./RankingTable";
+import { MemberRow, RemovedRow } from "./MemberRow";
+import { blockedIds, removedMembers, reviewQueue } from "@/server/moderation";
 import { rankingFor } from "@/server/rankings";
 import { callsForMember, type CallView } from "@/server/call-views";
 import { getDb } from "@/server/db";
@@ -24,6 +26,9 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
   }
   const callList = await callsForMember(await getDb(), user, id);
   const week = await rankingFor(await getDb(), user, id, "this-week");
+  const blocked = await blockedIds(await getDb(), user.id);
+  const removed = await removedMembers(await getDb(), user, id);
+  const toReview = (await reviewQueue(await getDb(), user)).filter((q) => q.groupId === id);
   const open = callList.filter((c) => !c.locked);
   const needsMe = callList.filter((c) => c.locked && (c.canSettle || c.canDispute || c.canVote));
   const waiting = callList.filter(
@@ -56,6 +61,13 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
       <p className="muted">
         You&apos;re {group.me.displayName} here · times shown in {group.timeZone}
       </p>
+
+      {toReview.length > 0 && (
+        <p className="card">
+          <strong>{toReview.length === 1 ? "A hidden call needs" : `${toReview.length} hidden calls need`} your review.</strong>{" "}
+          <Link href="/review">Review now →</Link>
+        </p>
+      )}
 
       <div className="card">
         <div className="row spread">
@@ -101,16 +113,33 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
       <div className="card">
         <ul className="list">
           {group.members.map((m) => (
-            <li key={m.userId}>
-              <span>
-                {m.displayName}
-                {m.userId === user.id ? " (you)" : ""}
-              </span>
-              {m.role === "admin" && <span className="tag">admin</span>}
-            </li>
+            <MemberRow
+              key={m.userId}
+              groupId={group.id}
+              userId={m.userId}
+              name={m.displayName}
+              isMe={m.userId === user.id}
+              isAdmin={m.role === "admin"}
+              viewerIsAdmin={isAdmin}
+              blocked={blocked.has(m.userId)}
+            />
           ))}
         </ul>
+        <p className="muted small">Blocking hides someone&apos;s calls from you and stops them making calls about you.</p>
       </div>
+
+      {removed.length > 0 && (
+        <>
+          <h2>Removed</h2>
+          <div className="card">
+            <ul className="list">
+              {removed.map((m) => (
+                <RemovedRow key={m.userId} groupId={group.id} userId={m.userId} name={m.name} />
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
 
       {inviteLink && (
         <>

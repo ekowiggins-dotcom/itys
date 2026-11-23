@@ -11,8 +11,8 @@ This is a clean rebuild, made step by step:
 | 3 | Settling, disputes, votes, job runner | ✅ |
 | 4 | Scoring and weekly ranking | ✅ |
 | 5 | Notifications (outbox) | ✅ |
-| 6 | Moderation and reporting | next |
-| 7 | Share cards | |
+| 6 | Moderation and reporting | ✅ |
+| 7 | Share cards | next |
 | 8 | iOS app (Capacitor) and widget | |
 
 ## Stack
@@ -93,6 +93,15 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - **By email:** only when something needs you (settling, a vote, a call about you). Anyone can switch email off in Settings.
 - **No stored text:** notifications are rendered when read, from current names and data, and only for groups you're still in. They never reveal anyone's pick.
 - **Transactional outbox:** notifications and emails are saved in the same transaction as the event. The worker claims emails with a 5-minute lease (a crash mid-send gets retried), retries failures with backoff (5 tries), skips emails that are no longer needed (e.g. the call was already settled) and expires anything older than 24 hours.
+
+## Keeping it kind (moderation)
+
+- **Protect first, review after.** The person a call is about can hide it with one tap. Any call is also hidden once 2 members report it. Hidden calls are shown to nobody, their text never appears in notifications, and their clock (reminders, settling) pauses.
+- **Review:** the admin decides (restore or remove), unless the admin wrote the call or it's about them; then it's the longest-standing other member. Removed calls are called off and their points are taken back.
+- **Blocking** someone hides their calls from you, mutes their notifications to you, and stops them making calls about you. (A call you're settling stays visible so it still gets a result.)
+- **Removing members:** the admin can remove someone, who can't rejoin until let back in.
+- **Word filter:** explicit words are refused, including common disguises (`src/server/content-filter.ts`). The list is a starter; replace it with a maintained list before launch.
+- **Deleting your account** (Settings) removes you everywhere: memberships and names, picks, votes, points, notifications and sign-in links. Calls about you are taken down. Calls you wrote stay, shown as by "Former member". The admin role passes on.
 
 ## How a call ends
 

@@ -7,6 +7,8 @@ import * as auth from "@/server/auth";
 import * as calls from "@/server/calls";
 import * as lifecycle from "@/server/lifecycle";
 import * as notifications from "@/server/notifications";
+import * as moderation from "@/server/moderation";
+import * as account from "@/server/account";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -160,6 +162,17 @@ export async function callAction(_: FormState, form: FormData): Promise<FormStat
     else if (op === "settle") await lifecycle.proposeResult(db, user, callId, str(form, "option"));
     else if (op === "dispute") await lifecycle.disputeResult(db, user, callId, str(form, "option"));
     else if (op === "vote") await lifecycle.voteOnResult(db, user, callId, str(form, "option"));
+    else if (op === "hide") {
+      await moderation.reportCall(db, user, callId, "about_me");
+      revalidatePath(`/groups/${groupId}`);
+      return { ok: "Hidden. Nobody can see it while it's reviewed." };
+    } else if (op === "report") {
+      const reason = str(form, "reason");
+      const valid = ["hurtful", "private", "spam", "other"] as const;
+      const hidden = await moderation.reportCall(db, user, callId, valid.find((r) => r === reason) ?? "other");
+      revalidatePath(`/groups/${groupId}`);
+      return { ok: hidden ? "Thanks. The call is hidden while it's reviewed." : "Thanks. If someone else reports it too, it's hidden for review." };
+    }
     else return { error: "Unknown action." };
   } catch (e) {
     return toState(e);
@@ -182,6 +195,47 @@ export async function setEmailAlertsAction(_: FormState, form: FormData): Promis
   await auth.setEmailAlerts(await getDb(), user, on);
   revalidatePath("/settings");
   return { ok: on ? "You'll get an email when something needs you." : "Emails are off. You'll still see everything in the app." };
+}
+
+export async function reviewAction(_: FormState, form: FormData): Promise<FormState> {
+  const user = await requireUser("/review");
+  const decision = str(form, "decision") === "remove" ? "remove" : "restore";
+  try {
+    await moderation.reviewCall(await getDb(), user, str(form, "callId"), decision);
+  } catch (e) {
+    return toState(e);
+  }
+  revalidatePath("/review");
+  return { ok: decision === "remove" ? "Removed. Nobody scores on it." : "Restored." };
+}
+
+/** Member actions on the group page: block / unblock (anyone), remove / let back (admin). */
+export async function memberAction(_: FormState, form: FormData): Promise<FormState> {
+  const groupId = str(form, "groupId");
+  const target = str(form, "userId");
+  const user = await requireUser(`/groups/${groupId}`);
+  const db = await getDb();
+  try {
+    const op = str(form, "op");
+    if (op === "block") await moderation.blockUser(db, user, target);
+    else if (op === "unblock") await moderation.unblockUser(db, user, target);
+    else if (op === "remove") await moderation.removeMember(db, user, groupId, target);
+    else if (op === "allow") await moderation.allowBack(db, user, groupId, target);
+    else return { error: "Unknown action." };
+  } catch (e) {
+    return toState(e);
+  }
+  revalidatePath(`/groups/${groupId}`);
+  revalidatePath("/settings");
+  return undefined;
+}
+
+export async function deleteAccountAction(_: FormState, form: FormData): Promise<FormState> {
+  const user = await requireUser("/settings");
+  if (str(form, "confirm").trim().toLowerCase() !== "delete") return { error: 'Type "delete" to confirm.' };
+  await account.deleteAccount(await getDb(), user);
+  await clearSessionCookie();
+  redirect("/");
 }
 
 export async function leaveGroupAction(_: FormState, form: FormData): Promise<FormState> {
