@@ -55,6 +55,18 @@ if (!widget) {
   }
 }
 
+// The library reuses the app's "Info.plist" file reference in the widget group (same file name), which puts
+// one reference in two groups. Drop it from the widget group: the widget finds its own Info.plist through the
+// INFOPLIST_FILE build setting below.
+{
+  const refs = objects.PBXFileReference;
+  const appKids = new Set(objects.PBXGroup[appGroupKey].children.map((c) => c.value));
+  const [wKey] = entries(objects.PBXGroup).find(([, g]) => unquote(g.name) === WIDGET);
+  objects.PBXGroup[wKey].children = objects.PBXGroup[wKey].children.filter(
+    (c) => !(appKids.has(c.value) && unquote(refs[c.value]?.path) === "Info.plist"),
+  );
+}
+
 // The app must build the widget before embedding it.
 // (The library only adds to these sections when they already exist.)
 objects.PBXTargetDependency ??= {};

@@ -105,7 +105,6 @@
 			isa = PBXGroup;
 			children = (
 				B98E773650A7483EA49065D4 /* WhollWidget.swift */,
-				504EC3131FED79650016851F /* Info.plist */,
 				02782AC6B42A4C91A5C16366 /* WhollWidget.entitlements */,
 			);
 			name = WhollWidget;
