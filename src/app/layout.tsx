@@ -58,7 +58,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 {unread > 0 && <span className="badge">{unread > 99 ? "99+" : unread}</span>}
               </Link>
               <Link href="/settings" aria-label="Settings">
-                <Avatar name={user.name ?? user.email} color="var(--lime)" size={40} />
+                <Avatar name={user.name ?? user.email} color="var(--lime)" size={44} />
               </Link>
             </nav>
           )}

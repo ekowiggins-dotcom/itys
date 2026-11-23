@@ -96,5 +96,21 @@ const winSettler = [ada, bo, cem, dee].find((u) => u.id === w.settlerId)!;
 await proposeResult(db, winSettler, win, "yes", ago(28));
 await runDueCalls(db, new Date(now));
 
+// A second group with long Turkish names and text, to check layouts don't break.
+const sukru = await user("sukru@example.com", "Şükrü Gülşen Öztürkoğlu");
+const ilknur = await user("ilknur@example.com", "İlknur Çağlayan-Değirmencioğlu");
+const kuzen = await createGroup(db, ada, { name: "Çılgın Kuzenler ve Komşuları 2026", timeZone: "Europe/Istanbul", displayName: "Ada", color: "pink" }, start);
+const kInvite = (await groupForMember(db, ada, kuzen)).inviteToken!;
+await joinGroup(db, sukru, kInvite, "Şükrü Gülşen Öztürkoğlu", "127.0.0.2", start);
+await joinGroup(db, ilknur, kInvite, "İlknur Çağlayan-Değirmencioğlu", "127.0.0.3", start);
+await createCall(db, sukru, kuzen, {
+  text: "Bayram sofrasında İlknur'un getirdiği çiğ köfte, Şükrü amcanın ünlü içli köftesinden önce mi bitecek, yoksa yine herkes baklavaya mı saldıracak?",
+  kind: "choice",
+  options: ["Çiğ köfte önce biter", "İçli köfte kazanır", "Baklava hepsini geçer", "Hiçbiri, herkes tok"],
+  lockAt: ahead(20),
+  eventAt: ahead(30),
+}, new Date(now));
+await createCall(db, ilknur, kuzen, { text: "Kim düğüne en son gelecek?", kind: "member", lockAt: ahead(40), eventAt: ahead(48) }, new Date(now));
+
 await pg.close();
-console.log(`Seeded "Demo flat". Sign in as ada@example.com and open /groups/${groupId}`);
+console.log(`Seeded "Demo flat" and "Çılgın Kuzenler". Sign in as ada@example.com and open /groups/${groupId}`);

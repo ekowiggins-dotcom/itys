@@ -52,7 +52,15 @@ npm run lint
 npm run build
 ```
 
-CI runs all four on every push (`.github/workflows/ci.yml`).
+Browser tests (Playwright) check every screen at 320px and 390px wide, light and dark: nothing wider than the screen, every control at least 44px tall, and no serious accessibility problems (axe, WCAG 2.1 AA). They start their own server with a throwaway database:
+
+```sh
+npx playwright install chromium   # once
+npm run e2e                        # stop `npm run dev` first: two dev servers make each other reload
+npm run screenshots                # App Store screenshots (1290×2796) into app-store-screenshots/
+```
+
+CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser report and the App Store screenshots are attached to each run.
 
 ## Configuration (production)
 

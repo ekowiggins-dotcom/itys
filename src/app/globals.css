@@ -12,6 +12,8 @@
   --lime: #d7f25a;
   --lime-soft: #f2fbd0;
   --coral: #ff6b4a;
+  /* Deeper coral for small white numbers (badges, counts): 4.9:1 with white. */
+  --badge: #cc3d1a;
 
   /* Surfaces and text */
   --bg: #f5f3ec;
@@ -197,8 +199,8 @@ main {
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -210,7 +212,7 @@ main {
   position: absolute;
   top: -4px;
   right: -4px;
-  background: var(--coral);
+  background: var(--badge);
   color: #fff;
   border-radius: var(--r-pill);
   font: 700 11px/1 var(--font-display);
@@ -333,8 +335,8 @@ button.danger {
 }
 
 button.link {
-  min-height: 0;
-  padding: var(--s1) 0;
+  min-height: 44px;
+  padding: 0 var(--s1);
   background: none;
   border: 0;
   box-shadow: none;
@@ -398,8 +400,8 @@ label.check {
 
 .colors .dot {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--r-pill);
   border: 3px solid var(--surface);
   box-shadow: 0 0 0 1.5px var(--line-2);
@@ -1047,7 +1049,7 @@ dialog.sheet h2 {
   position: absolute;
   top: -2px;
   right: 8px;
-  background: var(--coral);
+  background: var(--badge);
   color: #fff;
   border-radius: var(--r-pill);
   font: 700 10px/1 var(--font-display);
@@ -1082,7 +1084,7 @@ dialog.sheet h2 {
   height: 28px;
   padding: 0 8px;
   border-radius: var(--r-pill);
-  background: var(--coral);
+  background: var(--badge);
   color: #fff;
   font-size: var(--fs-sm);
 }
@@ -1116,7 +1118,7 @@ dialog.sheet h2 {
 .segmented > button,
 .segmented > a {
   flex: 1;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 var(--s3);
   border: 0;
   border-radius: var(--r-pill);
@@ -1144,7 +1146,7 @@ dialog.sheet h2 {
 }
 
 button.pill {
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 var(--s3);
   gap: 6px;
   border-radius: var(--r-pill);
@@ -1167,8 +1169,8 @@ button.pill[aria-checked="true"] {
 
 /* ---------- Card menu ---------- */
 button.icon-button {
-  min-height: 36px;
-  width: 36px;
+  min-height: 44px;
+  width: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1352,4 +1354,50 @@ button.menu-item.danger {
 
 .result-text strong {
   font-family: var(--font-display);
+}
+
+/* Links inside rows of text stay compact visually but keep a 44px tap area. */
+ul.list li form.row button.link {
+  min-height: 44px;
+}
+
+.call-head {
+  min-height: 44px;
+}
+
+details > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::before {
+  content: "▸";
+  transition: transform var(--fast) var(--ease);
+}
+
+details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+/* On narrow phones the chip and the author wrap onto two lines instead of widening the page. */
+.call-head {
+  flex-wrap: wrap;
+  row-gap: var(--s1);
+}
+
+.call-head .person-line {
+  margin-left: auto;
+}
+
+.chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

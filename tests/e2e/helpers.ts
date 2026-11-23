@@ -1,0 +1,66 @@
+import AxeBuilder from "@axe-core/playwright";
+import { expect, type Page, type TestInfo } from "@playwright/test";
+
+export const AUTH_FILE = "tests/e2e/.auth/ada.json";
+
+/** Signs in as the demo user through the real email-link flow (development shows the link on the page). */
+export async function signIn(page: Page) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("ada@example.com");
+  await page.getByRole("button", { name: "Send link" }).click();
+  await page.getByRole("link", { name: "open the sign-in link" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.waitForURL(/\/groups$/);
+}
+
+/** Opens a group from the groups list by name and returns its URL. */
+export async function openGroup(page: Page, name: string) {
+  await page.goto("/groups");
+  await page.getByRole("link", { name: new RegExp(name) }).first().click();
+  await page.waitForURL(/\/groups\/[0-9a-f-]{36}$/);
+  return page.url();
+}
+
+/**
+ * The checks every screen must pass:
+ * - nothing scrolls sideways,
+ * - every visible control is at least 44px tall (Apple's minimum tap size),
+ * - no serious or critical accessibility problems (axe, WCAG 2.1 AA, including colour contrast).
+ * A full-page screenshot is attached to the report for a human look.
+ */
+export async function audit(page: Page, info: TestInfo, label: string, width?: number) {
+  await page.waitForLoadState("networkidle");
+  // Let entrance animations settle so contrast is measured on final colours.
+  await page.waitForTimeout(600);
+
+  // On phones the browser widens its layout to fit content that's too wide (and zooms out), so compare
+  // against the screen width we set, not just the window.
+  const screenWidth = width ?? (await page.evaluate(() => window.innerWidth));
+  const overflow = await page.evaluate(
+    (w) => Math.max(document.documentElement.scrollWidth, window.innerWidth) - w,
+    screenWidth,
+  );
+  expect(overflow, `${label}: page is ${overflow}px wider than the screen`).toBeLessThanOrEqual(0);
+
+  const small = await page.evaluate(() => {
+    const sel = 'button, [role="radio"], [role="tab"], select, input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]), .tabbar-item, .bell, summary';
+    return [...document.querySelectorAll<HTMLElement>(sel)]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        const hiddenDialog = el.closest("dialog") && !el.closest("dialog[open]");
+        return r.width > 0 && r.height > 0 && style.visibility !== "hidden" && !hiddenDialog;
+      })
+      .filter((el) => el.getBoundingClientRect().height < 44)
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className} "${(el.textContent ?? "").trim().slice(0, 30)}" ${Math.round(el.getBoundingClientRect().height)}px`);
+  });
+  expect(small, `${label}: tap targets under 44px`).toEqual([]);
+
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+  const serious = axe.violations
+    .filter((v) => v.impact === "serious" || v.impact === "critical")
+    .map((v) => `${v.id}: ${v.help} (${v.nodes.length}×) e.g. ${v.nodes[0]?.target.join(" ")}`);
+  expect(serious, `${label}: accessibility problems`).toEqual([]);
+
+  await info.attach(`${label}.png`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+}

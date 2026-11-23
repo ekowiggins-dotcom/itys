@@ -18,7 +18,7 @@ export function Faces({ people, size = 28, max = 5 }: { people: { name: string; 
   const shown = people.slice(0, max);
   const extra = people.length - shown.length;
   return (
-    <span className="faces" aria-label={people.map((p) => p.name).join(", ")}>
+    <span className="faces" role="img" aria-label={people.map((p) => p.name).join(", ")}>
       {shown.map((p, i) => (
         <Avatar key={`${p.name}-${i}`} name={p.name} color={p.color} size={size} />
       ))}

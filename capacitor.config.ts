@@ -18,7 +18,8 @@ const config: CapacitorConfig = {
     errorPath: "index.html",
   },
   ios: {
-    contentInset: "automatic",
+    // Edge to edge: the pages pad themselves with env(safe-area-inset-*) (see globals.css).
+    contentInset: "never",
     backgroundColor: "#17201b",
     limitsNavigationsToAppBoundDomains: true,
   },
