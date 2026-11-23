@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -183,6 +184,29 @@ export const picks = pgTable(
     updatedAt: ts("updated_at").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.callId, t.userId] }), index("picks_user").on(t.userId)],
+);
+
+/**
+ * Points per person per settled call, written once when the call is settled (see scoring.ts).
+ * group_id and settled_at are copied from the call so rankings are one indexed range scan.
+ */
+export const scores = pgTable(
+  "scores",
+  {
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    settledAt: ts("settled_at").notNull(),
+    points: integer("points").notNull(),
+    correct: boolean("correct").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.callId, t.userId] }), index("scores_group_time").on(t.groupId, t.settledAt)],
 );
 
 /** Fixed-window rate limit counters. Old windows are deleted opportunistically. */

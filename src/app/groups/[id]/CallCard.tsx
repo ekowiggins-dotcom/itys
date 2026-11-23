@@ -147,7 +147,20 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
       )}
 
       {/* Final */}
-      {call.status === "settled" && <p className="small ok">Settled: {labelOf(call.result)}</p>}
+      {call.status === "settled" && (
+        <p className="small">
+          <span className="ok">Settled: {labelOf(call.result)}</span>
+          {" · "}
+          {call.counted ? (
+            <>
+              {call.myPoints !== null && <strong>{call.myPoints > 0 ? `+${call.myPoints}` : "0"} for you · </strong>}
+              {call.rightCount} of {call.pickCount} called it
+            </>
+          ) : (
+            <span className="muted">didn&apos;t count for points (fewer than 2 picks)</span>
+          )}
+        </p>
+      )}
       {call.status === "void" && (
         <p className="small muted">
           Called off: nobody scores.{" "}

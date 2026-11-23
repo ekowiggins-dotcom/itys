@@ -16,9 +16,10 @@ import { and, asc, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import type { User } from "./auth";
 import { callForUpdate } from "./calls";
 import { hashToken } from "./crypto";
-import { calls, members, picks, votes } from "./db/schema";
+import { calls, members, picks, scores, votes } from "./db/schema";
 import type { Db, Tx } from "./db/types";
 import { AppError } from "./errors";
+import { scoresForCall } from "./scoring";
 
 export const H = 3600_000;
 export const SETTLER_GRACE_MS = 48 * H;
@@ -77,10 +78,20 @@ async function save(tx: Tx, c: Call, patch: Partial<Call>) {
   return next;
 }
 
-function finalize(tx: Tx, c: Call, result: string, reason: string, now: Date) {
-  return result === VOID
-    ? save(tx, c, { status: "void", result: null, voidReason: reason, settledAt: now })
-    : save(tx, c, { status: "settled", result, voidReason: null, settledAt: now });
+async function finalize(tx: Tx, c: Call, result: string, reason: string, now: Date) {
+  if (result === VOID) return save(tx, c, { status: "void", result: null, voidReason: reason, settledAt: now });
+  const pickRows = await tx
+    .select({ userId: picks.userId, optionKey: picks.optionKey })
+    .from(picks)
+    .where(eq(picks.callId, c.id));
+  const rows = scoresForCall(result, pickRows);
+  if (rows.length) {
+    await tx
+      .insert(scores)
+      .values(rows.map((r) => ({ ...r, callId: c.id, groupId: c.groupId, settledAt: now })))
+      .onConflictDoNothing();
+  }
+  return save(tx, c, { status: "settled", result, voidReason: null, settledAt: now });
 }
 
 /** Voters in a dispute: people who picked and are still members, except the proposer and the subject. */

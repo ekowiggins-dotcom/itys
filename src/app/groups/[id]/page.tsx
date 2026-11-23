@@ -1,8 +1,11 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { leaveGroupAction, resetInviteAction } from "../../actions";
 import { ActionForm, CopyButton, Submit } from "../../ui";
 import { CallCard } from "./CallCard";
 import { NewCallForm } from "./NewCallForm";
+import { RankingTable } from "./RankingTable";
+import { rankingFor } from "@/server/rankings";
 import { callsForMember, type CallView } from "@/server/call-views";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -20,6 +23,7 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
     throw e;
   }
   const callList = await callsForMember(await getDb(), user, id);
+  const week = await rankingFor(await getDb(), user, id, "this-week");
   const open = callList.filter((c) => !c.locked);
   const needsMe = callList.filter((c) => c.locked && (c.canSettle || c.canDispute || c.canVote));
   const waiting = callList.filter(
@@ -52,6 +56,16 @@ export default async function Group({ params }: PageProps<"/groups/[id]">) {
       <p className="muted">
         You&apos;re {group.me.displayName} here · times shown in {group.timeZone}
       </p>
+
+      <div className="card">
+        <div className="row spread">
+          <strong>This week</strong>
+          <Link href={`/groups/${group.id}/ranking`} className="small">
+            Full ranking →
+          </Link>
+        </div>
+        <RankingTable rows={week.rows} me={user.id} limit={3} />
+      </div>
 
       {needsMe.length > 0 && (
         <>

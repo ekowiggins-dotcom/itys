@@ -9,8 +9,8 @@ This is a clean rebuild, made step by step:
 | 1 | Sign-in (email link), groups, invites | ✅ |
 | 2 | Calls and picks (split hidden until lock) | ✅ |
 | 3 | Settling, disputes, votes, job runner | ✅ |
-| 4 | Scoring and weekly ranking | next |
-| 5 | Notifications (outbox) | |
+| 4 | Scoring and weekly ranking | ✅ |
+| 5 | Notifications (outbox) | next |
 | 6 | Moderation and reporting | |
 | 7 | Share cards | |
 | 8 | iOS app (Capacitor) and widget | |
@@ -77,6 +77,15 @@ Calls move on by time: settlers are chosen when picks close, results become fina
 - **In process:** `RUN_JOBS_IN_PROCESS=1` on the web service.
 
 Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LOCKED`. Every user action also applies any overdue step first, so a late job runner never lets someone act on stale state.
+
+## Points and ranking
+
+- A right call scores **10 + 30 × (1 − share of pickers who said the same)**, so 10 to 40. Wrong: 0.
+- Called-off calls, cancelled calls, and calls fewer than 2 people picked on count for nobody.
+- Scores are written once when a call settles (`scores` table) and can always be rebuilt from calls and picks.
+- Rankings (this week, last week, all time) sort by **average points per call picked**, then number right. To be ranked you must pick at least 60% of the calls you could have (all time: at least 5). Calls about you, and calls from before you joined, don't count against you.
+- Weeks run Monday 00:00 to Monday 00:00 in the group's time zone.
+- Points can't be bought, spent, traded or cashed out, and there are no prizes. `tests/wording.test.ts` keeps gambling words out of the app.
 
 ## How a call ends
 

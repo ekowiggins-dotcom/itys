@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { User } from "./auth";
-import { calls, members, picks, type CallOption, type CallStatus } from "./db/schema";
+import { calls, members, picks, scores, type CallOption, type CallStatus } from "./db/schema";
+import { MIN_PICKERS } from "./scoring";
 import type { Db } from "./db/types";
 import { requireMember } from "./groups";
 import { disputeEndsAt, SETTLER_GRACE_MS, voteState, VOID } from "./lifecycle";
@@ -52,6 +53,11 @@ export type CallView = {
   voidReason: string | null;
   /** option key → names, only once settled. */
   whoPicked: Record<string, string[]> | null;
+  /** Your points on a settled call that counted (0 if wrong); null otherwise. */
+  myPoints: number | null;
+  /** Settled calls: how many got it right, and whether the call counted for points. */
+  rightCount: number | null;
+  counted: boolean | null;
 };
 
 /** The group's calls for this member: open ones first (closing soonest), then the rest (newest first). */
@@ -84,6 +90,14 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
     .select({ callId: picks.callId, userId: picks.userId, optionKey: picks.optionKey })
     .from(picks)
     .where(inArray(picks.callId, ids));
+  const settledIds = rows.filter((r) => r.status === "settled").map((r) => r.id);
+  const myScores = settledIds.length
+    ? await db
+        .select({ callId: scores.callId, points: scores.points })
+        .from(scores)
+        .where(and(inArray(scores.callId, settledIds), eq(scores.userId, user.id)))
+    : [];
+  const myPointsOf = new Map(myScores.map((s) => [s.callId, s.points]));
   const votesByCall = await voteState(db, ids.filter((_, i) => rows[i].disputedBy), user.id);
 
   const views = rows.map((c): CallView => {
@@ -151,6 +165,9 @@ export async function callsForMember(db: Db, user: User, groupId: string, now = 
       result: c.status === "settled" ? c.result : null,
       voidReason: c.status === "void" ? c.voidReason : null,
       whoPicked,
+      myPoints: c.status === "settled" ? (myPointsOf.get(c.id) ?? null) : null,
+      rightCount: c.status === "settled" ? pickers.filter((p) => p.optionKey === c.result).length : null,
+      counted: c.status === "settled" ? pickers.length >= MIN_PICKERS : null,
     };
   });
 
