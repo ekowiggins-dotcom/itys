@@ -6,6 +6,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { blocks, devices, members, notifications, outbox, users, type NotificationType } from "./db/schema";
 import type { Tx } from "./db/types";
+import { apnsConfigured } from "./apns";
 
 /** Events worth an email: someone needs to act, or a call is about them. */
 export const EMAIL_TYPES: NotificationType[] = ["about_you", "settle_prompt", "vote_needed", "review_needed"];
@@ -73,7 +74,9 @@ export async function emit(tx: Tx, e: Emit) {
     const wantsEmail = new Set(active.filter((a) => a.emailAlerts).map((a) => a.userId));
     for (const n of inserted) if (wantsEmail.has(n.userId)) queue.push({ notificationId: n.id, channel: "email", nextTryAt: e.now, createdAt: e.now });
   }
-  if (PUSH_TYPES.includes(e.type) && inserted.length) {
+  // In production, pushes are only queued once APNs is configured (otherwise they'd just fail and retry).
+  const canPush = apnsConfigured() || process.env.NODE_ENV !== "production";
+  if (canPush && PUSH_TYPES.includes(e.type) && inserted.length) {
     const withPhone = await tx
       .selectDistinct({ userId: devices.userId })
       .from(devices)
