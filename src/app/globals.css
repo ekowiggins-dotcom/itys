@@ -367,3 +367,43 @@ table.ranking tr.me td {
   color: var(--accent-text);
   border-color: var(--accent);
 }
+
+.bell {
+  position: relative;
+  text-decoration: none;
+  font-size: 18px;
+}
+
+.bell .badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 5px;
+}
+
+ul.notifs li a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: inherit;
+  text-decoration: none;
+}
+
+ul.notifs li.unread a span:first-child {
+  font-weight: 700;
+}
+
+label.check {
+  font-weight: 400;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.call {
+  scroll-margin-top: 16px;
+}

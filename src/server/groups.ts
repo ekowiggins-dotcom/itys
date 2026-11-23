@@ -6,6 +6,7 @@ import { randomToken } from "./crypto";
 import { groups, members } from "./db/schema";
 import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
+import { emit, groupMemberIds } from "./notify";
 import { hit, LIMITS } from "./rate-limit";
 
 export const MAX_MEMBERS = 30;
@@ -182,6 +183,8 @@ export async function joinGroup(
     } else {
       await tx.insert(members).values({ groupId: group.id, userId: user.id, displayName, role: "member", joinedAt: now });
     }
+    const others = await groupMemberIds(tx, group.id, [user.id]);
+    await emit(tx, { type: "member_joined", groupId: group.id, actorId: user.id, userIds: others, now });
     return group.id;
   });
 }

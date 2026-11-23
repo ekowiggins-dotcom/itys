@@ -95,7 +95,7 @@ describe("settling", () => {
 
     const r = await tick(id, at(LOCK));
     expect(r.settlerId).toBe(Dee.id); // the only neutral member
-    expect(r.nextActionAt).toEqual(at(EVENT + 7 * 24));
+    expect(r.nextActionAt).toEqual(at(EVENT)); // next: tell the settler it is time
 
     await expect(proposeResult(db, Dee, id, "yes", at(EVENT - 1))).rejects.toThrow(/once the event has happened/);
     await expect(proposeResult(db, Bo, id, "yes", at(EVENT + 1))).rejects.toThrow(/settler enters the result first/);

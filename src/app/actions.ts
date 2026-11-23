@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import * as auth from "@/server/auth";
 import * as calls from "@/server/calls";
 import * as lifecycle from "@/server/lifecycle";
+import * as notifications from "@/server/notifications";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -165,6 +166,22 @@ export async function callAction(_: FormState, form: FormData): Promise<FormStat
   }
   revalidatePath(`/groups/${groupId}`);
   return undefined;
+}
+
+export async function markReadAction(upTo: string) {
+  const user = await requireUser("/notifications");
+  const when = new Date(upTo);
+  if (Number.isNaN(when.getTime())) return;
+  await notifications.markAllRead(await getDb(), user, when);
+  revalidatePath("/", "layout"); // the unread count in the header
+}
+
+export async function setEmailAlertsAction(_: FormState, form: FormData): Promise<FormState> {
+  const user = await requireUser("/settings");
+  const on = form.get("emailAlerts") === "on";
+  await auth.setEmailAlerts(await getDb(), user, on);
+  revalidatePath("/settings");
+  return { ok: on ? "You'll get an email when something needs you." : "Emails are off. You'll still see everything in the app." };
 }
 
 export async function leaveGroupAction(_: FormState, form: FormData): Promise<FormState> {

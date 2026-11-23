@@ -20,6 +20,8 @@ import { calls, members, picks, scores, votes } from "./db/schema";
 import type { Db, Tx } from "./db/types";
 import { AppError } from "./errors";
 import { scoresForCall } from "./scoring";
+import { emit, groupMemberIds } from "./notify";
+import { REMINDER_BEFORE_LOCK_MS } from "./timing";
 
 export const H = 3600_000;
 export const SETTLER_GRACE_MS = 48 * H;
@@ -28,14 +30,18 @@ export const DISPUTE_WINDOW_MS = 24 * H;
 export const VOTE_WINDOW_MS = 24 * H;
 export const MIN_VOTES = 2;
 export const VOID = "void";
+export { REMINDER_BEFORE_LOCK_MS };
 
 type Call = typeof calls.$inferSelect;
 
 /** When the job runner next needs to look at a call, or null when nothing more can happen on its own. */
-export function nextActionAt(c: Pick<Call, "status" | "settlerId" | "lockAt" | "eventAt" | "proposedAt" | "voteClosesAt">) {
+export function nextActionAt(
+  c: Pick<Call, "status" | "settlerId" | "lockAt" | "eventAt" | "proposedAt" | "voteClosesAt" | "remindedAt" | "settlePromptedAt">,
+) {
   switch (c.status) {
     case "active":
-      return c.settlerId ? new Date(c.eventAt.getTime() + SETTLE_DEADLINE_MS) : c.lockAt;
+      if (!c.settlerId) return c.remindedAt ? c.lockAt : new Date(c.lockAt.getTime() - REMINDER_BEFORE_LOCK_MS);
+      return c.settlePromptedAt ? new Date(c.eventAt.getTime() + SETTLE_DEADLINE_MS) : c.eventAt;
     case "proposed":
       return new Date(c.proposedAt!.getTime() + DISPUTE_WINDOW_MS);
     case "disputed":
@@ -78,8 +84,18 @@ async function save(tx: Tx, c: Call, patch: Partial<Call>) {
   return next;
 }
 
+async function pickerIds(tx: Tx, callId: string) {
+  return (await tx.select({ userId: picks.userId }).from(picks).where(eq(picks.callId, callId))).map((p) => p.userId);
+}
+
+async function callOff(tx: Tx, c: Call, reason: string, now: Date) {
+  const saved = await save(tx, c, { status: "void", result: null, voidReason: reason, settledAt: now });
+  await emit(tx, { type: "called_off", groupId: c.groupId, callId: c.id, userIds: [...(await pickerIds(tx, c.id)), c.authorId], now });
+  return saved;
+}
+
 async function finalize(tx: Tx, c: Call, result: string, reason: string, now: Date) {
-  if (result === VOID) return save(tx, c, { status: "void", result: null, voidReason: reason, settledAt: now });
+  if (result === VOID) return callOff(tx, c, reason, now);
   const pickRows = await tx
     .select({ userId: picks.userId, optionKey: picks.optionKey })
     .from(picks)
@@ -91,7 +107,9 @@ async function finalize(tx: Tx, c: Call, result: string, reason: string, now: Da
       .values(rows.map((r) => ({ ...r, callId: c.id, groupId: c.groupId, settledAt: now })))
       .onConflictDoNothing();
   }
-  return save(tx, c, { status: "settled", result, voidReason: null, settledAt: now });
+  const saved = await save(tx, c, { status: "settled", result, voidReason: null, settledAt: now });
+  await emit(tx, { type: "settled", groupId: c.groupId, callId: c.id, userIds: [...pickRows.map((p) => p.userId), c.authorId], now });
+  return saved;
 }
 
 /** Voters in a dispute: people who picked and are still members, except the proposer and the subject. */
@@ -124,14 +142,26 @@ async function closeVote(tx: Tx, c: Call, now: Date) {
 export async function advance(tx: Tx, c: Call, now: Date): Promise<Call> {
   const t = now.getTime();
   for (;;) {
-    if (c.status === "active" && !c.settlerId && t >= c.lockAt.getTime()) {
+    if (c.status === "active" && !c.settlerId && !c.remindedAt) {
+      // Remind people who haven't picked, unless it's already too late to be useful.
+      if (t < c.lockAt.getTime() - REMINDER_BEFORE_LOCK_MS) return c;
+      if (t < c.lockAt.getTime()) {
+        const picked = await pickerIds(tx, c.id);
+        const waiting = (await groupMemberIds(tx, c.groupId, [c.subjectId])).filter((id) => !picked.includes(id));
+        await emit(tx, { type: "lock_reminder", groupId: c.groupId, callId: c.id, userIds: waiting, now });
+      }
+      c = await save(tx, c, { remindedAt: now });
+    } else if (c.status === "active" && c.settlerId && !c.settlePromptedAt && t >= c.eventAt.getTime()) {
+      await emit(tx, { type: "settle_prompt", groupId: c.groupId, callId: c.id, userIds: [c.settlerId], now });
+      c = await save(tx, c, { settlePromptedAt: now });
+    } else if (c.status === "active" && !c.settlerId && t >= c.lockAt.getTime()) {
       const active = await activeMemberIds(tx, c.groupId);
       const pickRows = await tx.select({ userId: picks.userId }).from(picks).where(eq(picks.callId, c.id));
       const settlerId = chooseSettler(c, active, new Set(pickRows.map((p) => p.userId)));
-      if (!settlerId) return save(tx, c, { status: "void", voidReason: "no one to settle", settledAt: now });
+      if (!settlerId) return callOff(tx, c, "no one to settle", now);
       c = await save(tx, c, { settlerId });
     } else if (c.status === "active" && c.settlerId && t >= c.eventAt.getTime() + SETTLE_DEADLINE_MS) {
-      return save(tx, c, { status: "void", voidReason: "not settled in time", settledAt: now });
+      return callOff(tx, c, "not settled in time", now);
     } else if (c.status === "proposed" && t >= c.proposedAt!.getTime() + DISPUTE_WINDOW_MS) {
       return finalize(tx, c, c.proposedResult!, "settler", now);
     } else if (c.status === "disputed" && t >= c.voteClosesAt!.getTime()) {
@@ -164,6 +194,7 @@ export async function proposeResult(db: Db, user: User, callId: string, answer: 
     }
     checkAnswer(c, answer);
     await save(tx, c, { status: "proposed", proposedResult: answer, proposedBy: user.id, proposedAt: now });
+    await emit(tx, { type: "result_proposed", groupId: c.groupId, callId, actorId: user.id, userIds: await pickerIds(tx, callId), now });
   });
 }
 
@@ -182,6 +213,8 @@ export async function disputeResult(db: Db, user: User, callId: string, answer: 
     if (answer === c.proposedResult) throw new AppError("invalid", "That's the result already entered.");
     await save(tx, c, { status: "disputed", disputedBy: user.id, voteClosesAt: new Date(now.getTime() + VOTE_WINDOW_MS) });
     await tx.insert(votes).values({ callId, userId: user.id, optionKey: answer, createdAt: now });
+    const voters = await eligibleVoters(tx, { ...c, proposedBy: c.proposedBy });
+    await emit(tx, { type: "vote_needed", groupId: c.groupId, callId, actorId: user.id, userIds: [...voters], now });
   });
 }
 

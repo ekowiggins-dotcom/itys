@@ -5,6 +5,8 @@ import { calls, members, picks, type CallOption } from "./db/schema";
 import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { requireMember } from "./groups";
+import { emit, groupMemberIds } from "./notify";
+import { REMINDER_BEFORE_LOCK_MS } from "./timing";
 import { hit, LIMITS } from "./rate-limit";
 import { callVisibility, isLocked } from "./visibility";
 
@@ -75,6 +77,8 @@ export async function createCall(db: Db, user: User, groupId: string, input: New
     }
 
     await hit(tx, LIMITS.createCall, user.id, now);
+    // Calls that close within 3 hours don't get a separate "closing soon" reminder.
+    const skipReminder = data.lockAt.getTime() - now.getTime() < 3 * 3600_000;
     const [call] = await tx
       .insert(calls)
       .values({
@@ -86,10 +90,17 @@ export async function createCall(db: Db, user: User, groupId: string, input: New
         options,
         lockAt: data.lockAt,
         eventAt: data.eventAt,
-        nextActionAt: data.lockAt,
+        remindedAt: skipReminder ? now : null,
+        // First job: the "picks close soon" reminder, or lock if there's none.
+        nextActionAt: skipReminder ? data.lockAt : new Date(data.lockAt.getTime() - REMINDER_BEFORE_LOCK_MS),
         createdAt: now,
       })
       .returning({ id: calls.id });
+    const others = await groupMemberIds(tx, groupId, [user.id, data.subjectId]);
+    await emit(tx, { type: "call_created", groupId, callId: call.id, actorId: user.id, userIds: others, now });
+    if (data.subjectId) {
+      await emit(tx, { type: "about_you", groupId, callId: call.id, actorId: user.id, userIds: [data.subjectId], now });
+    }
     return call.id;
   });
 }

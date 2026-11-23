@@ -4,6 +4,8 @@ import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "../src/server/db/schema";
 import { runDueCalls } from "../src/server/lifecycle";
+import { deliverOutbox } from "../src/server/delivery";
+import { sendEmail } from "../src/server/mailer";
 import type { Db } from "../src/server/db/types";
 
 const url = process.env.DATABASE_URL;
@@ -28,6 +30,8 @@ while (!stopping) {
   try {
     const r = await runDueCalls(db, new Date());
     if (r.advanced) console.log(`Advanced ${r.advanced} call(s).`);
+    const e = await deliverOutbox(db, sendEmail, new Date());
+    if (e.sent || e.failed) console.log(`Emails: ${e.sent} sent, ${e.failed} failed.`);
   } catch (e) {
     console.error("Worker tick failed; retrying.", e);
   }

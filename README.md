@@ -10,8 +10,8 @@ This is a clean rebuild, made step by step:
 | 2 | Calls and picks (split hidden until lock) | ✅ |
 | 3 | Settling, disputes, votes, job runner | ✅ |
 | 4 | Scoring and weekly ranking | ✅ |
-| 5 | Notifications (outbox) | next |
-| 6 | Moderation and reporting | |
+| 5 | Notifications (outbox) | ✅ |
+| 6 | Moderation and reporting | next |
 | 7 | Share cards | |
 | 8 | iOS app (Capacitor) and widget | |
 
@@ -86,6 +86,13 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - Rankings (this week, last week, all time) sort by **average points per call picked**, then number right. To be ranked you must pick at least 60% of the calls you could have (all time: at least 5). Calls about you, and calls from before you joined, don't count against you.
 - Weeks run Monday 00:00 to Monday 00:00 in the group's time zone.
 - Points can't be bought, spent, traded or cashed out, and there are no prizes. `tests/wording.test.ts` keeps gambling words out of the app.
+
+## Notifications
+
+- **In the app:** new calls, calls about you, "picks close in 2 hours" (only if you haven't picked), time to settle, a result to check, a vote needed, results with your points, called-off calls, new members. The bell shows the unread count.
+- **By email:** only when something needs you (settling, a vote, a call about you). Anyone can switch email off in Settings.
+- **No stored text:** notifications are rendered when read, from current names and data, and only for groups you're still in. They never reveal anyone's pick.
+- **Transactional outbox:** notifications and emails are saved in the same transaction as the event. The worker claims emails with a 5-minute lease (a crash mid-send gets retried), retries failures with backoff (5 tries), skips emails that are no longer needed (e.g. the call was already settled) and expires anything older than 24 hours.
 
 ## How a call ends
 

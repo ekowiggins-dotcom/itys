@@ -11,7 +11,7 @@ export const SESSION_TTL_MS = 30 * 86400_000;
 /** A session's expiry is pushed forward at most once per day, so reading pages doesn't write every time. */
 export const SESSION_REFRESH_MS = 86400_000;
 
-export type User = { id: string; email: string; name: string | null };
+export type User = { id: string; email: string; name: string | null; emailAlerts?: boolean };
 
 const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const nameSchema = z
@@ -98,6 +98,10 @@ export async function setName(db: Db, user: User, rawName: string) {
   return name;
 }
 
+export async function setEmailAlerts(db: Db, user: User, on: boolean) {
+  await db.update(users).set({ emailAlerts: on }).where(eq(users.id, user.id));
+}
+
 export async function logout(db: Db, token: string) {
   await db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token)));
 }
@@ -108,5 +112,5 @@ export async function logoutEverywhere(db: Db, user: User) {
 }
 
 function toUser(u: typeof users.$inferSelect): User {
-  return { id: u.id, email: u.email, name: u.name };
+  return { id: u.id, email: u.email, name: u.name, emailAlerts: u.emailAlerts };
 }

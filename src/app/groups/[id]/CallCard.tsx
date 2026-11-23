@@ -37,7 +37,7 @@ export function CallCard({ call, groupId, times }: { call: CallView; groupId: st
   );
 
   return (
-    <div className={`card call status-${call.status}`}>
+    <div id={`call-${call.id}`} className={`card call status-${call.status}`}>
       <p className="call-text">{call.text}</p>
       <p className="muted small">
         by {call.author}

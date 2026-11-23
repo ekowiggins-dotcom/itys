@@ -22,6 +22,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   /** Set on first sign-in (welcome screen). */
   name: text("name"),
+  /** Email me when something needs me (settle, vote, a call about me). */
+  emailAlerts: boolean("email_alerts").notNull().default(true),
   createdAt: createdAt(),
 });
 
@@ -144,6 +146,10 @@ export const calls = pgTable(
     /** Why a call ended void: the settler said so, a vote, or nobody settled in time. */
     voidReason: text("void_reason"),
     settledAt: ts("settled_at"),
+    /** When the "picks close soon" reminder went out (or was skipped). */
+    remindedAt: ts("reminded_at"),
+    /** When the settler was told it's time to enter the result. */
+    settlePromptedAt: ts("settle_prompted_at"),
     /** When the job runner next needs to look at this call. Null once nothing more can happen. */
     nextActionAt: ts("next_action_at"),
     createdAt: createdAt(),
@@ -207,6 +213,76 @@ export const scores = pgTable(
     correct: boolean("correct").notNull(),
   },
   (t) => [primaryKey({ columns: [t.callId, t.userId] }), index("scores_group_time").on(t.groupId, t.settledAt)],
+);
+
+export const notificationType = pgEnum("notification_type", [
+  "call_created",
+  "about_you",
+  "lock_reminder",
+  "settle_prompt",
+  "result_proposed",
+  "vote_needed",
+  "settled",
+  "called_off",
+  "member_joined",
+]);
+export type NotificationType = (typeof notificationType.enumValues)[number];
+
+/**
+ * In-app notifications. No text is stored: it's rendered when read, from current names and call data and
+ * through the visibility rules, so renames, deletions and hidden calls are always respected.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    callId: uuid("call_id").references(() => calls.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    type: notificationType("type").notNull(),
+    /** One notification per event: e.g. "settled:<callId>". */
+    dedupeKey: text("dedupe_key").notNull(),
+    readAt: ts("read_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("notifications_dedupe").on(t.userId, t.dedupeKey),
+    index("notifications_inbox").on(t.userId, t.createdAt),
+    index("notifications_unread").on(t.userId).where(sql`${t.readAt} IS NULL`),
+  ],
+);
+
+export const outboxStatus = pgEnum("outbox_status", ["queued", "sending", "sent", "failed", "expired"]);
+
+/**
+ * Deliveries outside the app (email now, push later), written in the same transaction as the event
+ * (transactional outbox). The worker claims rows with a lease, so a crash mid-send is retried, not lost.
+ */
+export const outbox = pgTable(
+  "outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    notificationId: uuid("notification_id")
+      .notNull()
+      .references(() => notifications.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(),
+    status: outboxStatus("status").notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    nextTryAt: ts("next_try_at").notNull(),
+    /** While sending: the claim expires at this time, after which another worker may retry. */
+    leaseUntil: ts("lease_until"),
+    lastError: text("last_error"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("outbox_due").on(t.nextTryAt).where(sql`${t.status} IN ('queued', 'sending')`),
+    uniqueIndex("outbox_once").on(t.notificationId, t.channel),
+  ],
 );
 
 /** Fixed-window rate limit counters. Old windows are deleted opportunistically. */
