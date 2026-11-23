@@ -12,6 +12,8 @@ import * as account from "@/server/account";
 import * as sharing from "@/server/sharing";
 import * as devices from "@/server/devices";
 import * as review from "@/server/review";
+import * as apple from "@/server/apple";
+import { cookies } from "next/headers";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -63,6 +65,41 @@ export async function requestLoginAction(_: FormState, form: FormData): Promise<
     };
   } catch (e) {
     return toState(e);
+  }
+}
+
+const APPLE_NONCE_COOKIE = "wholl_apple_nonce";
+
+/** Step 1 of Sign in with Apple: a one-time nonce (kept in a 10-minute httpOnly cookie); returns its hash for Apple. */
+export async function appleNonceAction() {
+  const nonce = apple.newNonce();
+  (await cookies()).set(APPLE_NONCE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 600,
+  });
+  return apple.nonceHash(nonce);
+}
+
+/** Step 2: Apple's answer. Checks it, signs in (or creates the account) and says where to go next. */
+export async function appleSignInAction(input: { idToken: string; authorizationCode?: string; givenName?: string; next?: string }) {
+  const jar = await cookies();
+  const rawNonce = jar.get(APPLE_NONCE_COOKIE)?.value;
+  jar.delete(APPLE_NONCE_COOKIE); // one use only
+  try {
+    const { sessionToken, expiresAt, user } = await apple.appleSignIn(
+      await getDb(),
+      { idToken: String(input.idToken), rawNonce, authorizationCode: input.authorizationCode, givenName: input.givenName },
+      await clientIp(),
+    );
+    await setSessionCookie(sessionToken, expiresAt);
+    const next = safeNext(input.next);
+    revalidatePath("/", "layout");
+    return { next: user.name ? next : `/welcome?next=${encodeURIComponent(next)}` };
+  } catch (e) {
+    return { error: toState(e)?.error ?? "Sign in with Apple didn’t work." };
   }
 }
 

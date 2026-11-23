@@ -68,13 +68,15 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 |---|---|
 | `DATABASE_URL` | Postgres connection string. Required in production. |
 | `APP_ORIGIN` | Public URL, e.g. `https://wholl.app`. Required in production; links are never built from the request's Host header. |
-| `RESEND_API_KEY` | Sends sign-in emails through Resend. Required in production. |
+| `RESEND_API_KEY` | Sends email (website email sign-in fallback, alerts) through Resend. Not needed for the iOS app, which uses Sign in with Apple. |
 | `EMAIL_FROM` | Sender, e.g. `Who'll <login@wholl.app>`. |
 
 | `CRON_SECRET` | 16+ random characters. Protects `POST /api/jobs`. |
 | `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY`, `IOS_BUNDLE_ID` | Push notifications and universal links for the iOS app (see docs/IOS.md). |
 | `SUPPORT_EMAIL` | Contact address shown on `/support` and `/privacy` (needed for App Store review). |
 | `OPERATOR_NAME` | Who runs the service, named on the privacy and terms pages. |
+| `APPLE_SERVICES_ID` | Sign in with Apple on the website (Services ID). The iOS app works without it. |
+| `APPLE_SIGNIN_KEY`, `APPLE_SIGNIN_KEY_ID`, `APPLE_TEAM_ID` | Optional: lets account deletion revoke Sign in with Apple (see docs/APP_STORE.md). |
 | `REVIEW_EMAIL`, `REVIEW_CODE` | App Review sign-in with a code, plus a demo group (see docs/APP_STORE.md). |
 | `ERROR_WEBHOOK_URL` | Optional Slack/Discord webhook for server error alerts (errors are always logged as JSON). |
 | `RUN_JOBS_IN_PROCESS` | Set to `1` to run the job runner inside the web server (simplest single-service setup). |
@@ -135,7 +137,7 @@ Live at https://itys-production.up.railway.app (Railway project "reasonable-unit
 - **Database:** the project's Postgres service; `DATABASE_URL=${{Postgres.DATABASE_URL}}` on `itys`.
 - **Migrations:** `npm start` runs `npm run db:migrate` first (under a Postgres advisory lock), so every deploy has its tables before it serves anything.
 - **Background jobs:** `RUN_JOBS_IN_PROCESS=1` runs them inside the web service. To split them out later, add a second service from this repo with start command `npm run worker` and remove that variable.
-- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `RESEND_API_KEY` (sign-in emails), `APNS_KEY` (push).
+- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (website email fallback and alert emails; the iOS app signs in with Apple).
 - **Health check:** `GET /api/health` (checks the database).
 - The service is configured in the Railway dashboard, not by a config file in this repo.
 

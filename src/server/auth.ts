@@ -11,7 +11,8 @@ export const SESSION_TTL_MS = 30 * 86400_000;
 /** A session's expiry is pushed forward at most once per day, so reading pages doesn't write every time. */
 export const SESSION_REFRESH_MS = 86400_000;
 
-export type User = { id: string; email: string; name: string | null; emailAlerts?: boolean };
+/** email is null for people who signed in with Apple and hid it. */
+export type User = { id: string; email: string | null; name: string | null; emailAlerts?: boolean };
 
 const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const nameSchema = z

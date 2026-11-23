@@ -12,8 +12,16 @@ import type { User } from "./auth";
 import { calls, loginTokens, members, users } from "./db/schema";
 import type { Db } from "./db/types";
 import { leaveGroup } from "./groups";
+import { revokeApple, type Fetch } from "./apple";
 
-export async function deleteAccount(db: Db, user: User, now = new Date()) {
+export async function deleteAccount(db: Db, user: User, now = new Date(), fetcher: Fetch = fetch) {
+  // Sign in with Apple: revoke the app's access at Apple too (best effort; needs the Sign in with Apple key).
+  const [{ appleRefreshToken } = { appleRefreshToken: null }] = await db
+    .select({ appleRefreshToken: users.appleRefreshToken })
+    .from(users)
+    .where(eq(users.id, user.id));
+  await revokeApple(appleRefreshToken, fetcher, now.getTime()).catch(() => false);
+
   const groupsIn = await db
     .select({ groupId: members.groupId })
     .from(members)
@@ -33,7 +41,7 @@ export async function deleteAccount(db: Db, user: User, now = new Date()) {
         })
         .where(eq(calls.id, c.id));
     }
-    await tx.delete(loginTokens).where(eq(loginTokens.email, user.email));
+    if (user.email) await tx.delete(loginTokens).where(eq(loginTokens.email, user.email));
     await tx.delete(users).where(eq(users.id, user.id));
   });
 }

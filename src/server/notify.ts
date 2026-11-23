@@ -70,7 +70,9 @@ export async function emit(tx: Tx, e: Emit) {
     .returning({ id: notifications.id, userId: notifications.userId });
 
   const queue: { notificationId: string; channel: string; nextTryAt: Date; createdAt: Date }[] = [];
-  if (EMAIL_TYPES.includes(e.type)) {
+  // In production, emails are only queued once an email service is configured (otherwise they'd just fail).
+  const canEmail = !!process.env.RESEND_API_KEY || process.env.NODE_ENV !== "production";
+  if (canEmail && EMAIL_TYPES.includes(e.type)) {
     const wantsEmail = new Set(active.filter((a) => a.emailAlerts).map((a) => a.userId));
     for (const n of inserted) if (wantsEmail.has(n.userId)) queue.push({ notificationId: n.id, channel: "email", nextTryAt: e.now, createdAt: e.now });
   }

@@ -61,8 +61,9 @@ export async function deliverOutbox(db: Db, senders: SendEmail | Senders, now = 
   for (const row of rows) {
     const [rendered] = await renderNotifications(db, row.notification.userId, [row.notification]);
     const isPush = row.outbox.channel === "push";
-    // Left the group, turned email alerts off, or it's no longer needed (e.g. already settled): don't send.
-    if (!rendered || (!isPush && !row.emailAlerts) || !rendered.stillNeeded || (isPush && !push)) {
+    // Left the group, turned email alerts off (or has no email, e.g. Apple with a hidden email), or it's no
+    // longer needed (e.g. already settled): don't send.
+    if (!rendered || (!isPush && (!row.emailAlerts || !row.email)) || !rendered.stillNeeded || (isPush && !push)) {
       await db.update(outbox).set({ status: "expired", leaseUntil: null }).where(eq(outbox.id, row.outbox.id));
       skipped++;
       continue;
@@ -104,7 +105,7 @@ export async function deliverOutbox(db: Db, senders: SendEmail | Senders, now = 
         footer: "You get these emails when something needs you. Turn them off in Settings.",
       });
       await send(
-        row.email,
+        row.email!,
         `${rendered.groupName}: ${rendered.text.length > 70 ? rendered.text.slice(0, 67) + "…" : rendered.text}`,
         email.text,
         email.html,

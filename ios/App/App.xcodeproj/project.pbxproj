@@ -22,6 +22,7 @@
 		658EFF3EFCB440F8A735DFB9 /* WhollWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98E773650A7483EA49065D4 /* WhollWidget.swift */; };
 		90103EC54E2941B7849B29F6 /* WhollWidget.entitlements in Resources */ = {isa = PBXBuildFile; fileRef = 02782AC6B42A4C91A5C16366 /* WhollWidget.entitlements */; };
 		A7C2CE4794E747DF8C18EFAE /* WhollWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98E773650A7483EA49065D4 /* WhollWidget.swift */; };
+		346A5D9A74B74E7181FDDA60 /* AppleSignInPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D6801CC665424398D0615D /* AppleSignInPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +43,7 @@
 		7F443EBCA04242728BF2090A /* WhollWidget.appex */ = {isa = PBXFileReference; name = "WhollWidget.appex"; path = "WhollWidget.appex"; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = undefined; lastKnownFileType = undefined; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; };
 		B98E773650A7483EA49065D4 /* WhollWidget.swift */ = {isa = PBXFileReference; name = "WhollWidget.swift"; path = "WhollWidget.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 		02782AC6B42A4C91A5C16366 /* WhollWidget.entitlements */ = {isa = PBXFileReference; name = "WhollWidget.entitlements"; path = "WhollWidget.entitlements"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A1D6801CC665424398D0615D /* AppleSignInPlugin.swift */ = {isa = PBXFileReference; name = "AppleSignInPlugin.swift"; path = "AppleSignInPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +99,7 @@
 				475FD4F8F8AD481CB0AAE091 /* AppViewController.swift */,
 				7BCFCFDF2AB149978CB2D330 /* WidgetBridgePlugin.swift */,
 				C8E7A981212A461B919E74B0 /* App.entitlements */,
+				A1D6801CC665424398D0615D /* AppleSignInPlugin.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -223,6 +226,7 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				62B833DFD18F4D41ABCFB5BF /* AppViewController.swift in Sources */,
 				7DDB0CC73F4C441F9B9B966F /* WidgetBridgePlugin.swift in Sources */,
+				346A5D9A74B74E7181FDDA60 /* AppleSignInPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -100,7 +100,7 @@ describe("sessions", () => {
 
   it("signs out one device, or every device", async () => {
     const { user, sessionToken } = await signUp(db, "Multi");
-    const second = await completeLogin(db, (await requestLogin(db, user.email, "4.4.4.4")).token);
+    const second = await completeLogin(db, (await requestLogin(db, user.email!, "4.4.4.4")).token);
     await logout(db, sessionToken);
     expect(await userForSession(db, sessionToken)).toBeNull();
     expect(await userForSession(db, second.sessionToken)).not.toBeNull();

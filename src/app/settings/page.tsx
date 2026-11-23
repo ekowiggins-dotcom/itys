@@ -28,7 +28,7 @@ export default async function Settings() {
         <p>
           <strong>{user.name}</strong>
           <br />
-          <span className="muted">{user.email}</span>
+          <span className="muted">{user.email ?? "Signed in with Apple"}</span>
         </p>
         <SignOutButtons />
       </div>

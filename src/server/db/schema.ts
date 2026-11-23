@@ -18,8 +18,12 @@ const ts = (name: string) => timestamp(name, { withTimezone: true });
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
-  /** Always stored lower-cased and trimmed. */
-  email: text("email").notNull().unique(),
+  /** Lower-cased and trimmed. Optional: people who sign in with Apple may hide their email. */
+  email: text("email").unique(),
+  /** Apple's stable user id ("sub") for Sign in with Apple. */
+  appleSub: text("apple_sub").unique(),
+  /** Apple refresh token, kept only to revoke Sign in with Apple when the account is deleted. */
+  appleRefreshToken: text("apple_refresh_token"),
   /** Set on first sign-in (welcome screen). */
   name: text("name"),
   /** Email me when something needs me (settle, vote, a call about me). */
