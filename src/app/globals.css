@@ -1436,3 +1436,29 @@ ul.notifs li a span {
 .people-picker button.pill {
   max-width: 100%;
 }
+
+/* ---------- Legal and help pages ---------- */
+.legal {
+  max-width: 64ch;
+}
+
+.legal h2 {
+  font-size: var(--fs-lg);
+  margin-top: var(--s5);
+}
+
+.legal li {
+  margin: var(--s2) 0;
+}
+
+.legal-footer {
+  margin-top: var(--s6);
+  text-align: center;
+}
+
+.legal-footer a {
+  display: inline-block;
+  min-height: 44px;
+  line-height: 44px;
+  padding: 0 var(--s1);
+}

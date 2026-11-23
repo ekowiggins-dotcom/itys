@@ -73,6 +73,10 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 
 | `CRON_SECRET` | 16+ random characters. Protects `POST /api/jobs`. |
 | `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY`, `IOS_BUNDLE_ID` | Push notifications and universal links for the iOS app (see docs/IOS.md). |
+| `SUPPORT_EMAIL` | Contact address shown on `/support` and `/privacy` (needed for App Store review). |
+| `OPERATOR_NAME` | Who runs the service, named on the privacy and terms pages. |
+| `REVIEW_EMAIL`, `REVIEW_CODE` | App Review sign-in with a code, plus a demo group (see docs/APP_STORE.md). |
+| `ERROR_WEBHOOK_URL` | Optional Slack/Discord webhook for server error alerts (errors are always logged as JSON). |
 | `RUN_JOBS_IN_PROCESS` | Set to `1` to run the job runner inside the web server (simplest single-service setup). |
 
 Run `npm run db:migrate` before starting a new release.

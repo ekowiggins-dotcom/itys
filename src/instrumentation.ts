@@ -6,6 +6,11 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // App Review: make sure the review account's demo group exists (no-op unless REVIEW_EMAIL/REVIEW_CODE are set).
+  if (process.env.REVIEW_EMAIL && process.env.REVIEW_CODE) {
+    const [{ getDb }, { ensureReviewDemo }] = await Promise.all([import("./server/db"), import("./server/review")]);
+    ensureReviewDemo(await getDb()).catch((e) => console.error("Review demo setup failed.", e));
+  }
   const inProcess = process.env.NODE_ENV === "development" || process.env.RUN_JOBS_IN_PROCESS === "1";
   if (!inProcess) return;
   const g = globalThis as unknown as { whollJobs?: ReturnType<typeof setInterval> };
@@ -25,4 +30,14 @@ export async function register() {
   };
   g.whollJobs = setInterval(tick, 30_000);
   g.whollJobs.unref?.();
+}
+
+/** Every server error: one JSON log line, plus an optional webhook alert (see src/server/error-report.ts). */
+export async function onRequestError(
+  err: unknown,
+  request: { method: string; path: string },
+  context: { routePath?: string; routeType?: string },
+) {
+  const { reportError, summarise } = await import("./server/error-report");
+  await reportError(summarise(err, request, context));
 }

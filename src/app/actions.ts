@@ -11,6 +11,7 @@ import * as moderation from "@/server/moderation";
 import * as account from "@/server/account";
 import * as sharing from "@/server/sharing";
 import * as devices from "@/server/devices";
+import * as review from "@/server/review";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
@@ -38,6 +39,19 @@ function toState(e: unknown): FormState {
 }
 
 export async function requestLoginAction(_: FormState, form: FormData): Promise<FormState> {
+  const code = str(form, "code");
+  if (code) {
+    // App Review: a configured account signs in with a code instead of an email link.
+    let dest: string;
+    try {
+      const { sessionToken, expiresAt } = await review.reviewLogin(await getDb(), str(form, "email"), code, await clientIp());
+      await setSessionCookie(sessionToken, expiresAt);
+      dest = safeNext(str(form, "next"));
+    } catch (e) {
+      return toState(e);
+    }
+    redirect(dest);
+  }
   try {
     const { email, token } = await auth.requestLogin(await getDb(), str(form, "email"), await clientIp());
     const next = safeNext(str(form, "next"));

@@ -60,6 +60,20 @@ describe("word filter", () => {
     expect(findBlocked("Will Cem finish the grape harvest?")).toBeNull();
   });
 
+  it("uses the maintained English and Turkish lists, by whole word", () => {
+    expect(findBlocked("Will Bo post porn?")).toBe("porn");
+    expect(findBlocked("Kim en büyük göt?")).toBe("göt");
+    expect(findBlocked("Scunthorpe will win the cup")).toBeNull(); // contains a bad word, isn't one
+    expect(findBlocked("Am I going to be late?")).toBeNull(); // "am" is fine in English
+    expect(findBlocked("Will the film suck?")).toBeNull(); // mild banter allowed
+    expect(findBlocked("Kim düğüne geç kalacak?")).toBeNull();
+    expect(findBlocked("Sık sık geç kalır mı?")).toBeNull(); // Turkish "often", dotless ı
+    expect(findBlocked("Who got the job?")).toBeNull(); // accents matter: "got" isn't "göt"
+    expect(findBlocked("Düğünde çok şık olacak mı?")).toBeNull(); // "şık" means stylish
+    expect(findBlocked("WILL BO SEND NUDES")).toBe("nudes"); // capital I in English still counts as i
+    expect(findBlocked("KİM EN BÜYÜK GÖT")).toBe("göt"); // and Turkish capitals work too
+  });
+
   it("refuses calls with blocked words", async () => {
     const { u, groupId } = await group();
     await expect(

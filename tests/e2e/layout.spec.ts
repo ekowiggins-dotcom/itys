@@ -37,6 +37,9 @@ const signedOut: Screen[] = [
   { name: "login", open: async (p) => void (await p.goto("/login")) },
   { name: "bad-invite", open: async (p) => void (await p.goto("/join/AAAAAAAAAAAAAAAAAAAAAA")) },
   { name: "bad-share", open: async (p) => void (await p.goto("/r/AAAAAAAAAAAAAAAAAAAAAA")) },
+  { name: "privacy", open: async (p) => void (await p.goto("/privacy")) },
+  { name: "terms", open: async (p) => void (await p.goto("/terms")) },
+  { name: "support", open: async (p) => void (await p.goto("/support")) },
 ];
 
 for (const width of WIDTHS) {

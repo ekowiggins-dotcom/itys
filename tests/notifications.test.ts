@@ -212,3 +212,20 @@ describe("email delivery", () => {
     expect((await status(late.outboxId)).status).toBe("expired");
   });
 });
+
+describe("email layout", () => {
+  it("escapes text in the HTML version and keeps a plain-text version", async () => {
+    const { renderEmail } = await import("@/server/email-template");
+    const { text, html } = renderEmail({
+      preview: "p",
+      heading: "<script>alert(1)</script> & co",
+      body: "Will \"Bo\" win?",
+      button: { label: "Open", url: "https://example.com/?a=1&b=2" },
+      footer: "f",
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt; &amp; co");
+    expect(html).toContain("https://example.com/?a=1&amp;b=2");
+    expect(text).toContain("Open: https://example.com/?a=1&b=2");
+  });
+});

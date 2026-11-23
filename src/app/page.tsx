@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/server/session";
+import { LegalFooter } from "./(legal)/LegalFooter";
 
 export default async function Home() {
   if (await currentUser()) redirect("/groups");
@@ -16,6 +17,7 @@ export default async function Home() {
       <Link href="/login" className="btn">
         Get started
       </Link>
+      <LegalFooter />
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import { deleteAccountAction, memberAction, setEmailAlertsAction } from "../actions";
 import { SignOutButtons } from "./SignOut";
+import { LegalFooter } from "../(legal)/LegalFooter";
 import { getDb } from "@/server/db";
 import { blockedPeople } from "@/server/moderation";
 import { ActionForm, Submit } from "../ui";
@@ -64,6 +65,7 @@ export default async function Settings() {
           <Submit variant="danger">Delete my account</Submit>
         </ActionForm>
       </div>
+      <LegalFooter />
     </>
   );
 }

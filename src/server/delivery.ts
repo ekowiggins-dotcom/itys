@@ -9,6 +9,7 @@ import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import type { SendPush } from "./apns";
 import { devices, notifications, outbox, users } from "./db/schema";
 import type { Db } from "./db/types";
+import { renderEmail } from "./email-template";
 import type { SendEmail } from "./mailer";
 import { renderNotifications, unreadCount } from "./notifications";
 
@@ -95,10 +96,18 @@ export async function deliverOutbox(db: Db, senders: SendEmail | Senders, now = 
         sent++;
         continue;
       }
+      const email = renderEmail({
+        preview: rendered.text,
+        heading: rendered.groupName,
+        body: rendered.text,
+        button: { label: "Open Who’ll", url: `${origin()}${rendered.href}` },
+        footer: "You get these emails when something needs you. Turn them off in Settings.",
+      });
       await send(
         row.email,
         `${rendered.groupName}: ${rendered.text.length > 70 ? rendered.text.slice(0, 67) + "…" : rendered.text}`,
-        `${rendered.text}\n\nOpen it: ${origin()}${rendered.href}\n\nYou get these emails when something needs you. Turn them off in Settings.`,
+        email.text,
+        email.html,
       );
       await db.update(outbox).set({ status: "sent", leaseUntil: null, lastError: null }).where(eq(outbox.id, row.outbox.id));
       sent++;
