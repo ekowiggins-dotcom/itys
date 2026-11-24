@@ -356,6 +356,26 @@ export const shareLinks = pgTable(
 );
 
 /**
+ * Invites made from an open call: a member shares the call, and whoever opens the link sees it, makes a pick and
+ * joins the group in one go. Works like the group's invite link, but only while the call is open and the member who
+ * shared it is still in the group (checked on every use in src/server/call-invites.ts).
+ */
+export const callInvites = pgTable(
+  "call_invites",
+  {
+    token: text("token").primaryKey(),
+    callId: uuid("call_id")
+      .notNull()
+      .references(() => calls.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("call_invites_once").on(t.callId, t.createdBy)],
+);
+
+/**
  * Phones registered for push. Each device belongs to the session that registered it, so signing out
  * (or "sign out everywhere", or deleting the account) stops its pushes automatically.
  */

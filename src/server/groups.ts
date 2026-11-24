@@ -159,45 +159,52 @@ export async function joinGroup(
   return db.transaction(async (tx) => {
     const group = await groupByInvite(tx, token, true);
     if (!group) throw new AppError("invalid", "This invite link is no longer valid. Ask for a new one.");
-
-    const [existing] = await tx
-      .select()
-      .from(members)
-      .where(and(eq(members.groupId, group.id), eq(members.userId, user.id)));
-    if (existing && !existing.leftAt) return group.id;
-    if (existing?.bannedAt) throw new AppError("forbidden", "The admin removed you from this group, so you can't rejoin.");
-
-    const [{ n }] = await tx
-      .select({ n: count() })
-      .from(members)
-      .where(and(eq(members.groupId, group.id), isNull(members.leftAt)));
-    if (n >= MAX_MEMBERS) throw new AppError("conflict", `This group is full (${MAX_MEMBERS} people).`);
-
-    const [taken] = await tx
-      .select({ userId: members.userId })
-      .from(members)
-      .where(
-        and(
-          eq(members.groupId, group.id),
-          isNull(members.leftAt),
-          ne(members.userId, user.id),
-          sql`lower(${members.displayName}) = lower(${displayName})`,
-        ),
-      );
-    if (taken) throw new AppError("conflict", `Someone in this group is already called "${displayName}". Pick another name.`);
-
-    if (existing) {
-      await tx
-        .update(members)
-        .set({ leftAt: null, displayName, role: "member", joinedAt: now })
-        .where(and(eq(members.groupId, group.id), eq(members.userId, user.id)));
-    } else {
-      await tx.insert(members).values({ groupId: group.id, userId: user.id, displayName, role: "member", joinedAt: now });
-    }
-    const others = await groupMemberIds(tx, group.id, [user.id]);
-    await emit(tx, { type: "member_joined", groupId: group.id, actorId: user.id, userIds: others, now });
+    await addMember(tx, group.id, user, displayName, now);
     return group.id;
   });
+}
+
+/**
+ * Adds the user to the group (or brings them back), the same way for every kind of invite. Call it inside a
+ * transaction that has locked the group row, so two joins can't both take the last place.
+ */
+export async function addMember(tx: Tx, groupId: string, user: User, displayName: string, now: Date) {
+  const [existing] = await tx
+    .select()
+    .from(members)
+    .where(and(eq(members.groupId, groupId), eq(members.userId, user.id)));
+  if (existing && !existing.leftAt) return;
+  if (existing?.bannedAt) throw new AppError("forbidden", "The admin removed you from this group, so you can't rejoin.");
+
+  const [{ n }] = await tx
+    .select({ n: count() })
+    .from(members)
+    .where(and(eq(members.groupId, groupId), isNull(members.leftAt)));
+  if (n >= MAX_MEMBERS) throw new AppError("conflict", `This group is full (${MAX_MEMBERS} people).`);
+
+  const [taken] = await tx
+    .select({ userId: members.userId })
+    .from(members)
+    .where(
+      and(
+        eq(members.groupId, groupId),
+        isNull(members.leftAt),
+        ne(members.userId, user.id),
+        sql`lower(${members.displayName}) = lower(${displayName})`,
+      ),
+    );
+  if (taken) throw new AppError("conflict", `Someone in this group is already called "${displayName}". Pick another name.`);
+
+  if (existing) {
+    await tx
+      .update(members)
+      .set({ leftAt: null, displayName, role: "member", joinedAt: now })
+      .where(and(eq(members.groupId, groupId), eq(members.userId, user.id)));
+  } else {
+    await tx.insert(members).values({ groupId, userId: user.id, displayName, role: "member", joinedAt: now });
+  }
+  const others = await groupMemberIds(tx, groupId, [user.id]);
+  await emit(tx, { type: "member_joined", groupId, actorId: user.id, userIds: others, now });
 }
 
 /** Makes the old invite link stop working and returns the new token. */

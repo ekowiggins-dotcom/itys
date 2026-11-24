@@ -13,7 +13,7 @@ export function GET() {
       details: [
         {
           appIDs: [appID],
-          components: [{ "/": "/auth/verify*" }, { "/": "/join/*" }, { "/": "/groups/*" }, { "/": "/r/*" }, { "/": "/notifications" }],
+          components: [{ "/": "/auth/verify*" }, { "/": "/join/*" }, { "/": "/groups/*" }, { "/": "/r/*" }, { "/": "/c/*" }, { "/": "/notifications" }],
         },
       ],
     },

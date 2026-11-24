@@ -42,6 +42,11 @@ export type CallVisibility = {
    * person can only be shared by that person (for "who" calls: the person who turned out to be the answer).
    */
   canShare: boolean;
+  /**
+   * Whether this viewer may share the call as an invite: whoever opens it can pick and join the group. Only while
+   * picks are open, and a call about a person only by that person (it shows the call to people outside the group).
+   */
+  canInvite: boolean;
 };
 
 export function isLocked(call: Pick<CallState, "lockAt">, now: Date) {
@@ -67,6 +72,20 @@ export function publicShareAllowed(call: CallState & { sharedBy: string; sharerI
   );
 }
 
+/**
+ * What someone outside the group sees through a call invite: the call, its options and who has picked (never
+ * what). Only while picks are open, the call is visible and the member who shared it is still in the group.
+ */
+export function callInviteAllowed(call: CallState & { sharedBy: string; sharerIsMember: boolean }, now: Date) {
+  return (
+    call.moderation === "visible" &&
+    call.status === "active" &&
+    !isLocked(call, now) &&
+    call.sharerIsMember &&
+    (!call.subjectId || call.subjectId === call.sharedBy)
+  );
+}
+
 export function callVisibility(call: CallState, viewer: Viewer, now: Date): CallVisibility {
   const member = viewer.isMember && viewer.userId !== null && call.moderation === "visible";
   const locked = isLocked(call, now);
@@ -82,5 +101,6 @@ export function callVisibility(call: CallState, viewer: Viewer, now: Date): Call
     canSeeVoteTally: member && final,
     canPick: member && !isSubject && call.status === "active" && !locked,
     canShare: member && call.status === "settled" && sharerIsAllowed(call, viewer.userId!),
+    canInvite: member && call.status === "active" && !locked && (!call.subjectId || isSubject),
   };
 }

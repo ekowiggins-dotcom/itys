@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callVisibility, type CallState, type CallVisibility } from "@/server/visibility";
+import { callInviteAllowed, callVisibility, type CallState, type CallVisibility } from "@/server/visibility";
 
 const now = new Date("2026-06-01T12:00:00Z");
 const before = new Date(now.getTime() + 3600_000); // picks still open
@@ -15,14 +15,15 @@ type Row = [string, Partial<CallState>, { userId: string | null; isMember: boole
  * Fields not listed in a row must be false.
  */
 const table: Row[] = [
-  ["member, open", { lockAt: before }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canPick: true }],
+  ["member, open", { lockAt: before }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canPick: true, canInvite: true }],
+  ["member, open call about someone else", { lockAt: before, subjectId: SUBJECT }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canPick: true }],
   ["member, locked", { lockAt: after }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
   ["member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true, canSeeWhoPicked: true, canSeeVoteTally: true, canShare: true }],
   ["member, cancelled", { lockAt: before, status: "cancelled" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeeOwnPick: true }],
   ["member, void", { lockAt: after, status: "void" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeVoteTally: true }],
   ["member, result proposed", { lockAt: after, status: "proposed" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
   ["member, vote running", { lockAt: after, status: "disputed" }, { userId: ME, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeOwnPick: true, canSeeSplit: true }],
-  ["subject, open", { lockAt: before, subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true }],
+  ["subject, open", { lockAt: before, subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true, canInvite: true }],
   ["subject, locked", { lockAt: after, subjectId: SUBJECT }, { userId: SUBJECT, isMember: true }, { canSeeCall: true, canSeePickCount: true, canSeeSplit: true }],
   ["non-member, open", { lockAt: before }, { userId: ME, isMember: false }, {}],
   ["non-member, settled", { lockAt: after, status: "settled" }, { userId: ME, isMember: false }, {}],
@@ -45,6 +46,7 @@ const NONE: CallVisibility = {
   canSeeVoteTally: false,
   canPick: false,
   canShare: false,
+  canInvite: false,
 };
 
 describe("callVisibility", () => {
@@ -57,5 +59,23 @@ describe("callVisibility", () => {
     const v = callVisibility({ lockAt: now, status: "active", subjectId: null, moderation: "visible" }, { userId: ME, isMember: true }, now);
     expect(v.canPick).toBe(false);
     expect(v.canSeeSplit).toBe(true);
+  });
+});
+
+describe("callInviteAllowed", () => {
+  type InviteCall = Parameters<typeof callInviteAllowed>[0];
+  const base: InviteCall = { lockAt: before, status: "active", subjectId: null, moderation: "visible", sharedBy: ME, sharerIsMember: true };
+  it.each<[string, Partial<InviteCall>, boolean]>([
+    ["open call shared by a member", {}, true],
+    ["picks closed", { lockAt: after }, false],
+    ["closes exactly at lock time", { lockAt: now }, false],
+    ["cancelled", { status: "cancelled" }, false],
+    ["settled", { status: "settled", lockAt: after }, false],
+    ["hidden for review", { moderation: "hidden" }, false],
+    ["sharer left the group", { sharerIsMember: false }, false],
+    ["call about someone else", { subjectId: SUBJECT }, false],
+    ["call about the sharer", { subjectId: SUBJECT, sharedBy: SUBJECT }, true],
+  ])("%s", (_name, change, expected) => {
+    expect(callInviteAllowed({ ...base, ...change }, now)).toBe(expected);
   });
 });
