@@ -72,5 +72,7 @@
 	<array>
 		<string>$(WHOLL_LINK_DOMAIN)</string>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
