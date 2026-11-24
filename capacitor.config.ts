@@ -21,6 +21,9 @@ const config: CapacitorConfig = {
     // Edge to edge: the pages pad themselves with env(safe-area-inset-*) (see globals.css).
     contentInset: "never",
     backgroundColor: "#17201b",
+    // Only app-bound domains load. They're listed under WKAppBoundDomains in ios/App/App/Info.plist (filled from
+    // WHOLL_LINK_DOMAIN, set by scripts/ios-setup.mjs from APP_ORIGIN). Without that list the web view loads
+    // nothing at all: a white screen.
     limitsNavigationsToAppBoundDomains: true,
   },
   plugins: {
