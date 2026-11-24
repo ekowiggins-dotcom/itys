@@ -10,6 +10,7 @@ import * as notifications from "@/server/notifications";
 import * as moderation from "@/server/moderation";
 import * as account from "@/server/account";
 import * as sharing from "@/server/sharing";
+import * as callInvites from "@/server/call-invites";
 import * as devices from "@/server/devices";
 import * as review from "@/server/review";
 import * as apple from "@/server/apple";
@@ -28,7 +29,7 @@ import {
   setSessionCookie,
 } from "@/server/session";
 
-export type FormState = { error?: string; ok?: string; devLink?: string; shareUrl?: string } | undefined;
+export type FormState = { error?: string; ok?: string; devLink?: string; shareUrl?: string; inviteUrl?: string } | undefined;
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -170,6 +171,19 @@ export async function joinGroupAction(_: FormState, form: FormData): Promise<For
   redirect(`/groups/${id}`);
 }
 
+/** Joins a group through a shared call, with the pick the friend tapped on the invite page. */
+export async function joinWithCallAction(_: FormState, form: FormData): Promise<FormState> {
+  const token = str(form, "token");
+  const user = await requireUser(`/c/${token}`);
+  let id: string;
+  try {
+    id = await callInvites.joinWithCallInvite(await getDb(), user, token, str(form, "displayName"), str(form, "option") || null, await clientIp());
+  } catch (e) {
+    return toState(e);
+  }
+  redirect(`/groups/${id}`);
+}
+
 export async function resetInviteAction(_: FormState, form: FormData): Promise<FormState> {
   const groupId = str(form, "groupId");
   const user = await requireUser(`/groups/${groupId}`);
@@ -219,6 +233,9 @@ export async function callAction(_: FormState, form: FormData): Promise<FormStat
     else if (op === "share") {
       const token = await sharing.createShareLink(db, user, callId);
       return { shareUrl: `${await appOrigin()}/r/${token}` };
+    } else if (op === "invite") {
+      const token = await callInvites.createCallInvite(db, user, callId);
+      return { inviteUrl: `${await appOrigin()}/c/${token}` };
     } else if (op === "hide") {
       await moderation.reportCall(db, user, callId, "about_me");
       revalidatePath(`/groups/${groupId}`, "layout");

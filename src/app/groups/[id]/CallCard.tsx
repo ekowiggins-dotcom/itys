@@ -10,6 +10,7 @@ import { Sheet } from "../../components/Sheet";
 import { CalledItStamp } from "../../components/Stamp";
 import { Celebrate } from "../../components/Celebrate";
 import { haptic } from "../../NativeBridge";
+import { inviteMessage } from "@/lib/invite-text";
 import type { CallView } from "@/server/call-views";
 
 const VOID = "void";
@@ -254,6 +255,22 @@ export function CallCard({
         {call.pickCount !== null && `${call.pickCount} of ${call.eligibleCount} picked`}
         {!call.locked && call.pickCount !== null && " · the split shows when picks close"}
       </p>
+
+      {call.canInvite && (
+        <form action={action} className="row">
+          {hidden}
+          <button type="submit" name="op" value="invite" className="secondary" disabled={pending}>
+            Invite a friend to call it
+          </button>
+        </form>
+      )}
+      {state?.inviteUrl && (
+        <ShareLink
+          url={state.inviteUrl}
+          text={inviteMessage(call.text)}
+          note="Friends who open it see this call and who has picked (not what), then join the group with their pick."
+        />
+      )}
 
       {/* Waiting for the event */}
       {call.status === "active" && call.locked && !call.awaitingResult && (

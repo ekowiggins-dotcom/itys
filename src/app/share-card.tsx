@@ -409,6 +409,63 @@ export function InviteCard({
   );
 }
 
+/** Call invite preview: the call itself, who has picked (faces and names, never what) and a nudge to pick. */
+export function CallInviteCard({
+  text,
+  groupName,
+  pickers,
+  color,
+}: {
+  text: string;
+  groupName: string;
+  pickers: string[];
+  color: string;
+}) {
+  const shown = Math.min(pickers.length, 5);
+  const who =
+    pickers.length === 0
+      ? "Be the first to pick"
+      : pickers.length <= 2
+        ? `${pickers.join(" & ")} picked`
+        : `${pickers.slice(0, 2).join(", ")} +${pickers.length - 2} picked`;
+  return (
+    <Frame
+      bg={color}
+      right={<Pill>Your pick →</Pill>}
+      left={
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          {shown > 0 && (
+            <div style={{ display: "flex" }}>
+              {Array.from({ length: shown }, (_, i) => (
+                <div key={i} style={{ display: "flex", marginLeft: i ? -22 : 0 }}>
+                  <Face color={FACE_COLORS[i % FACE_COLORS.length]} size={64} />
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 700 }}>{clamp(who, 34)}</div>
+        </div>
+      }
+    >
+      <div style={{ display: "flex", fontFamily: DISPLAY, fontWeight: 700, fontSize: 30, marginBottom: 14 }}>
+        {clamp(groupName, 30)} is calling it
+      </div>
+      <div
+        style={{
+          display: "flex",
+          fontFamily: DISPLAY,
+          fontWeight: 700,
+          fontSize: text.length > 60 ? 64 : text.length > 32 ? 80 : 100,
+          lineHeight: 1.02,
+          letterSpacing: -2,
+        }}
+      >
+        {clamp(text, 110)}
+      </div>
+    </Frame>
+  );
+}
+
 export function GenericCard() {
   return (
     <Frame

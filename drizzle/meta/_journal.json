@@ -71,6 +71,13 @@
       "when": 1795464842771,
       "tag": "0009_apple_sign_in",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795522088358,
+      "tag": "0010_call_invites",
+      "breakpoints": true
     }
   ]
 }
