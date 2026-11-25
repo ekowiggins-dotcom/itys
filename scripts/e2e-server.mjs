@@ -13,6 +13,9 @@ const env = {
   PRO_LIMITS: "on",
 };
 delete env.DATABASE_URL;
+// Start from a clean dev build: a build folder left by an earlier run (e.g. `npm run e2e` before
+// `npm run screenshots`) can make the dev server reload the page in a loop against the fresh database.
+rmSync(env.NEXT_DIST_DIR, { recursive: true, force: true });
 const seed = spawnSync("npx", ["tsx", "scripts/seed-dev.mts"], { env, stdio: "inherit" });
 if (seed.status !== 0) process.exit(seed.status ?? 1);
 const port = process.env.E2E_PORT ?? "3100";
