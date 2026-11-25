@@ -80,6 +80,7 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 | `APPLE_SIGNIN_KEY`, `APPLE_SIGNIN_KEY_ID`, `APPLE_TEAM_ID` | Optional: lets account deletion revoke Sign in with Apple (see docs/APP_STORE.md). |
 | `REVIEW_EMAIL`, `REVIEW_CODE` | App Review sign-in with a code, plus a demo group (see docs/APP_STORE.md). |
 | `ERROR_WEBHOOK_URL` | Optional Slack/Discord webhook for server error alerts (errors are always logged as JSON). |
+| `APP_STORE_ID` | Optional: the App Store app id for the home page’s “Download for iPhone” button and Safari’s app banner. Default `6831526797`. |
 | `PRO_LIMITS` | `on` turns on Who’ll Pro’s group-size limits and shows Pro to everyone. Leave it unset until the 1.1 app is approved (the 1.0 app can’t buy). |
 | `IAP_PRODUCT_IDS` | Optional: Who’ll Pro product ids, comma-separated. Default `app.wholl.ios.pro.monthly,app.wholl.ios.pro.yearly`. |
 | `RUN_JOBS_IN_PROCESS` | Set to `1` to run the job runner inside the web server (simplest single-service setup). |
