@@ -20,7 +20,8 @@ test.use({
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
 
-const shot = (name: string) => ({ path: `${OUT}/${name}.png`, fullPage: false });
+// The e2e server runs `next dev`, whose dev-tools badge would otherwise show in the bottom-left corner.
+const shot = (name: string) => ({ path: `${OUT}/${name}.png`, fullPage: false, style: "nextjs-portal { display: none !important; }" });
 
 test("1 your turn", async ({ page }) => {
   await openGroup(page, "Demo flat");
