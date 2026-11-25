@@ -53,7 +53,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
         const s = await syncSubscriptionAction({ transactions: [r.transaction], renewals: r.renewals ?? [] });
         if (s.error) setMessage({ error: s.error });
         else {
-          setMessage({ ok: "You’ve got Who’ll Pro. Your groups can now have up to 30 people." });
+          setMessage({ ok: "You’ve got Who’ll Pro. Your groups can now have up to 20 people." });
           void haptic("success");
           router.refresh();
         }

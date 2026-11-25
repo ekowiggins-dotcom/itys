@@ -28,7 +28,7 @@ export function PlanNotice({ plan, place }: { plan: GroupView["plan"]; place: "c
         <p style={{ margin: 0 }}>
           <strong>Free groups have up to {plan.freeMembers} people.</strong>{" "}
           {plan.payerIsMe
-            ? "Who’ll Pro lets every group you made have up to 30. Everyone else stays free."
+            ? "Who’ll Pro lets every group you made have up to 20. Everyone else stays free."
             : `${plan.payerName ?? "The admin"} can make room for more with Who’ll Pro.`}
         </p>
         {plan.payerIsMe && (

@@ -4,7 +4,7 @@ import { ProOffer } from "./ProOffer";
 import { getDb } from "@/server/db";
 import { myGroups } from "@/server/groups";
 import { requireUser } from "@/server/session";
-import { FREE_MEMBERS, groupPlan, proProductIds, proStatus } from "@/server/subscriptions";
+import { FREE_MEMBERS, groupPlan, MAX_WITH_PRO, proProductIds, proStatus } from "@/server/subscriptions";
 
 export const metadata: Metadata = { title: "Who’ll Pro · Who’ll" };
 
@@ -30,7 +30,7 @@ export default async function Subscription() {
       </p>
       <h1>Who’ll Pro</h1>
       <p>
-        Free groups have up to {FREE_MEMBERS} people. With Pro, every group you made can have up to 30. One subscription
+        Free groups have up to {FREE_MEMBERS} people. With Pro, every group you made can have up to {MAX_WITH_PRO}. One subscription
         covers all of them, and everyone in them plays free. Points stay free and are only for being right.
       </p>
 

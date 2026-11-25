@@ -29,11 +29,11 @@ import {
 } from "./storekit";
 
 /** The most members a group can have, even with Pro (groups.MAX_MEMBERS). */
-export const MAX_WITH_PRO = 30;
+export const MAX_WITH_PRO = 20;
 export const FREE_MEMBERS = 4;
 
 /**
- * The switch: limits apply only with PRO_LIMITS=on. Until then groups work as before (up to 30) and Pro shows only
+ * The switch: limits apply only with PRO_LIMITS=on. Until then groups have no free-size limit (up to 20, like Pro) and Pro shows only
  * in app builds that can buy it, so the 1.0 app (which can't) never meets a paywall. Turn it on once 1.1 is out.
  */
 export const proLimitsOn = () => process.env.PRO_LIMITS === "on";
