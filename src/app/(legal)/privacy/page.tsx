@@ -17,7 +17,15 @@ export default function Privacy() {
 
       <h2>What we keep</h2>
       <ul>
-        <li><strong>Your email address</strong>, to sign you in with a link. We never show it to other people.</li>
+        <li>
+          <strong>Your Sign in with Apple details</strong>: the ID Apple gives us for you, and the email Apple shares
+          (this can be a private relay address if you chose “Hide My Email”). On the website you can also sign in with
+          an email link. We never show your email to other people.
+        </li>
+        <li>
+          <strong>A Sign in with Apple token</strong>, so that when you delete your account we can also end Who’ll’s
+          access at Apple.
+        </li>
         <li><strong>Your name</strong>, and the name you use in each group, so friends know who’s who.</li>
         <li><strong>What you do in groups</strong>: calls you make, your picks, results you enter, disputes and votes, reports and blocks. Your group sees calls and, after a call is settled, who picked what. Before picks close, nobody sees how anyone picked.</li>
         <li><strong>Points and rankings</strong>, worked out from settled calls.</li>
@@ -30,14 +38,27 @@ export default function Privacy() {
       <ul>
         <li>No ads, no analytics or tracking tools, no selling or sharing your data for marketing.</li>
         <li>No money: points can’t be bought, spent, traded or cashed out, and there are no prizes.</li>
-        <li>Shared result links show the call, the answer, how many called it and the sharer’s own result. Never anyone else’s name or pick, or the group’s name.</li>
+      </ul>
+
+      <h2>Links you share</h2>
+      <ul>
+        <li>
+          <strong>Result links</strong> show the call, the answer, how many called it and the sharer’s own result.
+          Never anyone else’s name or pick, or the group’s name.
+        </li>
+        <li>
+          <strong>Call invites</strong> (sharing a call that’s still open, to invite friends) show the group’s name and
+          size, the call and its options, and the names of who has picked so far. Never what anyone picked. On a “who”
+          call the options are the group members’ names. An invite stops working once picks close, the call is removed,
+          or the person who shared it leaves the group.
+        </li>
       </ul>
 
       <h2>Who helps us run it</h2>
       <ul>
         <li><strong>Railway</strong> hosts the app and its database.</li>
         <li><strong>Resend</strong> sends sign-in and alert emails.</li>
-        <li><strong>Apple</strong> delivers push notifications to the iOS app.</li>
+        <li><strong>Apple</strong> runs Sign in with Apple and delivers push notifications to the iOS app.</li>
       </ul>
       <p>They only process data to provide these services to us.</p>
 
@@ -47,8 +68,9 @@ export default function Privacy() {
         <li>Hide a call about you with one tap; report or block anyone.</li>
         <li>
           <strong>Delete your account</strong> in <Link href="/settings">Settings</Link>. It removes your account, names,
-          picks, votes, points, notifications and sign-in links straight away, and takes down calls about you. Calls you
-          wrote stay for your friends, shown as by “Former member”.
+          picks, votes, points, notifications and sign-in links straight away, ends Who’ll’s access to your Apple sign-in,
+          and takes down calls about you. Calls you wrote stay for your friends, shown as by “Former member”. Call
+          invites you shared stop working.
         </li>
       </ul>
 
