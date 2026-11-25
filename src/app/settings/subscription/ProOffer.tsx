@@ -24,7 +24,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   useEffect(() => {
     let gone = false;
     (async () => {
-      const kit = await storeKit();
+      const kit = (await storeKit())?.kit;
       if (gone) return;
       setWhere(kit ? "store" : isNativeApp() ? "old-app" : "web");
       if (!kit) return;
@@ -42,7 +42,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   }, [ids]);
 
   async function buy(p: StoreProduct) {
-    const kit = await storeKit();
+    const kit = (await storeKit())?.kit;
     if (!kit) return;
     setBusy(p.id);
     setMessage({});
@@ -66,7 +66,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   }
 
   async function restore() {
-    const kit = await storeKit();
+    const kit = (await storeKit())?.kit;
     if (!kit) return;
     setBusy("restore");
     setMessage({});
@@ -91,7 +91,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   }
 
   async function manage() {
-    const kit = await storeKit();
+    const kit = (await storeKit())?.kit;
     try {
       if (kit) await kit.manage();
     } catch {
