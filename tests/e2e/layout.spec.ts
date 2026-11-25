@@ -30,6 +30,16 @@ const signedIn: Screen[] = [
   { name: "long-turkish", open: async (p) => void (await openGroup(p, "Çılgın Kuzenler")) },
   { name: "notifications", open: async (p) => void (await p.goto("/notifications")) },
   { name: "settings", open: async (p) => void (await p.goto("/settings")) },
+  { name: "subscription", open: async (p) => void (await p.goto("/settings/subscription")) },
+  { name: "paused-group", open: async (p) => void (await openGroup(p, "Five-a-side")) },
+  {
+    name: "paused-new-call",
+    open: async (p) => {
+      await openGroup(p, "Five-a-side");
+      await p.getByRole("button", { name: "New call" }).click();
+      await p.getByText("This group is paused until Bo renews").waitFor();
+    },
+  },
 ];
 
 const signedOut: Screen[] = [

@@ -14,7 +14,7 @@ import {
   voteOnResult,
   voteOutcome,
 } from "@/server/lifecycle";
-import { signUp, testDb } from "./helpers";
+import { givePro, signUp, testDb } from "./helpers";
 
 let db: Db;
 beforeAll(async () => {
@@ -34,6 +34,7 @@ async function group(names: string[]) {
   for (const n of names) users[n] = (await signUp(db, n)).user;
   const [first, ...rest] = names;
   const groupId = await createGroup(db, users[first], { name: "Group", timeZone: "UTC", displayName: first }, T0);
+  await givePro(db, users[first].id); // 5+ members need Who’ll Pro
   const invite = (await groupForMember(db, users[first], groupId)).inviteToken!;
   for (const n of rest) await joinGroup(db, users[n], invite, n, `6.6.${Math.floor(++ipN / 250)}.${ipN % 250}`, T0);
   return { users, groupId };

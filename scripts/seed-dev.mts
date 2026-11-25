@@ -112,5 +112,23 @@ await createCall(db, sukru, kuzen, {
 }, new Date(now));
 await createCall(db, ilknur, kuzen, { text: "Kim düğüne en son gelecek?", kind: "member", lockAt: ahead(40), eventAt: ahead(48) }, new Date(now));
 
+// A third group, made by Bo, with 5 people: Bo's Who'll Pro ended yesterday, so it's paused.
+await db.insert(schema.subscriptions).values({
+  originalTransactionId: "seed-bo",
+  userId: bo.id,
+  productId: "app.wholl.ios.pro.monthly",
+  transactionId: "seed-bo",
+  environment: "Sandbox",
+  purchasedAt: ago(24 * 31),
+  expiresAt: ago(24),
+  autoRenew: false,
+}).onConflictDoNothing();
+await db.update(schema.subscriptions).set({ expiresAt: ahead(24) }).where(eq(schema.subscriptions.originalTransactionId, "seed-bo"));
+const big = await createGroup(db, bo, { name: "Five-a-side", timeZone: "Europe/Istanbul", displayName: "Bo", color: "teal" }, start);
+const bInvite = (await groupForMember(db, bo, big)).inviteToken!;
+for (const [u, n] of [[ada, "Ada"], [cem, "Cem"], [dee, "Dee"], [sukru, "Şükrü"]] as const) await joinGroup(db, u, bInvite, n, "127.0.0.4", start);
+await createCall(db, cem, big, { text: "Will Dee score on Sunday?", kind: "yes_no", subjectId: dee.id, lockAt: ahead(20), eventAt: ahead(30) }, new Date(now));
+await db.update(schema.subscriptions).set({ expiresAt: ago(24) }).where(eq(schema.subscriptions.originalTransactionId, "seed-bo"));
+
 await pg.close();
-console.log(`Seeded "Demo flat" and "Çılgın Kuzenler". Sign in as ada@example.com and open /groups/${groupId}`);
+console.log(`Seeded "Demo flat", "Çılgın Kuzenler" and "Five-a-side" (paused). Sign in as ada@example.com and open /groups/${groupId}`);

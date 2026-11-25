@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { registerDeviceAction, widgetTokenAction } from "./actions";
+import { registerDeviceAction, syncSubscriptionAction, widgetTokenAction } from "./actions";
+import { storeKit } from "./subscriptions-native";
 
 type WidgetBridge = { configure(o: { token: string; baseUrl: string }): Promise<void>; clear(): Promise<void> };
 
@@ -17,8 +18,9 @@ export function isNativeApp() {
  * - push: asks for permission, registers this phone for the signed-in session, opens the right page on tap
  * - widget: hands the home-screen widget a read-only token (once per account on this phone)
  * - universal links: invite and sign-in links that open the app go to the right page
+ * - Who'll Pro: hands the server this Apple ID's current subscription and any renewals the App Store reports
  */
-export function NativeBridge({ userId }: { userId: string }) {
+export function NativeBridge({ userId, productIds }: { userId: string; productIds: string[] }) {
   const router = useRouter();
 
   useEffect(() => {
@@ -47,6 +49,19 @@ export function NativeBridge({ userId }: { userId: string }) {
       if (perm.receive === "prompt") perm = await PushNotifications.requestPermissions();
       if (perm.receive === "granted") await PushNotifications.register();
 
+      // Who'll Pro: renewals, Ask to Buy approvals and the current subscription (the server verifies them).
+      try {
+        const kit = await storeKit();
+        if (kit && !cancelled) {
+          const sub = await kit.addListener("transaction", (e) => void syncSubscriptionAction({ transactions: [e.transaction] }));
+          cleanups.push(() => void sub.remove());
+          const current = await kit.entitlements({ ids: productIds });
+          if (current.transactions.length > 0) await syncSubscriptionAction(current);
+        }
+      } catch {
+        // Older app builds have no subscriptions plugin.
+      }
+
       const key = `wholl.widget.${userId}`;
       try {
         if (!localStorage.getItem(key)) {
@@ -63,6 +78,7 @@ export function NativeBridge({ userId }: { userId: string }) {
       cancelled = true;
       cleanups.forEach((c) => c());
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- product ids don't change while the app runs
   }, [router, userId]);
 
   return null;

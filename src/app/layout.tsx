@@ -3,6 +3,7 @@ import { DM_Sans, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import { Avatar } from "./components/Avatar";
 import { NativeBridge } from "./NativeBridge";
+import { proProductIds } from "@/server/subscriptions";
 import { getDb } from "@/server/db";
 import { unreadCount } from "@/server/notifications";
 import { currentUser } from "@/server/session";
@@ -64,7 +65,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           )}
         </header>
         <main>{children}</main>
-        {user && <NativeBridge userId={user.id} />}
+        {user && <NativeBridge userId={user.id} productIds={proProductIds()} />}
       </body>
     </html>
   );

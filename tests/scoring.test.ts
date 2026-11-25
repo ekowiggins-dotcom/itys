@@ -10,7 +10,7 @@ import { disputeResult, proposeResult, runDueCalls, voteOnResult } from "@/serve
 import { rank, rankingFor } from "@/server/rankings";
 import { callPoints, scoresForCall } from "@/server/scoring";
 import { weekRange, weekStart } from "@/server/time";
-import { signUp, testDb } from "./helpers";
+import { givePro, signUp, testDb } from "./helpers";
 
 let db: Db;
 beforeAll(async () => {
@@ -118,6 +118,7 @@ describe("end to end", () => {
     const u: Record<string, User> = {};
     for (const name of ["Ada", "Bo", "Cem", "Dee", "Eve"]) u[name] = (await signUp(db, name)).user;
     const groupId = await createGroup(db, u.Ada, { name: "Weekly", timeZone: "UTC", displayName: "Ada" }, T0);
+    await givePro(db, u.Ada.id); // 5+ members need Who’ll Pro
     const invite = (await groupForMember(db, u.Ada, groupId)).inviteToken!;
     for (const name of ["Bo", "Cem", "Dee", "Eve"]) await joinGroup(db, u[name], invite, name, `5.5.5.${++n}`, T0);
     return { u, groupId };

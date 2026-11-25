@@ -20,3 +20,20 @@ export async function signUp(db: Db, name = `User${++n}`, now = new Date()) {
   await setName(db, user, name);
   return { user: { ...user, name }, sessionToken };
 }
+
+/** Gives someone an active Who'll Pro subscription (as if bought in the app), so their groups can have 5+ people. */
+export async function givePro(db: Db, userId: string, expiresAt = new Date("2099-01-01T00:00:00Z")) {
+  const id = `test-${userId}`;
+  await db
+    .insert(schema.subscriptions)
+    .values({
+      originalTransactionId: id,
+      userId,
+      productId: "app.wholl.ios.pro.yearly",
+      transactionId: id,
+      environment: "Sandbox",
+      purchasedAt: new Date("2026-01-01T00:00:00Z"),
+      expiresAt,
+    })
+    .onConflictDoUpdate({ target: schema.subscriptions.originalTransactionId, set: { expiresAt, revokedAt: null } });
+}

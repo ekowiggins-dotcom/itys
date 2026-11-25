@@ -14,6 +14,7 @@ import * as callInvites from "@/server/call-invites";
 import * as devices from "@/server/devices";
 import * as review from "@/server/review";
 import * as apple from "@/server/apple";
+import * as subscriptions from "@/server/subscriptions";
 import { cookies } from "next/headers";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -335,4 +336,24 @@ export async function leaveGroupAction(_: FormState, form: FormData): Promise<Fo
     return toState(e);
   }
   redirect("/groups");
+}
+
+/**
+ * The iOS app hands over StoreKit 2 signed transactions (after a purchase, on start-up, on "Restore purchases").
+ * The server verifies Apple's signature before anything counts. Returns whether Pro is on now.
+ */
+export async function syncSubscriptionAction(input: {
+  transactions: string[];
+  renewals?: string[];
+  restore?: boolean;
+}): Promise<{ active: boolean; error?: string }> {
+  const user = await requireUser("/settings/subscription");
+  try {
+    const status = await subscriptions.syncFromApp(await getDb(), user, input);
+    revalidatePath("/", "layout");
+    return { active: status.active };
+  } catch (e) {
+    const state = toState(e);
+    return { active: false, error: state?.error };
+  }
 }

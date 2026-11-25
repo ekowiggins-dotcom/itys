@@ -2,6 +2,7 @@ import { leaveGroupAction, resetInviteAction } from "../../../actions";
 import { ActionForm, Submit } from "../../../ui";
 import { loadGroup } from "../data";
 import { InviteShare } from "../InviteShare";
+import { PlanNotice } from "../PlanNotice";
 import { MemberRow, RemovedRow } from "../MemberRow";
 import { getDb } from "@/server/db";
 import { blockedIds, removedMembers } from "@/server/moderation";
@@ -19,6 +20,7 @@ export default async function GroupTab({ params }: PageProps<"/groups/[id]/group
 
   return (
     <>
+      <PlanNotice plan={group.plan} place="group" />
       {inviteLink && (
         <section className="card invite-card">
           <h2>Invite friends</h2>
@@ -32,7 +34,11 @@ export default async function GroupTab({ params }: PageProps<"/groups/[id]/group
       )}
 
       <h2 className="section-title">
-        People <span className="count neutral">{group.members.length}</span>
+        People{" "}
+        <span className="count neutral">
+          {group.members.length}
+          {group.plan.enforced && !group.plan.payerHasPro ? ` of ${Math.max(group.plan.freeMembers, group.members.length)}` : ""}
+        </span>
       </h2>
       <div className="card">
         <ul className="list">

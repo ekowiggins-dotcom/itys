@@ -29,6 +29,12 @@ export default function Privacy() {
         <li><strong>Your name</strong>, and the name you use in each group, so friends know who’s who.</li>
         <li><strong>What you do in groups</strong>: calls you make, your picks, results you enter, disputes and votes, reports and blocks. Your group sees calls and, after a call is settled, who picked what. Before picks close, nobody sees how anyone picked.</li>
         <li><strong>Points and rankings</strong>, worked out from settled calls.</li>
+        <li>
+          <strong>Your Who’ll Pro subscription</strong>, if you buy one: Apple tells us which plan, its transaction
+          numbers, when it started, renews or ends, whether it will renew, and any refund. The app gives Apple your
+          Who’ll account ID at purchase so we know whose it is. Payment happens at Apple: we never see your card or
+          payment details.
+        </li>
         <li><strong>Notifications</strong> we’ve sent you, and whether you’ve read them.</li>
         <li><strong>Your phone’s push token</strong>, if you allow notifications in the iOS app, tied to the sign-in that registered it.</li>
         <li><strong>Technical data</strong>: a sign-in session (stored as a fingerprint, not the session itself), and your IP address for at most two days, only to stop abuse (rate limits).</li>
@@ -37,7 +43,7 @@ export default function Privacy() {
       <h2>What we don’t do</h2>
       <ul>
         <li>No ads, no analytics or tracking tools, no selling or sharing your data for marketing.</li>
-        <li>No money: points can’t be bought, spent, traded or cashed out, and there are no prizes.</li>
+        <li>No money in the game: points can’t be bought, spent, traded or cashed out, and there are no prizes.</li>
       </ul>
 
       <h2>Links you share</h2>
@@ -58,7 +64,10 @@ export default function Privacy() {
       <ul>
         <li><strong>Railway</strong> hosts the app and its database.</li>
         <li><strong>Resend</strong> sends sign-in and alert emails.</li>
-        <li><strong>Apple</strong> runs Sign in with Apple and delivers push notifications to the iOS app.</li>
+        <li>
+          <strong>Apple</strong> runs Sign in with Apple, delivers push notifications to the iOS app, and sells and bills
+          Who’ll Pro subscriptions.
+        </li>
       </ul>
       <p>They only process data to provide these services to us.</p>
 
@@ -68,9 +77,9 @@ export default function Privacy() {
         <li>Hide a call about you with one tap; report or block anyone.</li>
         <li>
           <strong>Delete your account</strong> in <Link href="/settings">Settings</Link>. It removes your account, names,
-          picks, votes, points, notifications and sign-in links straight away, ends Who’ll’s access to your Apple sign-in,
+          picks, votes, points, notifications, sign-in links and subscription records straight away, ends Who’ll’s access to your Apple sign-in,
           and takes down calls about you. Calls you wrote stay for your friends, shown as by “Former member”. Call
-          invites you shared stop working.
+          invites you shared stop working. A Who’ll Pro subscription is billed by Apple, so cancel it there too.
         </li>
       </ul>
 

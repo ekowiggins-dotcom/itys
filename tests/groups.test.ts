@@ -10,7 +10,7 @@ import {
   myGroups,
   resetInvite,
 } from "@/server/groups";
-import { signUp, testDb } from "./helpers";
+import { givePro, signUp, testDb } from "./helpers";
 
 let db: Db;
 beforeAll(async () => {
@@ -85,6 +85,7 @@ describe("visibility", () => {
       color: expect.stringMatching(/^#[0-9A-F]{6}$/),
       memberCount: 1,
       full: false,
+      needsPro: false,
       alreadyMember: false,
     });
     expect(await invitePreview(db, "x".repeat(22), ip(), null)).toBeNull();
@@ -131,7 +132,8 @@ describe("joining", () => {
   });
 
   it(`caps groups at ${MAX_MEMBERS} people`, async () => {
-    const { invite } = await groupWithAdmin("Full");
+    const { admin, invite } = await groupWithAdmin("Full");
+    await givePro(db, admin.id);
     for (let i = 1; i < MAX_MEMBERS; i++) {
       const u = await signUp(db, `Fill${i}`);
       await joinGroup(db, u.user, invite, `Fill${i}`, ip());
