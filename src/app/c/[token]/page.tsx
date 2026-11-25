@@ -117,6 +117,11 @@ export default async function CallInvite({ params, searchParams }: PageProps<"/c
         <p className="muted small">Tap your pick. Nobody sees it until picks close.</p>
       ) : p.full ? (
         <p className="error">This group is full.</p>
+      ) : p.needsPro ? (
+        <p className="card banner">
+          <strong>{p.groupName} is full for now.</strong> It has as many people as a free group can have. Whoever made it can
+          make room for more with Who’ll Pro. Ask {p.sharerName}, then open this link again.
+        </p>
       ) : !user ? (
         <div className="stack">
           <p className="muted small">

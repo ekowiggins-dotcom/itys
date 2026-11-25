@@ -9,6 +9,7 @@ import { checkCallText } from "./content-filter";
 import { hasBlocked } from "./moderation";
 import { emit, groupMemberIds } from "./notify";
 import { REMINDER_BEFORE_LOCK_MS } from "./timing";
+import { assertNotFrozen } from "./subscriptions";
 import { hit, LIMITS } from "./rate-limit";
 import { callVisibility, isLocked } from "./visibility";
 
@@ -54,6 +55,8 @@ export async function createCall(db: Db, user: User, groupId: string, input: New
 
   return db.transaction(async (tx) => {
     await requireMember(tx, user, groupId);
+    // A group past its free size whose payer's Pro has ended is paused: no new calls until they renew.
+    await assertNotFrozen(tx, user, groupId, now);
     const active = await tx
       .select({ userId: members.userId })
       .from(members)

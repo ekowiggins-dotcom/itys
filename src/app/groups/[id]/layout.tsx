@@ -47,6 +47,7 @@ export default async function GroupLayout({ children, params }: LayoutProps<"/gr
         members={group.members.map((m) => ({ userId: m.userId, displayName: m.displayName }))}
         faces={group.faces}
         turnCount={turn}
+        paused={group.plan.frozen ? (group.plan.payerIsMe ? "you renew" : `${group.plan.payerName ?? "the admin"} renews`) : null}
       />
     </div>
   );

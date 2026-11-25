@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CallCard } from "./CallCard";
+import { PlanNotice } from "./PlanNotice";
 import { cardTimes, loadCalls, loadGroup } from "./data";
 import type { CallView } from "@/server/call-views";
 import { getDb } from "@/server/db";
@@ -20,6 +21,7 @@ export default async function CallsTab({ params }: PageProps<"/groups/[id]">) {
 
   return (
     <>
+      <PlanNotice plan={group.plan} place="calls" />
       {toReview.length > 0 && (
         <p className="card banner">
           <strong>{toReview.length === 1 ? "A hidden call needs" : `${toReview.length} hidden calls need`} your review.</strong>{" "}

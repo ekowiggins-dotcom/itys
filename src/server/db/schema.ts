@@ -70,6 +70,11 @@ export const groups = pgTable("groups", {
   color: text("color"),
   /** Null once the creator deletes their account. */
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  /**
+   * How many active members the group may have without a Who'll Pro subscription (see subscriptions.ts).
+   * 4 for every new group; groups made before subscriptions keep the size they had then.
+   */
+  freeMembers: integer("free_members").notNull().default(4),
   createdAt: createdAt(),
 });
 
@@ -416,4 +421,36 @@ export const rateLimits = pgTable(
     count: integer("count").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.key, t.windowStart] }), index("rate_limits_window").on(t.windowStart)],
+);
+
+/**
+ * Who'll Pro: an auto-renewable App Store subscription. One row per subscription (Apple's original transaction id),
+ * kept up to date from the app (StoreKit 2 signed transactions) and App Store Server Notifications.
+ * Someone has Pro while a row of theirs is not revoked and its expiry (or billing grace period) is in the future.
+ */
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    originalTransactionId: text("original_transaction_id").primaryKey(),
+    /** Who it belongs to. Null until the app links it (e.g. a notification arrived first). Deleted with the account. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id").notNull(),
+    /** The latest transaction applied (each renewal is a new transaction). */
+    transactionId: text("transaction_id").notNull(),
+    /** "Production" or "Sandbox" (TestFlight and App Review). */
+    environment: text("environment").notNull(),
+    purchasedAt: ts("purchased_at").notNull(),
+    expiresAt: ts("expires_at").notNull(),
+    /** Billing grace period: Apple is retrying the payment and Pro stays on until then. */
+    graceUntil: ts("grace_until"),
+    /** Set when Apple refunds or revokes the latest transaction. */
+    revokedAt: ts("revoked_at"),
+    /** Whether it renews at the end of the period (false once the person cancels). */
+    autoRenew: boolean("auto_renew").notNull().default(true),
+    /** True while the current period is the free trial. */
+    inTrial: boolean("in_trial").notNull().default(false),
+    updatedAt: ts("updated_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("subscriptions_user").on(t.userId)],
 );

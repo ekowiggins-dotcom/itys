@@ -24,7 +24,7 @@ if (!app) throw new Error("App target not found. Run `npx cap add ios` first.");
 const appGroupKey = proj.findPBXGroupKey({ name: "App" }) || proj.findPBXGroupKey({ path: "App" });
 
 // 1. The app's own Swift files and entitlements.
-for (const f of ["AppViewController.swift", "WidgetBridgePlugin.swift", "AppleSignInPlugin.swift"]) {
+for (const f of ["AppViewController.swift", "WidgetBridgePlugin.swift", "AppleSignInPlugin.swift", "SubscriptionsPlugin.swift"]) {
   if (!hasFile(f)) proj.addSourceFile(f, { target: app[0] }, appGroupKey);
 }
 if (!hasFile("App.entitlements")) proj.addFile("App.entitlements", appGroupKey);

@@ -320,7 +320,8 @@ button:disabled {
   cursor: default;
 }
 
-button.secondary {
+button.secondary,
+.btn.secondary {
   background: var(--surface);
   color: var(--text);
   border: 1.5px solid var(--line-2);
@@ -1499,4 +1500,19 @@ button.apple-button {
 
 .email-login {
   margin-top: var(--s4);
+}
+
+/* ---------- Who'll Pro ---------- */
+.pro-offer button {
+  width: 100%;
+  height: auto;
+  min-height: 52px;
+  padding-block: var(--s2);
+  text-align: center;
+  line-height: 1.25;
+}
+
+.pro-offer button.link {
+  width: auto;
+  align-self: center;
 }

@@ -22,7 +22,7 @@ import {
 } from "@/server/moderation";
 import { inbox } from "@/server/notifications";
 import { rankingFor } from "@/server/rankings";
-import { signUp, testDb } from "./helpers";
+import { givePro, signUp, testDb } from "./helpers";
 
 let db: Db;
 beforeAll(async () => {
@@ -43,6 +43,7 @@ async function group(names = ["Ada", "Bo", "Cem", "Dee"]) {
     tokens[name] = s.sessionToken;
   }
   const groupId = await createGroup(db, u[names[0]], { name: "Mods", timeZone: "UTC", displayName: names[0] }, T0);
+  await givePro(db, u[names[0]].id); // 5+ members need Who’ll Pro
   const invite = (await groupForMember(db, u[names[0]], groupId)).inviteToken!;
   for (const name of names.slice(1)) await joinGroup(db, u[name], invite, name, `3.3.${Math.floor(++n / 250)}.${n % 250}`, T0);
   return { u, tokens, groupId, invite };

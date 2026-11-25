@@ -46,11 +46,14 @@ export function GroupChrome({
   members,
   faces,
   turnCount,
+  paused,
 }: {
   groupId: string;
   members: { userId: string; displayName: string }[];
   faces: Record<string, string>;
   turnCount: number;
+  /** Set when the group is paused (its creator's Who'll Pro ended): "Ada renews" / "you renew". */
+  paused: string | null;
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -78,7 +81,19 @@ export function GroupChrome({
       </button>
       )}
       <Sheet title="New call" open={open} onClose={() => setOpen(false)}>
-        <NewCallForm groupId={groupId} members={members} faces={faces} onDone={done} />
+        {paused ? (
+          <p>
+            This group is paused until {paused} Who’ll Pro, so new calls wait until then. Open calls carry on as usual.
+            {paused === "you renew" && (
+              <>
+                {" "}
+                <Link href="/settings/subscription">Renew Who’ll Pro →</Link>
+              </>
+            )}
+          </p>
+        ) : (
+          <NewCallForm groupId={groupId} members={members} faces={faces} onDone={done} />
+        )}
       </Sheet>
       <Toast message={toast} />
       <nav className="tabbar" aria-label="Group sections">

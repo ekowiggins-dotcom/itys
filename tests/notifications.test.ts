@@ -8,7 +8,7 @@ import { backoffMs, deliverOutbox, MAX_ATTEMPTS } from "@/server/delivery";
 import { createGroup, groupForMember, joinGroup, leaveGroup } from "@/server/groups";
 import { disputeResult, proposeResult, runDueCalls } from "@/server/lifecycle";
 import { inbox, markAllRead, unreadCount } from "@/server/notifications";
-import { signUp, testDb } from "./helpers";
+import { givePro, signUp, testDb } from "./helpers";
 
 let db: Db;
 beforeAll(async () => {
@@ -24,6 +24,7 @@ async function group(names = ["Ada", "Bo", "Cem", "Dee"]) {
   const u: Record<string, User> = {};
   for (const name of names) u[name] = (await signUp(db, name)).user;
   const groupId = await createGroup(db, u[names[0]], { name: "Notify", timeZone: "UTC", displayName: names[0] }, T0);
+  await givePro(db, u[names[0]].id); // 5+ members need Who’ll Pro
   const invite = (await groupForMember(db, u[names[0]], groupId)).inviteToken!;
   for (const name of names.slice(1)) await joinGroup(db, u[name], invite, name, `4.4.${Math.floor(++n / 250)}.${n % 250}`, T0);
   return { u, groupId };

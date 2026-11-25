@@ -42,6 +42,11 @@ export default async function Join({ params }: PageProps<"/join/[token]">) {
       </p>
       {preview.full ? (
         <p className="error">This group is full.</p>
+      ) : preview.needsPro ? (
+        <p className="card banner">
+          <strong>This group is full for now.</strong> It has as many people as a free group can have. Whoever made it can
+          make room for more with Who’ll Pro. Ask them, then open this link again.
+        </p>
       ) : !user ? (
         <Link href={`/login?next=${encodeURIComponent(here)}`}>
           <button type="button">Sign in to join</button>

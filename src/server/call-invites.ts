@@ -16,6 +16,7 @@ import { callInvites, calls, groups, members, picks, type CallOption } from "./d
 import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { addMember, MAX_MEMBERS, requireMember } from "./groups";
+import { groupPlan } from "./subscriptions";
 import { hit, LIMITS } from "./rate-limit";
 import { callInviteAllowed, callVisibility } from "./visibility";
 import { faceColors, GROUP_COLORS, groupColorKey } from "@/lib/faces";
@@ -51,6 +52,8 @@ export type CallInvitePreview = {
   color: string;
   memberCount: number;
   full: boolean;
+  /** Nobody new can join until whoever made the group has Who’ll Pro (free size reached, or paused). */
+  needsPro: boolean;
   sharerName: string;
   text: string;
   kind: "yes_no" | "choice" | "member";
@@ -122,6 +125,7 @@ export async function callInvitePreview(
     color: GROUP_COLORS[colorKey],
     memberCount: active.length,
     full: active.length >= MAX_MEMBERS,
+    needsPro: active.length < MAX_MEMBERS && !(await groupPlan(db, c.groupId, now)).canAddMember,
     sharerName,
     text: c.text,
     kind: c.kind,

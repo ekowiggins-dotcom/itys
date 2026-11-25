@@ -16,6 +16,10 @@ The iOS app signs people in with **Sign in with Apple** only. Requirements (the 
 - Optional, recommended: a **Sign in with Apple key** (Keys → +, enable Sign in with Apple; one key can also have APNs). Set `APPLE_SIGNIN_KEY` (the .p8 contents), `APPLE_SIGNIN_KEY_ID` and `APPLE_TEAM_ID` in Railway. With it, deleting an account also revokes the app's access at Apple, as Apple asks for apps using Sign in with Apple.
 - Website: the same button works in Safari when `APPLE_SERVICES_ID` is set (a Services ID with your domain and `https://<domain>/` as the return URL, as the old app had it). Email links remain as a fallback on the website only.
 
+## Who'll Pro (subscription, from 1.1)
+
+See [SUBSCRIPTIONS.md](SUBSCRIPTIONS.md) for the products, the notifications URL and the review notes.
+
 ## App Review access
 
 Reviewers can simply use **Sign in with Apple** with their own Apple ID, but they'd land in an empty account. To give them a ready-made group: In Railway, set on the web service:
@@ -40,8 +44,9 @@ Data **linked to the user**, used for **App Functionality** only, **not** used f
 | User Content → Other User Content | calls, picks, results, votes, reports |
 | Identifiers → User ID | account id |
 | Identifiers → Device ID | push token (only if notifications are allowed) |
+| Purchases → Purchase History | Who'll Pro subscription: plan, transaction ids, renewal and expiry dates (from 1.1) |
 
-Not collected: location, contacts, browsing history, purchases, financial info, health, diagnostics/analytics, advertising data. No tracking.
+Not collected: location, contacts, browsing history, financial info (payment happens at Apple), health, diagnostics/analytics, advertising data. No tracking.
 
 ## Age rating
 

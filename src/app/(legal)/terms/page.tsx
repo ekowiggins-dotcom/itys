@@ -14,9 +14,44 @@ export default function Terms() {
 
       <h2>A free game, just for fun</h2>
       <ul>
-        <li>Who’ll is free. Points are only earned by being right and are just for fun.</li>
+        <li>
+          Who’ll is free to play. An optional subscription, Who’ll Pro, lets groups you create have more people (see
+          below). It never changes how points work.
+        </li>
+        <li>Points are only earned by being right and are just for fun.</li>
         <li>Points can’t be bought, spent, traded, transferred or exchanged for money, prizes or anything else.</li>
         <li>Don’t attach money, payments or prizes to calls or rankings, inside or outside the app.</li>
+      </ul>
+
+      <h2>Who’ll Pro (subscription)</h2>
+      <ul>
+        <li>
+          Free groups have up to 4 people. With Who’ll Pro, every group you created can have up to 30. One subscription
+          covers all of them; the people in them don’t pay.
+        </li>
+        <li>
+          Pro is an auto-renewing subscription bought through Apple in the Who’ll iPhone app, monthly or yearly. The price
+          is shown in the app before you buy. If you’re eligible, it starts with a free week.
+        </li>
+        <li>
+          Payment is charged to your Apple ID when you confirm the purchase (or when the free week ends). It renews
+          automatically for the same period and price unless you turn off auto-renew at least 24 hours before the end of
+          the current period; your Apple ID is charged for the renewal within 24 hours before the end.
+        </li>
+        <li>
+          Manage or cancel it at any time in your iPhone’s Settings → your name → Subscriptions. Cancelling stops the
+          next renewal; Pro stays on until the end of the period you paid for. Refunds are handled by Apple under its
+          policies. Deleting your Who’ll account doesn’t cancel the subscription, so cancel it at Apple first.
+        </li>
+        <li>
+          If Pro ends, a group of yours with more than its free size is paused: nobody can make new calls or join until
+          you subscribe again. Open calls carry on, nobody is removed and nothing is deleted.
+        </li>
+        <li>
+          Apple’s{" "}
+          <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">Standard End User License Agreement</a>{" "}
+          also applies to the iOS app.
+        </li>
       </ul>
 
       <h2>Be kind</h2>

@@ -8,9 +8,11 @@ import type { Db, Tx } from "./db/types";
 import { AppError, notFound } from "./errors";
 import { emit, groupMemberIds } from "./notify";
 import { hit, LIMITS } from "./rate-limit";
+import { assertCanAddMember, groupPlan, MAX_WITH_PRO, type GroupPlan } from "./subscriptions";
 import { faceColors, GROUP_COLOR_KEYS, GROUP_COLORS, groupColorKey, type GroupColor } from "@/lib/faces";
 
-export const MAX_MEMBERS = 30;
+/** The most members any group can have (with Who'll Pro; free groups have fewer, see subscriptions.ts). */
+export const MAX_MEMBERS = MAX_WITH_PRO;
 /** 16 bytes = 128 bits: invite links can't be guessed. */
 const newInviteToken = () => randomToken(16);
 
@@ -38,6 +40,8 @@ export type GroupView = {
   me: { displayName: string; role: "admin" | "member" };
   members: { userId: string; displayName: string; role: "admin" | "member"; joinedAt: Date }[];
   inviteToken: string | null;
+  /** Size limit, who pays for more, and whether the group is paused (subscriptions.ts). */
+  plan: GroupPlan & { payerIsMe: boolean };
 };
 
 export async function createGroup(
@@ -101,7 +105,7 @@ async function requireAdmin(db: Db | Tx, user: User, groupId: string) {
   return m;
 }
 
-export async function groupForMember(db: Db, user: User, groupId: string): Promise<GroupView> {
+export async function groupForMember(db: Db, user: User, groupId: string, now = new Date()): Promise<GroupView> {
   const me = await requireMember(db, user, groupId);
   const [group] = await db.select().from(groups).where(eq(groups.id, groupId));
   const list = await db
@@ -110,6 +114,7 @@ export async function groupForMember(db: Db, user: User, groupId: string): Promi
     .where(and(eq(members.groupId, groupId), isNull(members.leftAt)))
     .orderBy(asc(members.joinedAt));
   const color = groupColorKey(group.color, group.id);
+  const plan = await groupPlan(db, groupId, now);
   return {
     id: group.id,
     name: group.name,
@@ -119,6 +124,7 @@ export async function groupForMember(db: Db, user: User, groupId: string): Promi
     me: { displayName: me.displayName, role: me.role },
     members: list,
     inviteToken: me.role === "admin" ? group.inviteToken : null,
+    plan: { ...plan, payerIsMe: plan.payerId === user.id },
   };
 }
 
@@ -143,7 +149,9 @@ export async function invitePreview(db: Db, token: string, ip: string, user: Use
     alreadyMember = !!m;
   }
   const color = GROUP_COLORS[groupColorKey(group.color, group.id)];
-  return { groupId: group.id, name: group.name, color, memberCount: n, full: n >= MAX_MEMBERS, alreadyMember };
+  // Past its free size without Pro (or paused): nobody new can join until whoever made the group subscribes.
+  const needsPro = n < MAX_MEMBERS && !(await groupPlan(db, group.id, now)).canAddMember;
+  return { groupId: group.id, name: group.name, color, memberCount: n, full: n >= MAX_MEMBERS, needsPro, alreadyMember };
 }
 
 export async function joinGroup(
@@ -181,6 +189,8 @@ export async function addMember(tx: Tx, groupId: string, user: User, displayName
     .from(members)
     .where(and(eq(members.groupId, groupId), isNull(members.leftAt)));
   if (n >= MAX_MEMBERS) throw new AppError("conflict", `This group is full (${MAX_MEMBERS} people).`);
+  // Free groups have up to 4 people; more needs the payer's Who'll Pro, and a paused group takes nobody new.
+  await assertCanAddMember(tx, groupId, now);
 
   const [taken] = await tx
     .select({ userId: members.userId })

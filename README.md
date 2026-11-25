@@ -14,6 +14,7 @@ This is a clean rebuild, made step by step:
 | 6 | Moderation and reporting | ✅ |
 | 7 | Share cards | ✅ |
 | 8 | iOS app (Capacitor) and widget | ✅ (builds in CI; not yet run on a device) |
+| 9 | Who’ll Pro: subscription for groups of 5+ (v1.1) | ✅ (see docs/SUBSCRIPTIONS.md) |
 
 ## Stack
 
@@ -79,6 +80,8 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 | `APPLE_SIGNIN_KEY`, `APPLE_SIGNIN_KEY_ID`, `APPLE_TEAM_ID` | Optional: lets account deletion revoke Sign in with Apple (see docs/APP_STORE.md). |
 | `REVIEW_EMAIL`, `REVIEW_CODE` | App Review sign-in with a code, plus a demo group (see docs/APP_STORE.md). |
 | `ERROR_WEBHOOK_URL` | Optional Slack/Discord webhook for server error alerts (errors are always logged as JSON). |
+| `PRO_LIMITS` | `on` turns on Who’ll Pro’s group-size limits and shows Pro to everyone. Leave it unset until the 1.1 app is approved (the 1.0 app can’t buy). |
+| `IAP_PRODUCT_IDS` | Optional: Who’ll Pro product ids, comma-separated. Default `app.wholl.ios.pro.monthly,app.wholl.ios.pro.yearly`. |
 | `RUN_JOBS_IN_PROCESS` | Set to `1` to run the job runner inside the web server (simplest single-service setup). |
 
 Run `npm run db:migrate` before starting a new release.
@@ -101,6 +104,14 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - Rankings (this week, last week, all time) sort by **average points per call picked**, then number right. To be ranked you must pick at least 60% of the calls you could have (all time: at least 5). Calls about you, and calls from before you joined, don't count against you.
 - Weeks run Monday 00:00 to Monday 00:00 in the group's time zone.
 - Points can't be bought, spent, traded or cashed out, and there are no prizes. `tests/wording.test.ts` keeps gambling words out of the app.
+
+## Who’ll Pro (v1.1)
+
+- Groups of up to 4 people are free. A 5th person can join only if the group’s creator has **Who’ll Pro**, an auto-renewing App Store subscription (monthly or yearly, with a free week). One subscription covers every group that person created; everyone else stays free.
+- If the creator’s Pro ends, a group with 5+ people is **paused**: no new calls and no new members until they renew. Open calls carry on (picks, settling, disputes), nobody is removed, nothing is deleted. Members see “Paused until <creator> renews”.
+- **Switch:** limits only apply with `PRO_LIMITS=on`. Until then groups can have up to 30 as before, and Pro is shown only inside app builds that can buy it (1.1+), so the 1.0 app and its review never see it. Groups that grow past 4 while the switch is off keep that size for free.
+- Groups made before v1.1 keep the size they had then for free (`groups.free_members`). If the creator leaves or deletes their account, the group’s admin is the one whose Pro counts.
+- The iOS app buys with StoreKit 2 (`ios/App/App/SubscriptionsPlugin.swift`) and sends the signed transactions to the server, which checks Apple’s certificate chain and signature (`src/server/storekit.ts`). App Store Server Notifications v2 (`POST /api/app-store/notifications`) keep renewals, expiry, refunds and revocation up to date (`src/server/subscriptions.ts`). Points are never part of it.
 
 ## Notifications
 

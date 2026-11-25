@@ -10,6 +10,7 @@ const env = {
   PGLITE_DIR: mkdtempSync(join(tmpdir(), "wholl-e2e-")),
   NEXT_DIST_DIR: ".next-e2e",
   NEXT_TELEMETRY_DISABLED: "1",
+  PRO_LIMITS: "on",
 };
 delete env.DATABASE_URL;
 const seed = spawnSync("npx", ["tsx", "scripts/seed-dev.mts"], { env, stdio: "inherit" });
