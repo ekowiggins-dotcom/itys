@@ -24,7 +24,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   useEffect(() => {
     let gone = false;
     (async () => {
-      const kit = await storeKit();
+      const kit = (await storeKit())?.kit;
       if (gone) return;
       setWhere(kit ? "store" : isNativeApp() ? "old-app" : "web");
       if (!kit) return;
@@ -42,7 +42,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   }, [ids]);
 
   async function buy(p: StoreProduct) {
-    const kit = await storeKit();
+    const kit = (await storeKit())?.kit;
     if (!kit) return;
     setBusy(p.id);
     setMessage({});
@@ -53,7 +53,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
         const s = await syncSubscriptionAction({ transactions: [r.transaction], renewals: r.renewals ?? [] });
         if (s.error) setMessage({ error: s.error });
         else {
-          setMessage({ ok: "You’ve got Who’ll Pro. Your groups can now have up to 30 people." });
+          setMessage({ ok: "You’ve got Who’ll Pro. Your groups can now have up to 20 people." });
           void haptic("success");
           router.refresh();
         }
@@ -66,7 +66,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   }
 
   async function restore() {
-    const kit = await storeKit();
+    const kit = (await storeKit())?.kit;
     if (!kit) return;
     setBusy("restore");
     setMessage({});
@@ -91,7 +91,7 @@ export function ProOffer({ userId, productIds, active }: { userId: string; produ
   }
 
   async function manage() {
-    const kit = await storeKit();
+    const kit = (await storeKit())?.kit;
     try {
       if (kit) await kit.manage();
     } catch {

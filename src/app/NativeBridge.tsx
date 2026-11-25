@@ -51,7 +51,7 @@ export function NativeBridge({ userId, productIds }: { userId: string; productId
 
       // Who'll Pro: renewals, Ask to Buy approvals and the current subscription (the server verifies them).
       try {
-        const kit = await storeKit();
+        const kit = (await storeKit())?.kit;
         if (kit && !cancelled) {
           const sub = await kit.addListener("transaction", (e) => void syncSubscriptionAction({ transactions: [e.transaction] }));
           cleanups.push(() => void sub.remove());

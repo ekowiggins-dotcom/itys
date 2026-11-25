@@ -1,12 +1,12 @@
 # Who’ll Pro: setting up the subscription (v1.1)
 
-Groups of up to 4 people are free. Who’ll Pro lets every group someone created have up to 30. How it works in the
+Groups of up to 4 people are free. Who’ll Pro lets every group someone created have up to 20. How it works in the
 app: README.md → “Who’ll Pro”. This page is the App Store Connect side.
 
 ## 0. The switch
 
 The server enforces the 4-person free size only when Railway has `PRO_LIMITS=on`. Without it, groups work as in 1.0
-(up to 30 people) and Who’ll Pro appears only inside app builds that can buy it (1.1 and later). So this can be
+(no free-size limit; at most 20 people) and Who’ll Pro appears only inside app builds that can buy it (1.1 and later). So this can be
 deployed while 1.0 is in review, tested in TestFlight (purchases, restore), and switched on once 1.1 is approved.
 To test pausing in TestFlight before that, turn it on briefly and off again: groups that grew past 4 in the meantime
 keep their size for free.
@@ -25,7 +25,7 @@ keep their size for free.
    If you use other ids, set `IAP_PRODUCT_IDS` on Railway to both, comma-separated (monthly first is fine; the app
    shows yearly first).
 3. For each: set the **price** (yearly cheaper than 12 × monthly), a **display name** and **description** per
-   language (e.g. “Who’ll Pro” / “Groups of up to 30 people”), and a **review screenshot** of the purchase screen
+   language (e.g. “Who’ll Pro” / “Groups of up to 20 people”), and a **review screenshot** of the purchase screen
    (Settings → Who’ll Pro in the app; a TestFlight screenshot is fine) with review notes (below).
 4. **Introductory offer** on both: Free, 1 week, for new subscribers.
 5. Group level: add a localized group display name (“Who’ll Pro”). Leave Family Sharing off unless you want it.
@@ -69,6 +69,6 @@ no keys on the server).
 - The purchase screen shows the price and period from the App Store, the free week, that it renews automatically
   unless cancelled 24 hours before the end, how to cancel, and links to the Terms of Use (`/terms`, which also links
   Apple’s standard EULA) and the Privacy Policy (`/privacy`).
-- In the app’s App Store description, add a line such as: “Optional Who’ll Pro subscription for groups of 5–30
+- In the app’s App Store description, add a line such as: “Optional Who’ll Pro subscription for groups of 5–20
   people. Terms: https://itys-production.up.railway.app/terms”.
 - App Privacy: add **Purchases → Purchase History** (linked to the user, App Functionality, not tracking).

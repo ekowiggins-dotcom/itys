@@ -26,7 +26,7 @@ export default function Terms() {
       <h2>Who’ll Pro (subscription)</h2>
       <ul>
         <li>
-          Free groups have up to 4 people. With Who’ll Pro, every group you created can have up to 30. One subscription
+          Free groups have up to 4 people. With Who’ll Pro, every group you created can have up to 20. One subscription
           covers all of them; the people in them don’t pay.
         </li>
         <li>

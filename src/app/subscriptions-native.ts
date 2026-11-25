@@ -34,11 +34,15 @@ export function canBuyInApp() {
   return isNativeApp() && !!cap?.isPluginAvailable?.("Subscriptions");
 }
 
-/** The plugin inside the iOS app; null on the web and in older app builds (subscriptions are bought in the app). */
-export async function storeKit(): Promise<SubscriptionsPlugin | null> {
+/**
+ * The plugin inside the iOS app; null on the web and in older app builds (subscriptions are bought in the app).
+ * Wrapped in an object: a Capacitor plugin is a Proxy that answers every property, `then` included, so returning
+ * it bare from an async function makes the promise treat it as a thenable and fail ("then() is not implemented").
+ */
+export async function storeKit(): Promise<{ kit: SubscriptionsPlugin } | null> {
   if (!canBuyInApp()) return null;
   const { registerPlugin } = await import("@capacitor/core");
-  return registerPlugin<SubscriptionsPlugin>("Subscriptions");
+  return { kit: registerPlugin<SubscriptionsPlugin>("Subscriptions") };
 }
 
 /** "month" → "month", 1 year → "year", 3 months → "3 months". */

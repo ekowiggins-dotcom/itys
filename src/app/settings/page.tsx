@@ -5,7 +5,7 @@ import { getDb } from "@/server/db";
 import { blockedPeople } from "@/server/moderation";
 import { ActionForm, Submit } from "../ui";
 import { requireUser } from "@/server/session";
-import { FREE_MEMBERS, proLimitsOn, proStatus } from "@/server/subscriptions";
+import { FREE_MEMBERS, MAX_WITH_PRO, proLimitsOn, proStatus } from "@/server/subscriptions";
 import { ProGate } from "./ProGate";
 import Link from "next/link";
 
@@ -22,8 +22,8 @@ export default async function Settings() {
         <div className="card">
           <p className="small" style={{ marginTop: 0 }}>
             {pro.active
-              ? "Pro is on: groups you made can have up to 30 people."
-              : `Free groups have up to ${FREE_MEMBERS} people. Pro lets groups you made have up to 30.`}
+              ? `Pro is on: groups you made can have up to ${MAX_WITH_PRO} people.`
+              : `Free groups have up to ${FREE_MEMBERS} people. Pro lets groups you made have up to ${MAX_WITH_PRO}.`}
           </p>
           <Link href="/settings/subscription" className="btn secondary">
             {pro.active ? "Your subscription" : "See Who’ll Pro"}

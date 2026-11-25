@@ -109,7 +109,7 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 
 - Groups of up to 4 people are free. A 5th person can join only if the group’s creator has **Who’ll Pro**, an auto-renewing App Store subscription (monthly or yearly, with a free week). One subscription covers every group that person created; everyone else stays free.
 - If the creator’s Pro ends, a group with 5+ people is **paused**: no new calls and no new members until they renew. Open calls carry on (picks, settling, disputes), nobody is removed, nothing is deleted. Members see “Paused until <creator> renews”.
-- **Switch:** limits only apply with `PRO_LIMITS=on`. Until then groups can have up to 30 as before, and Pro is shown only inside app builds that can buy it (1.1+), so the 1.0 app and its review never see it. Groups that grow past 4 while the switch is off keep that size for free.
+- **Switch:** limits only apply with `PRO_LIMITS=on`. Until then groups can grow to 20 without Pro, and Pro is shown only inside app builds that can buy it (1.1+), so the 1.0 app and its review never see it. Groups that grow past 4 while the switch is off keep that size for free.
 - Groups made before v1.1 keep the size they had then for free (`groups.free_members`). If the creator leaves or deletes their account, the group’s admin is the one whose Pro counts.
 - The iOS app buys with StoreKit 2 (`ios/App/App/SubscriptionsPlugin.swift`) and sends the signed transactions to the server, which checks Apple’s certificate chain and signature (`src/server/storekit.ts`). App Store Server Notifications v2 (`POST /api/app-store/notifications`) keep renewals, expiry, refunds and revocation up to date (`src/server/subscriptions.ts`). Points are never part of it.
 
