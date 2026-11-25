@@ -20,7 +20,7 @@ export default defineConfig({
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/, use: { browserName: "chromium" } },
-    { name: "phone", use: { ...devices["iPhone 13"], browserName: "chromium" }, testMatch: /(layout|call-invite)\.spec\.ts/, dependencies: ["setup"] },
+    { name: "phone", use: { ...devices["iPhone 13"], browserName: "chromium" }, testMatch: /(layout|call-invite|waitlist)\.spec\.ts/, dependencies: ["setup"] },
     { name: "appstore", testMatch: /appstore\.spec\.ts/, use: { browserName: "chromium" }, dependencies: ["setup"] },
   ],
   webServer: {

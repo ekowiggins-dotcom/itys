@@ -1751,3 +1751,94 @@ body:has(.marketing) .top {
     border: 1px solid #3a463e;
   }
 }
+
+/* ---------- Waitlist ---------- */
+.waitlist {
+  position: relative;
+  padding-top: var(--s5);
+  overflow-x: clip;
+}
+
+.waitlist h1 {
+  max-width: 12ch;
+  font-size: clamp(36px, 9vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+}
+
+.waitlist-stamp {
+  position: absolute;
+  right: -16px;
+  top: 0;
+  width: 112px;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.waitlist-sizes {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.waitlist-sizes legend {
+  padding: 0;
+  margin-bottom: var(--s2);
+  font-weight: 700;
+}
+
+.chip-choice {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+}
+
+.chip-choice input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+}
+
+.chip-choice span {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line-2);
+  background: var(--surface);
+  font: 700 var(--fs-md) var(--font-display);
+  cursor: pointer;
+}
+
+.chip-choice input:checked + span {
+  background: var(--lime);
+  color: var(--brand-ink);
+  border: 2px solid var(--brand-ink);
+}
+
+.chip-choice input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.waitlist-thanks h2 {
+  margin-top: 0;
+}
+
+/* The honeypot: off-screen for people, still in the form for bots. */
+.hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.mk-waitlist {
+  text-align: center;
+  color: var(--text-2);
+}

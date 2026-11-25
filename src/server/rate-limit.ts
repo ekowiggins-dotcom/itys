@@ -15,6 +15,7 @@ export const LIMITS = {
   createCall: { name: "call:create", max: 20, windowSeconds: 86400 },
   shareViewByIp: { name: "share:view:ip", max: 120, windowSeconds: 3600 },
   callInviteViewByIp: { name: "call-invite:view:ip", max: 120, windowSeconds: 3600 },
+  waitlistByIp: { name: "waitlist:ip", max: 10, windowSeconds: 3600 },
 } satisfies Record<string, Limit>;
 
 /**

@@ -193,6 +193,10 @@ export default async function Home() {
         <GetIt />
       </section>
 
+      <p className="mk-waitlist">
+        Not ready for the app yet? <Link href="/waitlist">Join the waitlist</Link>
+      </p>
+
       <LegalFooter />
     </div>
   );

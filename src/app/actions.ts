@@ -14,6 +14,7 @@ import * as callInvites from "@/server/call-invites";
 import * as devices from "@/server/devices";
 import * as review from "@/server/review";
 import * as apple from "@/server/apple";
+import * as waitlist from "@/server/waitlist";
 import * as subscriptions from "@/server/subscriptions";
 import { cookies } from "next/headers";
 import { getDb } from "@/server/db";
@@ -355,5 +356,33 @@ export async function syncSubscriptionAction(input: {
   } catch (e) {
     const state = toState(e);
     return { active: false, error: state?.error };
+  }
+}
+
+export type WaitlistState = { ok?: true; error?: "badEmail" | "tooMany" | "failed" } | undefined;
+
+/** The website's waitlist form (no sign-in needed). Errors are keys, shown in the page's language. */
+export async function waitlistAction(_: WaitlistState, form: FormData): Promise<WaitlistState> {
+  const opt = (k: string) => (form.get(k) == null ? null : String(form.get(k)));
+  try {
+    await waitlist.joinWaitlist(
+      await getDb(),
+      {
+        email: str(form, "email"),
+        locale: str(form, "locale") as "en" | "tr",
+        groupSize: opt("groupSize") as waitlist.GroupSize | null,
+        source: opt("source"),
+        campaign: opt("campaign"),
+        content: opt("content"),
+        website: opt("website"),
+      },
+      await clientIp(),
+    );
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof ZodError) return { error: "badEmail" };
+    if (e instanceof AppError && e.code === "rate_limited") return { error: "tooMany" };
+    console.error(e);
+    return { error: "failed" };
   }
 }
