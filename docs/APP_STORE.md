@@ -14,7 +14,7 @@ The iOS app signs people in with **Sign in with Apple** only. Requirements (the 
 
 - App ID `app.wholl.ios` has the **Sign in with Apple** capability (the app's entitlements request it; the TestFlight workflow makes profiles that include it).
 - Optional, recommended: a **Sign in with Apple key** (Keys → +, enable Sign in with Apple; one key can also have APNs). Set `APPLE_SIGNIN_KEY` (the .p8 contents), `APPLE_SIGNIN_KEY_ID` and `APPLE_TEAM_ID` in Railway. With it, deleting an account also revokes the app's access at Apple, as Apple asks for apps using Sign in with Apple.
-- Website: the same button works in Safari when `APPLE_SERVICES_ID` is set (a Services ID with your domain and `https://<domain>/` as the return URL, as the old app had it). Email links remain as a fallback on the website only.
+- Website: sign-in happens only in the iOS app. In a browser, /login, invite links and sign-in links show “Get the app” (App Store link) instead. The server knows the app by `WhollApp/` in the user agent (1.1+) or by the `wholl_app` cookie the page sets when it finds the app’s native bridge (1.0). See `src/lib/app-client.ts`.
 
 ## Who'll Pro (subscription, from 1.1)
 

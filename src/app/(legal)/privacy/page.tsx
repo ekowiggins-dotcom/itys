@@ -19,8 +19,8 @@ export default function Privacy() {
       <ul>
         <li>
           <strong>Your Sign in with Apple details</strong>: the ID Apple gives us for you, and the email Apple shares
-          (this can be a private relay address if you chose “Hide My Email”). On the website you can also sign in with
-          an email link. We never show your email to other people.
+          (this can be a private relay address if you chose “Hide My Email”). In the app you can also sign in with an
+          email link. We never show your email to other people.
         </li>
         <li>
           <strong>A Sign in with Apple token</strong>, so that when you delete your account we can also end Who’ll’s

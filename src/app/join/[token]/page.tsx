@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { joinGroupAction } from "../../actions";
@@ -5,13 +6,20 @@ import { ActionForm, Submit } from "../../ui";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import { invitePreview } from "@/server/groups";
-import { clientIp, currentUser } from "@/server/session";
+import { GetTheApp } from "../../components/GetTheApp";
+import { appOrigin, clientIp, currentUser, isAppRequest } from "@/server/session";
+import { appBannerMeta } from "@/lib/app-client";
 
-export const metadata = {
-  title: "You're invited to Who’ll",
-  description: "Join your friends' group and make your calls. Free points, no money, just bragging rights.",
-  robots: { index: false },
-};
+export async function generateMetadata({ params }: PageProps<"/join/[token]">): Promise<Metadata> {
+  const { token } = await params;
+  return {
+    title: "You're invited to Who’ll",
+    description: "Join your friends' group and make your calls. Free points, no money, just bragging rights.",
+    robots: { index: false },
+    // Safari's app banner: "Open" takes this invite into the app.
+    other: appBannerMeta(`${await appOrigin()}/join/${token}`),
+  };
+}
 
 export default async function Join({ params }: PageProps<"/join/[token]">) {
   const { token } = await params;
@@ -47,6 +55,8 @@ export default async function Join({ params }: PageProps<"/join/[token]">) {
           <strong>This group is full for now.</strong> It has as many people as a free group can have. Whoever made it can
           make room for more with Who’ll Pro. Ask them, then open this link again.
         </p>
+      ) : !user && !(await isAppRequest()) ? (
+        <GetTheApp invite />
       ) : !user ? (
         <Link href={`/login?next=${encodeURIComponent(here)}`}>
           <button type="button">Sign in to join</button>

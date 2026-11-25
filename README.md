@@ -69,14 +69,14 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 |---|---|
 | `DATABASE_URL` | Postgres connection string. Required in production. |
 | `APP_ORIGIN` | Public URL, e.g. `https://wholl.app`. Required in production; links are never built from the request's Host header. |
-| `RESEND_API_KEY` | Sends email (website email sign-in fallback, alerts) through Resend. Not needed for the iOS app, which uses Sign in with Apple. |
+| `RESEND_API_KEY` | Sends email (sign-in links for “Use email instead” in the app, alerts) through Resend. Sign in with Apple works without it. |
 | `EMAIL_FROM` | Sender, e.g. `Who'll <login@wholl.app>`. |
 
 | `CRON_SECRET` | 16+ random characters. Protects `POST /api/jobs`. |
 | `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY`, `IOS_BUNDLE_ID` | Push notifications and universal links for the iOS app (see docs/IOS.md). |
 | `SUPPORT_EMAIL` | Contact address shown on `/support` and `/privacy` (needed for App Store review). |
 | `OPERATOR_NAME` | Who runs the service, named on the privacy and terms pages. |
-| `APPLE_SERVICES_ID` | Sign in with Apple on the website (Services ID). The iOS app works without it. |
+| `APPLE_SERVICES_ID` | Not needed: sign-in happens in the iOS app only. Tokens for it are still accepted if set. |
 | `APPLE_SIGNIN_KEY`, `APPLE_SIGNIN_KEY_ID`, `APPLE_TEAM_ID` | Optional: lets account deletion revoke Sign in with Apple (see docs/APP_STORE.md). |
 | `REVIEW_EMAIL`, `REVIEW_CODE` | App Review sign-in with a code, plus a demo group (see docs/APP_STORE.md). |
 | `ERROR_WEBHOOK_URL` | Optional Slack/Discord webhook for server error alerts (errors are always logged as JSON). |
@@ -105,6 +105,13 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - Rankings (this week, last week, all time) sort by **average points per call picked**, then number right. To be ranked you must pick at least 60% of the calls you could have (all time: at least 5). Calls about you, and calls from before you joined, don't count against you.
 - Weeks run Monday 00:00 to Monday 00:00 in the group's time zone.
 - Points can't be bought, spent, traded or cashed out, and there are no prizes. `tests/wording.test.ts` keeps gambling words out of the app.
+
+## Sign-in happens in the app
+
+- Sign in with Apple and emailed sign-in links work **only inside the iOS app**. In a web browser, `/login`, invite links (`/join/*`, `/c/*`) and sign-in links show “Get the app” with the App Store link instead, and the sign-in actions refuse. The website is the landing page; existing web sessions keep working.
+- The server recognises the app by `WhollApp/` in the user agent (set in `capacitor.config.ts`, builds from 1.1) or by the `wholl_app` cookie, which the page sets as soon as it finds the app’s native bridge (`src/app/AppMarker.tsx`), so the 1.0 build works too. Neither is a security boundary; they decide what to offer.
+- Invite and sign-in links are universal links, so on an iPhone with the app they open in the app. Invite pages also carry Safari’s app banner with the invite as `app-argument`.
+- Browser tests sign in with the app’s user agent (`tests/e2e`).
 
 ## Who’ll Pro (v1.1)
 
@@ -149,7 +156,7 @@ Live at https://itys-production.up.railway.app (Railway project "reasonable-unit
 - **Database:** the project's Postgres service; `DATABASE_URL=${{Postgres.DATABASE_URL}}` on `itys`.
 - **Migrations:** `npm start` runs `npm run db:migrate` first (under a Postgres advisory lock), so every deploy has its tables before it serves anything.
 - **Background jobs:** `RUN_JOBS_IN_PROCESS=1` runs them inside the web service. To split them out later, add a second service from this repo with start command `npm run worker` and remove that variable.
-- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (website email fallback and alert emails; the iOS app signs in with Apple).
+- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (email sign-in links in the app and alert emails).
 - **Health check:** `GET /api/health` (checks the database).
 - The service is configured in the Railway dashboard, not by a config file in this repo.
 

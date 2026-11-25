@@ -27,6 +27,8 @@ import {
   requireUser,
   safeNext,
   sessionToken,
+  isAppRequest,
+  requireApp,
   setSessionCookie,
 } from "@/server/session";
 
@@ -43,6 +45,11 @@ function toState(e: unknown): FormState {
 }
 
 export async function requestLoginAction(_: FormState, form: FormData): Promise<FormState> {
+  try {
+    await requireApp(); // sign-in happens in the iOS app only
+  } catch (e) {
+    return toState(e);
+  }
   const code = str(form, "code");
   if (code) {
     // App Review: a configured account signs in with a code instead of an email link.
@@ -74,6 +81,7 @@ const APPLE_NONCE_COOKIE = "wholl_apple_nonce";
 
 /** Step 1 of Sign in with Apple: a one-time nonce (kept in a 10-minute httpOnly cookie); returns its hash for Apple. */
 export async function appleNonceAction() {
+  await requireApp();
   const nonce = apple.newNonce();
   (await cookies()).set(APPLE_NONCE_COOKIE, nonce, {
     httpOnly: true,
@@ -87,6 +95,7 @@ export async function appleNonceAction() {
 
 /** Step 2: Apple's answer. Checks it, signs in (or creates the account) and says where to go next. */
 export async function appleSignInAction(input: { idToken: string; authorizationCode?: string; givenName?: string; next?: string }) {
+  if (!(await isAppRequest())) return { error: "Sign in with the Who’ll app on your iPhone." };
   const jar = await cookies();
   const rawNonce = jar.get(APPLE_NONCE_COOKIE)?.value;
   jar.delete(APPLE_NONCE_COOKIE); // one use only
@@ -109,6 +118,7 @@ export async function appleSignInAction(input: { idToken: string; authorizationC
 export async function completeLoginAction(_: FormState, form: FormData): Promise<FormState> {
   let dest: string;
   try {
+    await requireApp();
     const { sessionToken, expiresAt, user } = await auth.completeLogin(await getDb(), str(form, "token"));
     await setSessionCookie(sessionToken, expiresAt);
     const next = safeNext(str(form, "next"));

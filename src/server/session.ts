@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { userForSession, type User } from "./auth";
 import { getDb } from "./db";
+import { AppError } from "./errors";
+import { APP_COOKIE, isAppClient } from "@/lib/app-client";
 
 export const SESSION_COOKIE = "wholl_session";
 
@@ -63,4 +65,15 @@ export async function appOrigin(): Promise<string> {
 export function safeNext(next: string | null | undefined, fallback = "/groups"): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
   return next;
+}
+
+/** True when the request comes from the iOS app (see src/lib/app-client.ts). Sign-in is only offered there. */
+export async function isAppRequest(): Promise<boolean> {
+  const ua = (await headers()).get("user-agent");
+  return isAppClient(ua, (await cookies()).get(APP_COOKIE)?.value);
+}
+
+/** Throws unless the request comes from the iOS app. Used by every sign-in action. */
+export async function requireApp() {
+  if (!(await isAppRequest())) throw new AppError("forbidden", "Sign in with the Who’ll app on your iPhone.");
 }
