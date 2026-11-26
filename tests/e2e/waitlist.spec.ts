@@ -29,10 +29,10 @@ test("joining the waitlist in Turkish (?lang=tr)", async ({ page }, info) => {
   await expect(page.getByRole("heading", { name: "Listedesin!" })).toBeVisible();
 });
 
-test("the browser's language picks Turkish", async ({ browser }) => {
+test("a Turkish browser still gets English without ?lang=tr", async ({ browser }) => {
   const ctx = await browser.newContext({ locale: "tr-TR" });
   const page = await ctx.newPage();
   await page.goto("/waitlist");
-  await expect(page.getByRole("heading", { name: "Bekleme listesine katıl" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Join the waitlist" })).toBeVisible();
   await ctx.close();
 });

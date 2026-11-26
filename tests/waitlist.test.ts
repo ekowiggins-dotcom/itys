@@ -62,10 +62,10 @@ describe("the waitlist", () => {
 });
 
 describe("waitlist language", () => {
-  it("uses ?lang first, then the browser's language, then English", () => {
-    expect(pickLocale("tr", "en-US")).toBe("tr");
-    expect(pickLocale(null, "tr-TR,tr;q=0.9,en;q=0.8")).toBe("tr");
-    expect(pickLocale(null, "de-DE,en;q=0.5")).toBe("en");
-    expect(pickLocale("xx", null)).toBe("en");
+  it("is English unless the link says ?lang=tr", () => {
+    expect(pickLocale("tr")).toBe("tr");
+    expect(pickLocale("en")).toBe("en");
+    expect(pickLocale(null)).toBe("en");
+    expect(pickLocale("xx")).toBe("en");
   });
 });

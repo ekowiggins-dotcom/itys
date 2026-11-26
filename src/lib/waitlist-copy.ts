@@ -1,14 +1,9 @@
 /** The waitlist page in English and Turkish (the Instagram ads run in both). */
 export type WaitlistLocale = "en" | "tr";
 
-/** ?lang=tr or ?lang=en wins; otherwise the browser's first matching language; English by default. */
-export function pickLocale(lang: string | null | undefined, acceptLanguage: string | null | undefined): WaitlistLocale {
-  if (lang === "tr" || lang === "en") return lang;
-  for (const part of (acceptLanguage ?? "").split(",")) {
-    const code = part.split(";")[0].trim().toLowerCase().slice(0, 2);
-    if (code === "tr" || code === "en") return code;
-  }
-  return "en";
+/** English unless the link asks for Turkish (?lang=tr, as the Turkish ads do). The browser's language is ignored. */
+export function pickLocale(lang: string | null | undefined): WaitlistLocale {
+  return lang === "tr" ? "tr" : "en";
 }
 
 export const WAITLIST_COPY = {
