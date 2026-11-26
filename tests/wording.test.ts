@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /** Words that make a friendly prediction game read like gambling. Never in UI text, emails or code. */
-const BANNED = ["bet", "bets", "betting", "wager", "stake", "stakes", "odds", "payout", "gamble", "gambling", "jackpot", "casino", "bookie"];
+/** The same in Turkish (the waitlist page and ads run in Turkish too). */
+const BANNED_TR = ["bahis", "iddia", "oran", "kumar", "ikramiye", "kupon", "kasa"];
+const BANNED = [...BANNED_TR, "bet", "bets", "betting", "wager", "stake", "stakes", "odds", "payout", "gamble", "gambling", "jackpot", "casino", "bookie"];
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

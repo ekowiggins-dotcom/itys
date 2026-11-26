@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LegalFooter } from "./(legal)/LegalFooter";
 import { WebOnly } from "./components/WebOnly";
@@ -189,6 +190,10 @@ export default async function Home() {
         <p className="mk-lede">Get the app, start a group in a minute and send the link to your friends.</p>
         <GetIt />
       </section>
+
+      <p className="mk-waitlist">
+        Not ready for the app yet? <Link href="/waitlist">Join the waitlist</Link>
+      </p>
 
       <LegalFooter />
     </div>

@@ -39,6 +39,15 @@ export default function Privacy() {
         <li><strong>Technical data</strong>: a sign-in session (stored as a fingerprint, not the session itself), and your IP address for at most two days, only to stop abuse (rate limits).</li>
       </ul>
 
+      <h2 id="waitlist">Waitlist</h2>
+      <p>
+        If you join the waitlist on our website, we keep your <strong>email</strong>, the <strong>group size</strong> you
+        chose (if you answered), the language of the page, and <strong>which ad or link brought you</strong> (the tags in
+        that link, such as utm_source). We use them only to tell you when Who’ll is ready and to see which ads worked. We
+        don’t add tracking scripts or share them with anyone. To be removed, contact us through{" "}
+        <Link href="/support">Help</Link>.
+      </p>
+
       <h2>What we don’t do</h2>
       <ul>
         <li>No ads, no analytics or tracking tools, no selling or sharing your data for marketing.</li>

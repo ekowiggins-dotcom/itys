@@ -14,7 +14,8 @@
     "worker": "tsx scripts/worker.mts",
     "seed:dev": "tsx scripts/seed-dev.mts",
     "e2e": "playwright test --project=phone",
-    "screenshots": "playwright test --project=appstore"
+    "screenshots": "playwright test --project=appstore",
+    "waitlist:export": "tsx scripts/waitlist-export.mts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",

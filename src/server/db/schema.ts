@@ -441,3 +441,25 @@ export const subscriptions = pgTable(
   },
   (t) => [index("subscriptions_user").on(t.userId)],
 );
+
+/**
+ * The website's waitlist (demand test from the Instagram ads). One row per email. The optional group size is the
+ * signal for the 5+ paid tier; source/campaign/content come from the ad link (?src= or utm_*), so each ad can be
+ * measured without any tracking script. Read with `npm run waitlist:export`.
+ */
+export const waitlist = pgTable("waitlist", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Lower-cased and trimmed. */
+  email: text("email").notNull().unique(),
+  /** "en" or "tr": the language the page was shown in. */
+  locale: text("locale").notNull(),
+  /** "2-4", "5-8" or "9+"; null when not answered. */
+  groupSize: text("group_size"),
+  /** ?src= or utm_source. */
+  source: text("source"),
+  /** utm_campaign. */
+  campaign: text("campaign"),
+  /** utm_content (e.g. which ad). */
+  content: text("content"),
+  createdAt: createdAt(),
+});

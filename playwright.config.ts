@@ -23,7 +23,7 @@ export default defineConfig({
   projects: [
     // Sign-in happens in the iOS app only: the setup signs in with the app's user-agent marker.
     { name: "setup", testMatch: /auth\.setup\.ts/, use: { browserName: "chromium", userAgent: APP_USER_AGENT } },
-    { name: "phone", use: { ...devices["iPhone 13"], browserName: "chromium" }, testMatch: /(layout|call-invite)\.spec\.ts/, dependencies: ["setup"] },
+    { name: "phone", use: { ...devices["iPhone 13"], browserName: "chromium" }, testMatch: /(layout|call-invite|waitlist)\.spec\.ts/, dependencies: ["setup"] },
     { name: "appstore", testMatch: /appstore\.spec\.ts/, use: { browserName: "chromium" }, dependencies: ["setup"] },
   ],
   webServer: {
