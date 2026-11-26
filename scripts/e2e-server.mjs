@@ -10,6 +10,10 @@ const env = {
   PGLITE_DIR: mkdtempSync(join(tmpdir(), "wholl-e2e-")),
   NEXT_DIST_DIR: ".next-e2e",
   NEXT_TELEMETRY_DISABLED: "1",
+  // Test-only sign-in (src/app/api/test-sign-in), and the App Review door with a known code.
+  E2E_SIGN_IN: "1",
+  REVIEW_EMAIL: "review@example.com",
+  REVIEW_CODE: "e2e-review-code-0123456789",
   PRO_LIMITS: "on",
 };
 delete env.DATABASE_URL;

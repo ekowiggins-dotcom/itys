@@ -31,19 +31,6 @@ export const users = pgTable("users", {
   createdAt: createdAt(),
 });
 
-/** One-time sign-in links. Only a SHA-256 hash of the token is stored. */
-export const loginTokens = pgTable(
-  "login_tokens",
-  {
-    tokenHash: text("token_hash").primaryKey(),
-    email: text("email").notNull(),
-    expiresAt: ts("expires_at").notNull(),
-    usedAt: ts("used_at"),
-    createdAt: createdAt(),
-  },
-  (t) => [index("login_tokens_email").on(t.email)],
-);
-
 /** Sessions. Only a SHA-256 hash of the cookie value is stored; they expire and slide while used. */
 export const sessions = pgTable(
   "sessions",

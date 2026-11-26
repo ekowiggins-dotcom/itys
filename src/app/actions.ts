@@ -20,7 +20,6 @@ import { cookies } from "next/headers";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
-import { sendLoginEmail } from "@/server/mailer";
 import {
   appOrigin,
   clearSessionCookie,
@@ -28,10 +27,12 @@ import {
   requireUser,
   safeNext,
   sessionToken,
+  isAppRequest,
+  requireApp,
   setSessionCookie,
 } from "@/server/session";
 
-export type FormState = { error?: string; ok?: string; devLink?: string; shareUrl?: string; inviteUrl?: string } | undefined;
+export type FormState = { error?: string; ok?: string; shareUrl?: string; inviteUrl?: string } | undefined;
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -43,38 +44,27 @@ function toState(e: unknown): FormState {
   return { error: "Something went wrong. Please try again." };
 }
 
-export async function requestLoginAction(_: FormState, form: FormData): Promise<FormState> {
-  const code = str(form, "code");
-  if (code) {
-    // App Review: a configured account signs in with a code instead of an email link.
-    let dest: string;
-    try {
-      const { sessionToken, expiresAt } = await review.reviewLogin(await getDb(), str(form, "email"), code, await clientIp());
-      await setSessionCookie(sessionToken, expiresAt);
-      dest = safeNext(str(form, "next"));
-    } catch (e) {
-      return toState(e);
-    }
-    redirect(dest);
-  }
+/**
+ * App Review only (shown while REVIEW_CODE is set): the code signs straight into the demo account. Sign in with
+ * Apple is the only other way in. Not limited to the app, so a reviewer always has a way in.
+ */
+export async function reviewLoginAction(_: FormState, form: FormData): Promise<FormState> {
+  let dest: string;
   try {
-    const { email, token } = await auth.requestLogin(await getDb(), str(form, "email"), await clientIp());
-    const next = safeNext(str(form, "next"));
-    const link = `${await appOrigin()}/auth/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
-    await sendLoginEmail(email, link);
-    return {
-      ok: `We sent a sign-in link to ${email}. It expires in 15 minutes.`,
-      devLink: process.env.NODE_ENV === "production" ? undefined : link,
-    };
+    const { sessionToken, expiresAt } = await review.reviewLogin(await getDb(), str(form, "code"), await clientIp());
+    await setSessionCookie(sessionToken, expiresAt);
+    dest = safeNext(str(form, "next"));
   } catch (e) {
     return toState(e);
   }
+  redirect(dest);
 }
 
 const APPLE_NONCE_COOKIE = "wholl_apple_nonce";
 
 /** Step 1 of Sign in with Apple: a one-time nonce (kept in a 10-minute httpOnly cookie); returns its hash for Apple. */
 export async function appleNonceAction() {
+  await requireApp();
   const nonce = apple.newNonce();
   (await cookies()).set(APPLE_NONCE_COOKIE, nonce, {
     httpOnly: true,
@@ -88,6 +78,7 @@ export async function appleNonceAction() {
 
 /** Step 2: Apple's answer. Checks it, signs in (or creates the account) and says where to go next. */
 export async function appleSignInAction(input: { idToken: string; authorizationCode?: string; givenName?: string; next?: string }) {
+  if (!(await isAppRequest())) return { error: "Sign in with the Who’ll app on your iPhone." };
   const jar = await cookies();
   const rawNonce = jar.get(APPLE_NONCE_COOKIE)?.value;
   jar.delete(APPLE_NONCE_COOKIE); // one use only
@@ -104,20 +95,6 @@ export async function appleSignInAction(input: { idToken: string; authorizationC
   } catch (e) {
     return { error: toState(e)?.error ?? "Sign in with Apple didn’t work." };
   }
-}
-
-/** Runs from a button on the verify page, never on GET, so email link scanners can't use up the token. */
-export async function completeLoginAction(_: FormState, form: FormData): Promise<FormState> {
-  let dest: string;
-  try {
-    const { sessionToken, expiresAt, user } = await auth.completeLogin(await getDb(), str(form, "token"));
-    await setSessionCookie(sessionToken, expiresAt);
-    const next = safeNext(str(form, "next"));
-    dest = user.name ? next : `/welcome?next=${encodeURIComponent(next)}`;
-  } catch (e) {
-    return toState(e);
-  }
-  redirect(dest);
 }
 
 export async function setNameAction(_: FormState, form: FormData): Promise<FormState> {

@@ -27,22 +27,22 @@ describe("App Review sign-in", () => {
     process.env.REVIEW_EMAIL = "review@example.com";
     process.env.REVIEW_CODE = "short";
     expect(reviewConfig()).toBeNull();
-    await expect(reviewLogin(db, "review@example.com", "short", "1.0.0.1")).rejects.toThrow(/isn't right/);
+    await expect(reviewLogin(db, "short", "1.0.0.1")).rejects.toThrow(/isn't right/);
   });
 
-  it("signs in only the configured email with the exact code", async () => {
+  it("signs the code straight into the configured account, with no email", async () => {
     enable();
-    await expect(reviewLogin(db, "someone@example.com", CODE, "1.0.0.2")).rejects.toThrow(/isn't right/);
-    await expect(reviewLogin(db, "review@example.com", CODE + "x", "1.0.0.2")).rejects.toThrow(/isn't right/);
-    const { sessionToken, user } = await reviewLogin(db, " REVIEW@example.com ", CODE, "1.0.0.2");
-    expect(user.name).toBe("Reviewer");
+    await expect(reviewLogin(db, CODE + "x", "1.0.0.2")).rejects.toThrow(/isn't right/);
+    await expect(reviewLogin(db, "", "1.0.0.2")).rejects.toThrow(/isn't right/);
+    const { sessionToken, user } = await reviewLogin(db, ` ${CODE} `, "1.0.0.2");
+    expect(user).toMatchObject({ name: "Reviewer", email: "review@example.com" });
     expect((await userForSession(db, sessionToken))?.id).toBe(user.id);
   });
 
-  it("is rate-limited like normal sign-in", async () => {
+  it("is rate-limited per IP", async () => {
     enable();
-    for (let i = 0; i < 10; i++) await reviewLogin(db, "x@example.com", "nope", "1.0.0.3").catch(() => {});
-    await expect(reviewLogin(db, "review@example.com", CODE, "1.0.0.3")).rejects.toThrow(/Too many/);
+    for (let i = 0; i < 10; i++) await reviewLogin(db, "nope", "1.0.0.3").catch(() => {});
+    await expect(reviewLogin(db, CODE, "1.0.0.3")).rejects.toThrow(/Too many/);
   });
 });
 
@@ -52,7 +52,7 @@ describe("App Review demo group", () => {
     const now = new Date("2026-12-01T12:00:00Z");
     await ensureReviewDemo(db, now);
     await ensureReviewDemo(db, now); // idempotent
-    const { user } = await reviewLogin(db, "review@example.com", CODE, "1.0.0.4", now);
+    const { user } = await reviewLogin(db, CODE, "1.0.0.4", now);
     const groups = await myGroups(db, user);
     expect(groups.filter((g) => g.name === "App Review demo")).toHaveLength(1);
     const list = await callsForMember(db, user, groups[0].id, now);

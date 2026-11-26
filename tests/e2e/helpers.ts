@@ -3,19 +3,15 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 
 export const AUTH_FILE = "tests/e2e/.auth/ada.json";
 
-/** Signs in as the demo user through the real email-link flow (development shows the link on the page). */
-export async function signIn(page: Page) {
+/**
+ * Signs in as the demo user. Sign in with Apple can't run in a test browser, so this uses the test-only
+ * /api/test-sign-in (development with E2E_SIGN_IN=1 only).
+ */
+export async function signIn(page: Page, email = "ada@example.com", next = "/groups") {
   // The first visit to a fresh dev server compiles the page and may reload it once: let that settle first.
   await page.goto("/login");
   await page.waitForLoadState("networkidle");
-  await page.reload();
-  await page.waitForLoadState("networkidle");
-  await page.getByText("Use email instead").click();
-  await page.getByLabel("Email").fill("ada@example.com");
-  await page.getByRole("button", { name: "Send link" }).click();
-  await page.getByRole("link", { name: "open the sign-in link" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.waitForURL(/\/groups$/);
+  await page.goto(`/api/test-sign-in?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`);
 }
 
 /** Opens a group from the groups list by name and returns its URL. */

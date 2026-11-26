@@ -6,7 +6,7 @@ This is a clean rebuild, made step by step:
 
 | Step | What | Status |
 |---|---|---|
-| 1 | Sign-in (email link), groups, invites | ✅ |
+| 1 | Sign-in (Sign in with Apple, in the app), groups, invites | ✅ |
 | 2 | Calls and picks (split hidden until lock) | ✅ |
 | 3 | Settling, disputes, votes, job runner | ✅ |
 | 4 | Scoring and weekly ranking | ✅ |
@@ -69,14 +69,14 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 |---|---|
 | `DATABASE_URL` | Postgres connection string. Required in production. |
 | `APP_ORIGIN` | Public URL, e.g. `https://wholl.app`. Required in production; links are never built from the request's Host header. |
-| `RESEND_API_KEY` | Sends email (website email sign-in fallback, alerts) through Resend. Not needed for the iOS app, which uses Sign in with Apple. |
+| `RESEND_API_KEY` | Sends alert emails (something needs you) through Resend. Optional: sign-in doesn’t use email. |
 | `EMAIL_FROM` | Sender, e.g. `Who'll <login@wholl.app>`. |
 
 | `CRON_SECRET` | 16+ random characters. Protects `POST /api/jobs`. |
 | `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_KEY`, `IOS_BUNDLE_ID` | Push notifications and universal links for the iOS app (see docs/IOS.md). |
 | `SUPPORT_EMAIL` | Contact address shown on `/support` and `/privacy` (needed for App Store review). |
 | `OPERATOR_NAME` | Who runs the service, named on the privacy and terms pages. |
-| `APPLE_SERVICES_ID` | Sign in with Apple on the website (Services ID). The iOS app works without it. |
+| `APPLE_SERVICES_ID` | Not needed: sign-in happens in the iOS app only. Tokens for it are still accepted if set. |
 | `APPLE_SIGNIN_KEY`, `APPLE_SIGNIN_KEY_ID`, `APPLE_TEAM_ID` | Optional: lets account deletion revoke Sign in with Apple (see docs/APP_STORE.md). |
 | `REVIEW_EMAIL`, `REVIEW_CODE` | App Review sign-in with a code, plus a demo group (see docs/APP_STORE.md). |
 | `ERROR_WEBHOOK_URL` | Optional Slack/Discord webhook for server error alerts (errors are always logged as JSON). |
@@ -105,6 +105,14 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 - Rankings (this week, last week, all time) sort by **average points per call picked**, then number right. To be ranked you must pick at least 60% of the calls you could have (all time: at least 5). Calls about you, and calls from before you joined, don't count against you.
 - Weeks run Monday 00:00 to Monday 00:00 in the group's time zone.
 - Points can't be bought, spent, traded or cashed out, and there are no prizes. `tests/wording.test.ts` keeps gambling words out of the app.
+
+## Sign-in happens in the app
+
+- **Sign in with Apple is the only way to sign in**, and only inside the iOS app. There is no email sign-in. In a web browser, `/login` and invite links (`/join/*`, `/c/*`) show “Get the app” with the App Store link instead, and the sign-in actions refuse. The website is the landing page; existing web sessions keep working.
+- **App Review:** while `REVIEW_EMAIL` and `REVIEW_CODE` are set, the sign-in screen also shows a small “App Review demo” disclosure with one “Demo code” field. The code signs straight into the demo account (no email). See docs/APP_STORE.md.
+- The server recognises the app by `WhollApp/` in the user agent (set in `capacitor.config.ts`, builds from 1.1) or by the `wholl_app` cookie, which the page sets as soon as it finds the app’s native bridge (`src/app/AppMarker.tsx`), so the 1.0 build works too. Neither is a security boundary; they decide what to offer.
+- Invite and sign-in links are universal links, so on an iPhone with the app they open in the app. Invite pages also carry Safari’s app banner with the invite as `app-argument`.
+- Browser tests can’t run Sign in with Apple: they sign in through `/api/test-sign-in`, which only exists in development with `E2E_SIGN_IN=1` (set by `scripts/e2e-server.mjs`).
 
 ## Who’ll Pro (v1.1)
 
@@ -149,7 +157,7 @@ Live at https://itys-production.up.railway.app (Railway project "reasonable-unit
 - **Database:** the project's Postgres service; `DATABASE_URL=${{Postgres.DATABASE_URL}}` on `itys`.
 - **Migrations:** `npm start` runs `npm run db:migrate` first (under a Postgres advisory lock), so every deploy has its tables before it serves anything.
 - **Background jobs:** `RUN_JOBS_IN_PROCESS=1` runs them inside the web service. To split them out later, add a second service from this repo with start command `npm run worker` and remove that variable.
-- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (website email fallback and alert emails; the iOS app signs in with Apple).
+- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (alert emails).
 - **Health check:** `GET /api/health` (checks the database).
 - The service is configured in the Railway dashboard, not by a config file in this repo.
 

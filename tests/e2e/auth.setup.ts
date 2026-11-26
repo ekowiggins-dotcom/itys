@@ -4,6 +4,7 @@ import { AUTH_FILE, signIn } from "./helpers";
 
 setup("sign in as the demo user", async ({ page }) => {
   await signIn(page);
+  await page.waitForURL(/\/groups$/);
   mkdirSync("tests/e2e/.auth", { recursive: true });
   await page.context().storageState({ path: AUTH_FILE });
 });

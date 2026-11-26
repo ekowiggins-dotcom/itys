@@ -35,8 +35,11 @@ export default function Support() {
         from you and stops them making calls about you.
       </p>
 
-      <h2>I’m not getting the sign-in email</h2>
-      <p>Check your spam folder, and wait a minute. Links work once and expire after 15 minutes; you can ask for a new one.</p>
+      <h2>How do I sign in?</h2>
+      <p>
+        With Sign in with Apple, in the Who’ll app on your iPhone. You can choose to hide your email from us; your
+        friends never see it either way.
+      </p>
 
       <h2>Delete my account</h2>
       <p>

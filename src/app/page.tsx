@@ -4,11 +4,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LegalFooter } from "./(legal)/LegalFooter";
 import { WebOnly } from "./components/WebOnly";
-import { currentUser } from "@/server/session";
+import { currentUser, isAppRequest } from "@/server/session";
+import { appBannerMeta, APP_STORE_URL } from "@/lib/app-client";
 import { FREE_MEMBERS, MAX_WITH_PRO, proLimitsOn } from "@/server/subscriptions";
 
-const APP_STORE_ID = process.env.APP_STORE_ID || "6831526797";
-const APP_STORE_URL = `https://apps.apple.com/app/id${APP_STORE_ID}`;
 
 export const metadata: Metadata = {
   title: "Who’ll: call it before it happens",
@@ -21,7 +20,7 @@ export const metadata: Metadata = {
     images: ["/brand/og.png"],
   },
   // Safari on iPhone shows a "Get the app" banner at the top.
-  other: { "apple-itunes-app": `app-id=${APP_STORE_ID}` },
+  other: appBannerMeta(),
 };
 
 function Phone({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
@@ -32,17 +31,14 @@ function Phone({ src, alt, priority = false }: { src: string; alt: string; prior
   );
 }
 
-function GetIt({ secondary = false }: { secondary?: boolean }) {
+function GetIt() {
   return (
     <div className="mk-ctas">
       <WebOnly>
-        <a href={APP_STORE_URL} className={`btn${secondary ? " secondary" : ""}`}>
+        <a href={APP_STORE_URL} className="btn">
           Download for iPhone
         </a>
       </WebOnly>
-      <Link href="/login" className="btn secondary">
-        Get started
-      </Link>
     </div>
   );
 }
@@ -89,14 +85,16 @@ const FAQ = [
     a: "Only your group, and only after picks close. Groups are private: people outside a group can’t see anything in it.",
   },
   {
-    q: "No iPhone?",
-    a: "Who’ll works in any web browser too. Sign in with Apple or with an email link.",
+    q: "Is there an Android version?",
+    a: "Not yet: Who’ll is an iPhone app for now. You sign in inside the app with your Apple ID.",
   },
 ];
 
 /** The public home page. Signed-in people go straight to their groups. */
 export default async function Home() {
   if (await currentUser()) redirect("/groups");
+  // In the app, signed-out people go straight to sign-in.
+  if (await isAppRequest()) redirect("/login");
   return (
     <div className="marketing">
       <section className="mk-hero">
@@ -189,7 +187,7 @@ export default async function Home() {
 
       <section className="mk-final">
         <h2 className="mk-h2">Who’ll call it first?</h2>
-        <p className="mk-lede">Start a group in a minute and send the link to your friends.</p>
+        <p className="mk-lede">Get the app, start a group in a minute and send the link to your friends.</p>
         <GetIt />
       </section>
 

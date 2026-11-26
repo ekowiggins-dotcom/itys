@@ -18,6 +18,8 @@ const config: CapacitorConfig = {
     errorPath: "index.html",
   },
   ios: {
+    // Tells our server this is the app (sign-in happens in the app only; see src/lib/app-client.ts).
+    appendUserAgent: "WhollApp/1.1",
     // Edge to edge: the pages pad themselves with env(safe-area-inset-*) (see globals.css).
     contentInset: "never",
     backgroundColor: "#17201b",
