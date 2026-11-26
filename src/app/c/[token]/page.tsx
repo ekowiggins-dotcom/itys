@@ -136,9 +136,6 @@ export default async function CallInvite({ params, searchParams }: PageProps<"/c
             {chosen ? `Your pick: ${chosen.label}. ` : ""}Sign in to join {p.groupName} and lock it in.
           </p>
           <AppleButton next={here} />
-          <Link href={`/login?next=${encodeURIComponent(here)}`} className="small">
-            Other ways to sign in
-          </Link>
         </div>
       ) : !user.name ? (
         <Link href={`/welcome?next=${encodeURIComponent(here)}`}>

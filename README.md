@@ -6,7 +6,7 @@ This is a clean rebuild, made step by step:
 
 | Step | What | Status |
 |---|---|---|
-| 1 | Sign-in (email link), groups, invites | ✅ |
+| 1 | Sign-in (Sign in with Apple, in the app), groups, invites | ✅ |
 | 2 | Calls and picks (split hidden until lock) | ✅ |
 | 3 | Settling, disputes, votes, job runner | ✅ |
 | 4 | Scoring and weekly ranking | ✅ |
@@ -69,7 +69,7 @@ CI runs all of the above on every push (`.github/workflows/ci.yml`); the browser
 |---|---|
 | `DATABASE_URL` | Postgres connection string. Required in production. |
 | `APP_ORIGIN` | Public URL, e.g. `https://wholl.app`. Required in production; links are never built from the request's Host header. |
-| `RESEND_API_KEY` | Sends email (sign-in links for “Use email instead” in the app, alerts) through Resend. Sign in with Apple works without it. |
+| `RESEND_API_KEY` | Sends alert emails (something needs you) through Resend. Optional: sign-in doesn’t use email. |
 | `EMAIL_FROM` | Sender, e.g. `Who'll <login@wholl.app>`. |
 
 | `CRON_SECRET` | 16+ random characters. Protects `POST /api/jobs`. |
@@ -108,10 +108,11 @@ Running more than one is safe: each due call is claimed with `FOR UPDATE SKIP LO
 
 ## Sign-in happens in the app
 
-- Sign in with Apple and emailed sign-in links work **only inside the iOS app**. In a web browser, `/login`, invite links (`/join/*`, `/c/*`) and sign-in links show “Get the app” with the App Store link instead, and the sign-in actions refuse. The website is the landing page; existing web sessions keep working.
+- **Sign in with Apple is the only way to sign in**, and only inside the iOS app. There is no email sign-in. In a web browser, `/login` and invite links (`/join/*`, `/c/*`) show “Get the app” with the App Store link instead, and the sign-in actions refuse. The website is the landing page; existing web sessions keep working.
+- **App Review:** while `REVIEW_EMAIL` and `REVIEW_CODE` are set, the sign-in screen also shows a small “App Review demo” disclosure with one “Demo code” field. The code signs straight into the demo account (no email). See docs/APP_STORE.md.
 - The server recognises the app by `WhollApp/` in the user agent (set in `capacitor.config.ts`, builds from 1.1) or by the `wholl_app` cookie, which the page sets as soon as it finds the app’s native bridge (`src/app/AppMarker.tsx`), so the 1.0 build works too. Neither is a security boundary; they decide what to offer.
 - Invite and sign-in links are universal links, so on an iPhone with the app they open in the app. Invite pages also carry Safari’s app banner with the invite as `app-argument`.
-- Browser tests sign in with the app’s user agent (`tests/e2e`).
+- Browser tests can’t run Sign in with Apple: they sign in through `/api/test-sign-in`, which only exists in development with `E2E_SIGN_IN=1` (set by `scripts/e2e-server.mjs`).
 
 ## Who’ll Pro (v1.1)
 
@@ -156,7 +157,7 @@ Live at https://itys-production.up.railway.app (Railway project "reasonable-unit
 - **Database:** the project's Postgres service; `DATABASE_URL=${{Postgres.DATABASE_URL}}` on `itys`.
 - **Migrations:** `npm start` runs `npm run db:migrate` first (under a Postgres advisory lock), so every deploy has its tables before it serves anything.
 - **Background jobs:** `RUN_JOBS_IN_PROCESS=1` runs them inside the web service. To split them out later, add a second service from this repo with start command `npm run worker` and remove that variable.
-- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (email sign-in links in the app and alert emails).
+- **Settings on `itys`:** `APP_ORIGIN`, `EMAIL_FROM`, `IOS_BUNDLE_ID`, `APNS_TEAM_ID`, `APNS_KEY_ID` are set. Secrets you add yourself in the dashboard: `APNS_KEY` (push), and optionally `RESEND_API_KEY` (alert emails).
 - **Health check:** `GET /api/health` (checks the database).
 - The service is configured in the Railway dashboard, not by a config file in this repo.
 

@@ -1,12 +1,9 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 import { hashToken, randomToken } from "./crypto";
-import { loginTokens, sessions, users, widgetTokens } from "./db/schema";
-import type { Db } from "./db/types";
-import { AppError } from "./errors";
-import { hit, LIMITS } from "./rate-limit";
+import { sessions, users, widgetTokens } from "./db/schema";
+import type { Db, Tx } from "./db/types";
 
-export const LOGIN_TOKEN_TTL_MS = 15 * 60_000;
 export const SESSION_TTL_MS = 30 * 86400_000;
 /** A session's expiry is pushed forward at most once per day, so reading pages doesn't write every time. */
 export const SESSION_REFRESH_MS = 86400_000;
@@ -14,7 +11,6 @@ export const SESSION_REFRESH_MS = 86400_000;
 /** email is null for people who signed in with Apple and hid it. */
 export type User = { id: string; email: string | null; name: string | null; emailAlerts?: boolean };
 
-const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
 export const nameSchema = z
   .string()
   .trim()
@@ -22,56 +18,12 @@ export const nameSchema = z
   .max(30, "Keep it to 30 characters.")
   .regex(/^[\p{L}\p{N} .'-]+$/u, "Use letters, numbers, spaces, dots, apostrophes or dashes.");
 
-/**
- * Starts sign-in: creates a one-time token for `email` and returns it so the caller can email a link.
- * The same response is given whether or not the email has an account, so it can't be used to probe accounts.
- */
-export async function requestLogin(db: Db, rawEmail: string, ip: string, now = new Date()) {
-  const parsed = emailSchema.safeParse(rawEmail);
-  if (!parsed.success) throw new AppError("invalid", "Enter a valid email address.");
-  const email = parsed.data;
-  await hit(db, LIMITS.loginByIp, ip, now);
-  await hit(db, LIMITS.loginByEmail, email, now);
-  const token = randomToken();
-  await db.insert(loginTokens).values({
-    tokenHash: hashToken(token),
-    email,
-    expiresAt: new Date(now.getTime() + LOGIN_TOKEN_TTL_MS),
-  });
-  return { email, token };
-}
-
-/**
- * Finishes sign-in: consumes a login token (once), creates the user on first sign-in, and starts a session.
- * Returns the raw session token for the cookie; only its hash is stored.
- */
-export async function completeLogin(db: Db, token: string, now = new Date()) {
-  return db.transaction(async (tx) => {
-    const [row] = await tx
-      .update(loginTokens)
-      .set({ usedAt: now })
-      .where(
-        and(
-          eq(loginTokens.tokenHash, hashToken(token)),
-          isNull(loginTokens.usedAt),
-          gt(loginTokens.expiresAt, now),
-        ),
-      )
-      .returning({ email: loginTokens.email });
-    if (!row) throw new AppError("invalid", "This sign-in link has expired or was already used. Request a new one.");
-
-    await tx.insert(users).values({ email: row.email }).onConflictDoNothing({ target: users.email });
-    const [user] = await tx.select().from(users).where(eq(users.email, row.email));
-
-    const sessionToken = randomToken();
-    await tx.insert(sessions).values({
-      tokenHash: hashToken(sessionToken),
-      userId: user.id,
-      expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
-      lastSeenAt: now,
-    });
-    return { sessionToken, user: toUser(user), expiresAt: new Date(now.getTime() + SESSION_TTL_MS) };
-  });
+/** Starts a session for a user (Sign in with Apple, App Review). Only a hash of the token is stored. */
+export async function startSession(db: Db | Tx, userId: string, now = new Date()) {
+  const sessionToken = randomToken();
+  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
+  await db.insert(sessions).values({ tokenHash: hashToken(sessionToken), userId, expiresAt, lastSeenAt: now });
+  return { sessionToken, expiresAt };
 }
 
 /** Looks up the signed-in user. Expired sessions count as signed out. Slides expiry at most once a day. */

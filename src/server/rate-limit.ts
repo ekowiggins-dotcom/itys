@@ -8,7 +8,6 @@ export type Limit = { name: string; max: number; windowSeconds: number };
 /** The limits used across the app, in one place. */
 export const LIMITS = {
   loginByIp: { name: "login:ip", max: 10, windowSeconds: 3600 },
-  loginByEmail: { name: "login:email", max: 5, windowSeconds: 3600 },
   createGroup: { name: "group:create", max: 5, windowSeconds: 3600 },
   joinByIp: { name: "group:join:ip", max: 20, windowSeconds: 3600 },
   invitePreviewByIp: { name: "invite:preview:ip", max: 60, windowSeconds: 3600 },

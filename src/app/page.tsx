@@ -85,7 +85,7 @@ const FAQ = [
   },
   {
     q: "Is there an Android version?",
-    a: "Not yet: Who’ll is an iPhone app for now. You sign in inside the app, with Apple or an email link.",
+    a: "Not yet: Who’ll is an iPhone app for now. You sign in inside the app with your Apple ID.",
   },
 ];
 

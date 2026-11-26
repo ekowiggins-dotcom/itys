@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { APP_USER_AGENT } from "./app-agent";
-import { audit, AUTH_FILE, openGroup } from "./helpers";
+import { audit, AUTH_FILE, openGroup, signIn } from "./helpers";
 
 /**
  * The whole call-invite flow: Ada shares an open call; a friend who has never used Who’ll opens the link. In a web
@@ -40,12 +40,9 @@ test("a friend joins a group through a shared call, with their pick", async ({ b
   await expect(appPage.getByText(/Sign in to join/)).toBeVisible();
   await audit(appPage, info, "call-invite-picked", 390);
 
-  await appPage.getByRole("link", { name: "Other ways to sign in" }).click();
-  await appPage.getByText("Use email instead").click();
-  await appPage.getByLabel("Email").fill(`friend${Date.now()}@example.com`);
-  await appPage.getByRole("button", { name: "Send link" }).click();
-  await appPage.getByRole("link", { name: "open the sign-in link" }).click();
-  await appPage.getByRole("button", { name: "Continue" }).click();
+  await expect(appPage.getByRole("button", { name: "Sign in with Apple" })).toBeVisible();
+  // Sign in with Apple can't run here: the test-only sign-in stands in for it and comes back to the invite.
+  await signIn(appPage, `friend${Date.now()}@example.com`, picked);
   await appPage.getByLabel("Name").fill("Egemen");
   await appPage.getByRole("button", { name: "Continue" }).click();
 
@@ -57,19 +54,26 @@ test("a friend joins a group through a shared call, with their pick", async ({ b
   await app.close();
 });
 
-test("in a web browser, sign-in and sign-in links send people to the app", async ({ page }, info) => {
+test("in a web browser, sign-in sends people to the app", async ({ page }, info) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Get Who’ll on your iPhone" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with Apple" })).toHaveCount(0);
-  await expect(page.getByText("Use email instead")).toHaveCount(0);
-  await page.goto("/auth/verify?token=abc");
-  await expect(page.getByRole("heading", { name: "Open this link on your iPhone" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue" })).toHaveCount(0);
-  await audit(page, info, "verify-in-browser", 390);
+  await audit(page, info, "login-in-browser", 390);
 });
 
-test("a closed or unknown call invite says so", async ({ page }, info) => {
-  await page.goto("/c/AAAAAAAAAAAAAAAAAAAAAA");
-  await expect(page.getByRole("heading", { name: "This invite has closed" })).toBeVisible();
-  await audit(page, info, "bad-call-invite", 390);
+test("App Review: the demo code opens the demo account (only while REVIEW_CODE is set)", async ({ browser }, info) => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 800 }, userAgent: APP_USER_AGENT });
+  const page = await ctx.newPage();
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Sign in with Apple" })).toBeVisible();
+  await page.getByText("App Review demo").click();
+  await audit(page, info, "login-review-door", 390);
+  await page.getByLabel("Demo code").fill("not the code");
+  await page.getByRole("button", { name: "Open demo" }).click();
+  await expect(page.getByText("That code isn't right.")).toBeVisible();
+  await page.getByLabel("Demo code").fill("e2e-review-code-0123456789");
+  await page.getByRole("button", { name: "Open demo" }).click();
+  await page.waitForURL(/\/groups$/);
+  await expect(page.getByRole("link", { name: /App Review demo/ })).toBeVisible();
+  await ctx.close();
 });

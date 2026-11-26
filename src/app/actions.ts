@@ -19,7 +19,6 @@ import { cookies } from "next/headers";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
 import * as groups from "@/server/groups";
-import { sendLoginEmail } from "@/server/mailer";
 import {
   appOrigin,
   clearSessionCookie,
@@ -32,7 +31,7 @@ import {
   setSessionCookie,
 } from "@/server/session";
 
-export type FormState = { error?: string; ok?: string; devLink?: string; shareUrl?: string; inviteUrl?: string } | undefined;
+export type FormState = { error?: string; ok?: string; shareUrl?: string; inviteUrl?: string } | undefined;
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -44,37 +43,20 @@ function toState(e: unknown): FormState {
   return { error: "Something went wrong. Please try again." };
 }
 
-export async function requestLoginAction(_: FormState, form: FormData): Promise<FormState> {
+/**
+ * App Review only (shown while REVIEW_CODE is set): the code signs straight into the demo account. Sign in with
+ * Apple is the only other way in. Not limited to the app, so a reviewer always has a way in.
+ */
+export async function reviewLoginAction(_: FormState, form: FormData): Promise<FormState> {
+  let dest: string;
   try {
-    await requireApp(); // sign-in happens in the iOS app only
+    const { sessionToken, expiresAt } = await review.reviewLogin(await getDb(), str(form, "code"), await clientIp());
+    await setSessionCookie(sessionToken, expiresAt);
+    dest = safeNext(str(form, "next"));
   } catch (e) {
     return toState(e);
   }
-  const code = str(form, "code");
-  if (code) {
-    // App Review: a configured account signs in with a code instead of an email link.
-    let dest: string;
-    try {
-      const { sessionToken, expiresAt } = await review.reviewLogin(await getDb(), str(form, "email"), code, await clientIp());
-      await setSessionCookie(sessionToken, expiresAt);
-      dest = safeNext(str(form, "next"));
-    } catch (e) {
-      return toState(e);
-    }
-    redirect(dest);
-  }
-  try {
-    const { email, token } = await auth.requestLogin(await getDb(), str(form, "email"), await clientIp());
-    const next = safeNext(str(form, "next"));
-    const link = `${await appOrigin()}/auth/verify?token=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`;
-    await sendLoginEmail(email, link);
-    return {
-      ok: `We sent a sign-in link to ${email}. It expires in 15 minutes.`,
-      devLink: process.env.NODE_ENV === "production" ? undefined : link,
-    };
-  } catch (e) {
-    return toState(e);
-  }
+  redirect(dest);
 }
 
 const APPLE_NONCE_COOKIE = "wholl_apple_nonce";
@@ -112,21 +94,6 @@ export async function appleSignInAction(input: { idToken: string; authorizationC
   } catch (e) {
     return { error: toState(e)?.error ?? "Sign in with Apple didn’t work." };
   }
-}
-
-/** Runs from a button on the verify page, never on GET, so email link scanners can't use up the token. */
-export async function completeLoginAction(_: FormState, form: FormData): Promise<FormState> {
-  let dest: string;
-  try {
-    await requireApp();
-    const { sessionToken, expiresAt, user } = await auth.completeLogin(await getDb(), str(form, "token"));
-    await setSessionCookie(sessionToken, expiresAt);
-    const next = safeNext(str(form, "next"));
-    dest = user.name ? next : `/welcome?next=${encodeURIComponent(next)}`;
-  } catch (e) {
-    return toState(e);
-  }
-  redirect(dest);
 }
 
 export async function setNameAction(_: FormState, form: FormData): Promise<FormState> {

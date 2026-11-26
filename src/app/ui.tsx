@@ -27,11 +27,6 @@ export function ActionForm({
         </p>
       )}
       {state?.ok && <p className="ok">{state.ok}</p>}
-      {state?.devLink && (
-        <p className="dev">
-          Development only: <a href={state.devLink}>open the sign-in link</a>
-        </p>
-      )}
     </form>
   );
 }
