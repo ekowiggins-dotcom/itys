@@ -3,12 +3,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { joinWithCallAction } from "../../actions";
 import { Avatar } from "../../components/Avatar";
+import { GetTheApp } from "../../components/GetTheApp";
 import { AppleButton } from "../../login/AppleButton";
 import { ActionForm, Submit } from "../../ui";
 import { callInvitePreview, type CallInvitePreview } from "@/server/call-invites";
 import { getDb } from "@/server/db";
 import { AppError } from "@/server/errors";
-import { clientIp, currentUser } from "@/server/session";
+import { appOrigin, clientIp, currentUser, isAppRequest } from "@/server/session";
+import { appBannerMeta } from "@/lib/app-client";
 import { pickersLine } from "@/lib/invite-text";
 
 export async function generateMetadata({ params }: PageProps<"/c/[token]">): Promise<Metadata> {
@@ -19,7 +21,9 @@ export async function generateMetadata({ params }: PageProps<"/c/[token]">): Pro
   } catch {
     // fall back to the plain title
   }
-  if (!p) return { title: "Who’ll", robots: { index: false } };
+  // Safari's app banner: "Open" takes this invite into the app.
+  const other = appBannerMeta(`${await appOrigin()}/c/${token}`);
+  if (!p) return { title: "Who’ll", robots: { index: false }, other };
   const description = `${pickersLine(p.pickers)} Join ${p.groupName} on Who’ll and make yours. Free, no money.`;
   return {
     title: p.text,
@@ -27,6 +31,7 @@ export async function generateMetadata({ params }: PageProps<"/c/[token]">): Pro
     robots: { index: false },
     openGraph: { title: p.text, description, type: "website" },
     twitter: { card: "summary_large_image", title: p.text, description },
+    other,
   };
 }
 
@@ -38,6 +43,7 @@ export default async function CallInvite({ params, searchParams }: PageProps<"/c
   const { token } = await params;
   const { pick: rawPick } = await searchParams;
   const user = await currentUser();
+  const inApp = await isAppRequest();
   let p: CallInvitePreview | null;
   try {
     p = await callInvitePreview(await getDb(), token, await clientIp(), user);
@@ -122,15 +128,14 @@ export default async function CallInvite({ params, searchParams }: PageProps<"/c
           <strong>{p.groupName} is full for now.</strong> It has as many people as a free group can have. Whoever made it can
           make room for more with Who’ll Pro. Ask {p.sharerName}, then open this link again.
         </p>
+      ) : !user && !inApp ? (
+        <GetTheApp invite title={`Join ${p.groupName} in the app`} />
       ) : !user ? (
         <div className="stack">
           <p className="muted small">
             {chosen ? `Your pick: ${chosen.label}. ` : ""}Sign in to join {p.groupName} and lock it in.
           </p>
-          <AppleButton next={here} servicesId={process.env.APPLE_SERVICES_ID || null} />
-          <Link href={`/login?next=${encodeURIComponent(here)}`} className="small">
-            Other ways to sign in
-          </Link>
+          <AppleButton next={here} />
         </div>
       ) : !user.name ? (
         <Link href={`/welcome?next=${encodeURIComponent(here)}`}>

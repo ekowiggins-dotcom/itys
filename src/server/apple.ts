@@ -14,9 +14,9 @@
 import { createHash, createPrivateKey, createPublicKey, sign, verify, type JsonWebKey } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { User } from "./auth";
-import { SESSION_TTL_MS } from "./auth";
-import { hashToken, randomToken } from "./crypto";
-import { sessions, users } from "./db/schema";
+import { startSession } from "./auth";
+import { randomToken } from "./crypto";
+import { users } from "./db/schema";
 import type { Db } from "./db/types";
 import { AppError } from "./errors";
 import { hit, LIMITS } from "./rate-limit";
@@ -164,9 +164,7 @@ export async function appleSignIn(db: Db, input: AppleSignIn, ip: string, fetche
     }
     if (refresh) await tx.update(users).set({ appleRefreshToken: refresh }).where(eq(users.id, row.id));
 
-    const sessionToken = randomToken();
-    const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
-    await tx.insert(sessions).values({ tokenHash: hashToken(sessionToken), userId: row.id, expiresAt, lastSeenAt: now });
+    const { sessionToken, expiresAt } = await startSession(tx, row.id, now);
     const user: User = { id: row.id, email: row.email, name: row.name, emailAlerts: row.emailAlerts };
     return { sessionToken, expiresAt, user };
   });

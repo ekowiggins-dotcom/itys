@@ -17,7 +17,7 @@ export function isNativeApp() {
  * Connects the web app to the iOS app's native features, when it runs inside the app (no-op on the web):
  * - push: asks for permission, registers this phone for the signed-in session, opens the right page on tap
  * - widget: hands the home-screen widget a read-only token (once per account on this phone)
- * - universal links: invite and sign-in links that open the app go to the right page
+ * - universal links: invite and group links that open the app go to the right page
  * - Who'll Pro: hands the server this Apple ID's current subscription and any renewals the App Store reports
  */
 export function NativeBridge({ userId, productIds }: { userId: string; productIds: string[] }) {

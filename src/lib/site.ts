@@ -6,6 +6,6 @@ export function siteInfo() {
   return {
     supportEmail: process.env.SUPPORT_EMAIL || null,
     operator: process.env.OPERATOR_NAME || "the Who’ll team",
-    updated: "25 November 2026",
+    updated: "26 November 2026",
   };
 }

@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { APP_USER_AGENT } from "./tests/e2e/app-agent";
 
 const port = Number(process.env.E2E_PORT ?? 3100);
+
 
 /**
  * Browser tests (tests/e2e): layout at phone sizes, tap targets, overflow and accessibility, in light and
@@ -19,7 +21,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/, use: { browserName: "chromium" } },
+    // Sign-in happens in the iOS app only: the setup signs in with the app's user-agent marker.
+    { name: "setup", testMatch: /auth\.setup\.ts/, use: { browserName: "chromium", userAgent: APP_USER_AGENT } },
     { name: "phone", use: { ...devices["iPhone 13"], browserName: "chromium" }, testMatch: /(layout|call-invite)\.spec\.ts/, dependencies: ["setup"] },
     { name: "appstore", testMatch: /appstore\.spec\.ts/, use: { browserName: "chromium" }, dependencies: ["setup"] },
   ],

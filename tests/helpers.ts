@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "@/server/db/schema";
 import type { Db } from "@/server/db/types";
-import { completeLogin, requestLogin, setName } from "@/server/auth";
+import { setName, startSession } from "@/server/auth";
 
 /** A fresh in-memory Postgres with all migrations applied. Each test file gets its own. */
 export async function testDb(): Promise<Db> {
@@ -13,12 +13,15 @@ export async function testDb(): Promise<Db> {
 }
 
 let n = 0;
-/** Signs up a new user with a name and returns them with their session token. */
+/** Makes a new user with a name and a session (as Sign in with Apple would) and returns them with the token. */
 export async function signUp(db: Db, name = `User${++n}`, now = new Date()) {
-  const { token } = await requestLogin(db, `${name.toLowerCase()}-${++n}@example.com`, `10.0.0.${n % 250}`, now);
-  const { user, sessionToken } = await completeLogin(db, token, now);
-  await setName(db, user, name);
-  return { user: { ...user, name }, sessionToken };
+  const [row] = await db
+    .insert(schema.users)
+    .values({ email: `${name.toLowerCase()}-${++n}@example.com`, appleSub: `apple-${n}-${name}` })
+    .returning();
+  const { sessionToken } = await startSession(db, row.id, now);
+  await setName(db, { id: row.id, email: row.email, name: null }, name);
+  return { user: { id: row.id, email: row.email, name, emailAlerts: row.emailAlerts }, sessionToken };
 }
 
 /** Gives someone an active Who'll Pro subscription (as if bought in the app), so their groups can have 5+ people. */

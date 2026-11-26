@@ -70,7 +70,7 @@ export default function Terms() {
 
       <h2>Your account</h2>
       <ul>
-        <li>Keep access to your email safe: sign-in links go there.</li>
+        <li>You sign in with your Apple ID, so keep it safe.</li>
         <li>You’re responsible for what you post. You keep ownership of it, and let us store and show it to your group so the game works.</li>
         <li>You can delete your account at any time in <Link href="/settings">Settings</Link>.</li>
       </ul>

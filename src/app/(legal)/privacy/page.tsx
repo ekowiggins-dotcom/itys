@@ -19,8 +19,7 @@ export default function Privacy() {
       <ul>
         <li>
           <strong>Your Sign in with Apple details</strong>: the ID Apple gives us for you, and the email Apple shares
-          (this can be a private relay address if you chose “Hide My Email”). On the website you can also sign in with
-          an email link. We never show your email to other people.
+          (this can be a private relay address if you chose “Hide My Email”). We never show your email to other people.
         </li>
         <li>
           <strong>A Sign in with Apple token</strong>, so that when you delete your account we can also end Who’ll’s
@@ -63,7 +62,7 @@ export default function Privacy() {
       <h2>Who helps us run it</h2>
       <ul>
         <li><strong>Railway</strong> hosts the app and its database.</li>
-        <li><strong>Resend</strong> sends sign-in and alert emails.</li>
+        <li><strong>Resend</strong> sends alert emails (only when something needs you, and you can turn them off).</li>
         <li>
           <strong>Apple</strong> runs Sign in with Apple, delivers push notifications to the iOS app, and sells and bills
           Who’ll Pro subscriptions.
@@ -77,7 +76,7 @@ export default function Privacy() {
         <li>Hide a call about you with one tap; report or block anyone.</li>
         <li>
           <strong>Delete your account</strong> in <Link href="/settings">Settings</Link>. It removes your account, names,
-          picks, votes, points, notifications, sign-in links and subscription records straight away, ends Who’ll’s access to your Apple sign-in,
+          picks, votes, points, notifications and subscription records straight away, ends Who’ll’s access to your Apple sign-in,
           and takes down calls about you. Calls you wrote stay for your friends, shown as by “Former member”. Call
           invites you shared stop working. A Who’ll Pro subscription is billed by Apple, so cancel it there too.
         </li>

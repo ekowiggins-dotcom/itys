@@ -1,15 +1,15 @@
 /**
- * App Review access. Apple's reviewers can't receive our sign-in emails, so one configured account may sign in
- * with a secret code instead, and gets a ready-made demo group to try everything in.
- * Off unless REVIEW_EMAIL and REVIEW_CODE (16+ characters) are both set. Remove them after review if you like.
+ * App Review access. Sign in with Apple is the only way to sign in, and a fresh Apple account has no groups, so
+ * Apple's reviewers get one more door: on the sign-in screen, "App Review demo" takes a secret code and signs
+ * straight into one configured account (REVIEW_EMAIL; no email is sent) with a ready-made demo group.
+ * Off, and hidden, unless REVIEW_EMAIL and REVIEW_CODE (16+ characters) are both set.
  */
 import { createHash, timingSafeEqual } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import type { User } from "./auth";
-import { SESSION_TTL_MS } from "./auth";
+import { startSession } from "./auth";
 import { createCall, pick } from "./calls";
-import { hashToken, randomToken } from "./crypto";
-import { calls, groups, members, sessions, users } from "./db/schema";
+import { calls, groups, members, users } from "./db/schema";
 import type { Db } from "./db/types";
 import { AppError } from "./errors";
 import { createGroup, groupForMember, joinGroup } from "./groups";
@@ -27,19 +27,14 @@ export function reviewConfig() {
 const same = (a: string, b: string) =>
   timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 
-/** Signs the review account in with its code. Returns a session token, like an email link would. */
-export async function reviewLogin(db: Db, rawEmail: string, code: string, ip: string, now = new Date()) {
+/** Signs the review account in with its code. Returns a session token. */
+export async function reviewLogin(db: Db, code: string, ip: string, now = new Date()) {
   await hit(db, LIMITS.loginByIp, ip, now);
   const cfg = reviewConfig();
-  const email = rawEmail.trim().toLowerCase();
   // Same answer for every failure, so the code can't be probed.
-  if (!cfg || email !== cfg.email || !same(code.trim(), cfg.code)) {
-    throw new AppError("invalid", "That sign-in code isn't right.");
-  }
+  if (!cfg || !same(code.trim(), cfg.code)) throw new AppError("invalid", "That code isn't right.");
   const user = await ensureReviewUser(db);
-  const sessionToken = randomToken();
-  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
-  await db.insert(sessions).values({ tokenHash: hashToken(sessionToken), userId: user.id, expiresAt, lastSeenAt: now });
+  const { sessionToken, expiresAt } = await startSession(db, user.id, now);
   return { sessionToken, expiresAt, user };
 }
 

@@ -1,5 +1,3 @@
-import { renderEmail } from "./email-template";
-
 /**
  * Sends email. With RESEND_API_KEY set it goes out through Resend; otherwise (development) the message is
  * printed to the server console instead.
@@ -20,14 +18,3 @@ export const sendEmail: SendEmail = async (to, subject, text, html) => {
   });
   if (!res.ok) throw new Error(`Email provider returned ${res.status}`);
 };
-
-export async function sendLoginEmail(email: string, link: string): Promise<void> {
-  const { text, html } = renderEmail({
-    preview: "Your sign-in link for Who’ll",
-    heading: "Sign in to Who’ll",
-    body: "Tap the button to sign in. The link works once and expires in 15 minutes.",
-    button: { label: "Sign in", url: link },
-    footer: "If you didn’t ask to sign in, you can ignore this email.",
-  });
-  await sendEmail(email, "Your sign-in link", text, html);
-}

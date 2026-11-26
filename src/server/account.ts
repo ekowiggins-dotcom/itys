@@ -4,12 +4,11 @@
  * - Calls about them are taken down, since their text may name them.
  * - Their user row is deleted. Sessions, memberships (and so their name), picks, votes, scores, notifications,
  *   reports and blocks go with it. Calls they wrote stay for the group, shown as by "Former member".
- * Unused sign-in links for their email are deleted too. Names are never copied into other rows, so nothing
- * else keeps them.
+ * Names are never copied into other rows, so nothing else keeps them.
  */
 import { and, eq, isNull } from "drizzle-orm";
 import type { User } from "./auth";
-import { calls, loginTokens, members, users } from "./db/schema";
+import { calls, members, users } from "./db/schema";
 import type { Db } from "./db/types";
 import { leaveGroup } from "./groups";
 import { revokeApple, type Fetch } from "./apple";
@@ -41,7 +40,6 @@ export async function deleteAccount(db: Db, user: User, now = new Date(), fetche
         })
         .where(eq(calls.id, c.id));
     }
-    if (user.email) await tx.delete(loginTokens).where(eq(loginTokens.email, user.email));
     await tx.delete(users).where(eq(users.id, user.id));
   });
 }
